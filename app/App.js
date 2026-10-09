@@ -1,29 +1,32 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import Inicio from './pages/InicialHome';
+import Paciente from './pages/Paciente';
+import Nutricionista from './pages/Nutricionista';
+
+const Pilha = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-      
-    </View>
+    <NavigationContainer>
+      <Pilha.Navigator initialRouteName="Inicio">
+        <Pilha.Screen
+          name="Inicio"
+          component={Inicio}
+          options={{ headerShown: false }}
+        />
+
+        <Pilha.Screen
+          name="Paciente"
+          component={Paciente}
+        />
+
+        <Pilha.Screen
+          name="Nutricionista"
+          component={Nutricionista}
+        />
+      </Pilha.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
