@@ -1,0 +1,15 @@
+{
+  "_warning": "DADOS DE DEMONSTRAÇÃO — substitua pelos valores oficiais da OMS antes de uso clínico real.",
+  "indicator": "height_for_age",
+  "sex": "M",
+  "unit": "months",
+  "points": [
+    { "age": 0, "L": 1, "M": 49.8842, "S": 0.03795 },
+    { "age": 6, "L": 1, "M": 67.6236, "S": 0.03424 },
+    { "age": 12, "L": 1, "M": 75.7488, "S": 0.03477 },
+    { "age": 24, "L": 1, "M": 87.1161, "S": 0.03972 },
+    { "age": 36, "L": 1, "M": 96.0835, "S": 0.04137 },
+    { "age": 48, "L": 1, "M": 103.3121, "S": 0.04223 },
+    { "age": 60, "L": 1, "M": 109.9633, "S": 0.04306 }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "_warning": "DADOS DE DEMONSTRAÇÃO — substitua pelos valores oficiais da OMS antes de uso clínico real.",
+  "indicator": "bmi_for_age",
+  "sex": "M",
+  "unit": "months",
+  "points": [
+    { "age": 0, "L": -0.7387, "M": 13.4069, "S": 0.09029 },
+    { "age": 6, "L": -0.0757, "M": 17.2453, "S": 0.09052 },
+    { "age": 12, "L": -0.8465, "M": 17.1385, "S": 0.09174 },
+    { "age": 24, "L": -1.4306, "M": 16.4237, "S": 0.08434 },
+    { "age": 36, "L": -1.5719, "M": 15.9994, "S": 0.08165 },
+    { "age": 48, "L": -1.4934, "M": 15.646, "S": 0.08237 },
+    { "age": 60, "L": -1.383, "M": 15.4046, "S": 0.08434 }
+  ]
+}
