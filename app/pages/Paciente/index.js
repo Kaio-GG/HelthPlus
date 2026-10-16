@@ -1,32 +1,45 @@
 // Área do paciente: login. O cadastro é feito pelo nutricionista.
-import React, { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
-import Tela from '../../componentes/Tela';
-import Cartao from '../../componentes/Cartao';
-import CampoTexto from '../../componentes/CampoTexto';
-import CaixaAviso from '../../componentes/CaixaAviso';
-import Botao from '../../componentes/Botao';
-import { emailValido } from '../../utilitarios/validacoes';
-import { estilos } from './style';
+import React, { useState } from "react";
+import { View, Text, Alert } from "react-native";
+import Pessoa from "../../assets/pessoa.svg";
+import Tela from "../../componentes/Tela";
+import Cartao from "../../componentes/Cartao";
+import CampoTexto from "../../componentes/CampoTexto";
+import CaixaAviso from "../../componentes/CaixaAviso";
+import Botao from "../../componentes/Botao";
+import { emailValido } from "../../utilitarios/validacoes";
+import { estilos } from "./style";
 
 const Paciente = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
   const [erros, setErros] = useState({});
 
   const entrar = () => {
     const novosErros = {};
-    if (!emailValido(email)) novosErros.email = 'Informe um e-mail válido.';
-    if (!senha) novosErros.senha = 'Informe sua senha.';
+    if (!emailValido(email)) novosErros.email = "Informe um e-mail válido.";
+    if (!senha) novosErros.senha = "Informe sua senha.";
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0) return;
 
     // TODO: integrar com a API (login do paciente) e abrir a tela inicial do paciente.
-    Alert.alert('Modo de demonstração', 'A área do paciente será conectada ao sistema em breve.');
+    Alert.alert(
+      "Modo de demonstração",
+      "A área do paciente será conectada ao sistema em breve.",
+    );
   };
 
   return (
-    <Tela titulo="Área do paciente" subtitulo="Entre para acompanhar seus registros">
+    <Tela
+      titulo="Área do paciente"
+      subtitulo="Entre para acompanhar seus registros"
+      direita={
+        <View style={estilos.emblema}>
+          <Pessoa width={44} height={44} />
+        </View>
+      }
+      cabecalhoRolavel
+    >
       <Cartao>
         <CampoTexto
           rotulo="E-mail"
@@ -46,18 +59,27 @@ const Paciente = ({ navigation }) => {
         />
 
         <View style={estilos.linhaLinks}>
-          <Text style={estilos.link} onPress={() => navigation.navigate('PrimeiroAcesso')}>
+          <Text
+            style={estilos.link}
+            onPress={() => navigation.navigate("PrimeiroAcesso")}
+          >
             Primeiro acesso
           </Text>
           <Text
             style={estilos.link}
-            onPress={() => navigation.navigate('EsqueciSenha', { perfil: 'paciente' })}
+            onPress={() =>
+              navigation.navigate("EsqueciSenha", { perfil: "paciente" })
+            }
           >
             Esqueci minha senha
           </Text>
         </View>
 
-        <Botao titulo="Entrar" aoPressionar={entrar} />
+        <Botao
+          titulo="Entrar"
+          aoPressionar={entrar}
+          estilo={estilos.botaoPrincipal}
+        />
 
         <CaixaAviso
           estilo={estilos.aviso}
