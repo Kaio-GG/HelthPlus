@@ -1,149 +1,82 @@
 // Área do nutricionista: login e criação de conta na mesma tela (duas abas).
+import React, { useState } from "react";
+import { View, Text, Alert } from "react-native";
+import Medico from "../../assets/Medico.svg";
+import Tela from "../../componentes/Tela";
+import Cartao from "../../componentes/Cartao";
+import Alternador from "../../componentes/Alternador";
+import CampoTexto from "../../componentes/CampoTexto";
+import CaixaSelecao from "../../componentes/CaixaSelecao";
+import Botao from "../../componentes/Botao";
+import { emailValido, senhaForte } from "../../utilitarios/validacoes";
 
-import React, { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
 
-import Tela from '../../componentes/Tela';
-import Cartao from '../../componentes/Cartao';
-import Alternador from '../../componentes/Alternador';
-import CampoTexto from '../../componentes/CampoTexto';
-import CaixaSelecao from '../../componentes/CaixaSelecao';
-import Botao from '../../componentes/Botao';
-
-import { emailValido, senhaForte } from '../../utilitarios/validacoes';
-import { estilos } from './style';
-
-// FUNÇÕES DA API
 import {
   loginNutricionista,
-  cadastrarNutricionista
-} from '../../Api/loginCadastro.js';
+  cadastrarNutricionista,
+} from "../../Api/loginCadastro.js"
 
+
+import { estilos } from "./style";
 
 const Nutricionista = ({ navigation, route }) => {
+  const [aba, setAba] = useState(route.params?.abaInicial || "entrar");
 
-  const [aba, setAba] = useState(route.params?.abaInicial || 'entrar');
+  // Campos do login
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
 
-  // CAMPOS DO LOGIN
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-
-  // CAMPOS DO CADASTRO
-  const [nome, setNome] = useState('');
-  const [crn, setCrn] = useState('');
-  const [emailCadastro, setEmailCadastro] = useState('');
-  const [senhaCadastro, setSenhaCadastro] = useState('');
+  // Campos do cadastro
+  const [nome, setNome] = useState("");
+  const [crn, setCrn] = useState("");
+  const [emailCadastro, setEmailCadastro] = useState("");
+  const [senhaCadastro, setSenhaCadastro] = useState("");
   const [aceitouTermos, setAceitouTermos] = useState(false);
 
-  // CONTROLE DE ERROS
   const [erros, setErros] = useState({});
-
-  // CONTROLE DE CARREGAMENTO
   const [carregando, setCarregando] = useState(false);
 
-
-  // ==========================================
-  // LOGIN DO NUTRICIONISTA
-  // ==========================================
-
   const entrar = async () => {
-
     if (carregando) return;
 
     const novosErros = {};
-
-    if (!emailValido(email.trim())) {
-      novosErros.email = 'Informe um e-mail válido.';
-    }
-
-    if (!senha) {
-      novosErros.senha = 'Informe sua senha.';
-    }
-
+    if (!emailValido(email)) novosErros.email = "Informe um e-mail válido.";
+    if (!senha) novosErros.senha = "Informe sua senha.";
     setErros(novosErros);
-
     if (Object.keys(novosErros).length > 0) return;
 
     try {
-
       setCarregando(true);
+      const dados = await loginNutricionista(email.trim(), senha);
+      console.log("Login OK:", dados); // se a API devolver token, guarde aqui
 
-      // CHAMANDO A FUNÇÃO DE LOGIN DA API
-      const resposta = await loginNutricionista(
-        email.trim(),
-        senha
-      );
-
-      console.log('Login realizado com sucesso');
-
-      // NAVEGA PARA A HOME APÓS O LOGIN
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'HomeNutricionista',
-            params: {
-              profissional: resposta.profissional
-            }
-          }
-        ]
-      });
-
+      navigation.reset({ index: 0, routes: [{ name: "HomeNutricionista" }] });
     } catch (erro) {
-
-      Alert.alert(
-        'Erro ao entrar',
-        erro.message || 'Não foi possível realizar o login.'
-      );
-
+      Alert.alert("Erro ao entrar", erro.message);
     } finally {
-
       setCarregando(false);
-
     }
   };
 
-
-  // ==========================================
-  // CADASTRO DO NUTRICIONISTA
-  // ==========================================
-
   const criarConta = async () => {
-
     if (carregando) return;
 
     const novosErros = {};
-
-    if (nome.trim().length < 3) {
-      novosErros.nome = 'Informe seu nome completo.';
-    }
-
-    if (crn.trim().length < 5) {
-      novosErros.crn = 'Informe seu registro profissional (CRN).';
-    }
-
-    if (!emailValido(emailCadastro.trim())) {
-      novosErros.email = 'Informe um e-mail válido.';
-    }
-
+    if (nome.trim().length < 3) novosErros.nome = "Informe seu nome completo.";
+    if (crn.trim().length < 5)
+      novosErros.crn = "Informe seu registro profissional (CRN).";
+    if (!emailValido(emailCadastro))
+      novosErros.email = "Informe um e-mail válido.";
     if (!senhaForte(senhaCadastro)) {
       novosErros.senha =
-        'Use 8+ caracteres, com maiúscula, número e caractere especial.';
+        "Use 8+ caracteres, com maiúscula, número e caractere especial.";
     }
-
-    if (!aceitouTermos) {
-      novosErros.termos = 'Aceite os termos para continuar.';
-    }
-
+    if (!aceitouTermos) novosErros.termos = "Aceite os termos para continuar.";
     setErros(novosErros);
-
     if (Object.keys(novosErros).length > 0) return;
 
     try {
-
       setCarregando(true);
-
-      // CHAMANDO A FUNÇÃO DE CADASTRO DA API
       await cadastrarNutricionista(
         nome.trim(),
         crn.trim(),
@@ -151,87 +84,45 @@ const Nutricionista = ({ navigation, route }) => {
         senhaCadastro
       );
 
-      // CADASTRO REALIZADO COM SUCESSO
-      Alert.alert(
-        'Conta criada!',
-        'Seu cadastro foi realizado com sucesso. Agora você pode entrar.'
-      );
-
-      // PREENCHE O EMAIL NO LOGIN
+      Alert.alert("Conta criada!", "Agora é só entrar com seu e-mail e senha.");
       setEmail(emailCadastro.trim());
-
-      // LIMPA A SENHA
-      setSenha('');
-
-      // LIMPA OS CAMPOS DE CADASTRO
-      setNome('');
-      setCrn('');
-      setEmailCadastro('');
-      setSenhaCadastro('');
-      setAceitouTermos(false);
-
-      // LIMPA OS ERROS
-      setErros({});
-
-      // VOLTA PARA A ABA DE LOGIN
-      setAba('entrar');
-
+      setSenha("");
+      setAba("entrar");
     } catch (erro) {
-
-      Alert.alert(
-        'Erro no cadastro',
-        erro.message || 'Não foi possível criar sua conta.'
-      );
-
+      Alert.alert("Erro ao cadastrar", erro.message);
     } finally {
-
       setCarregando(false);
-
     }
   };
 
-
-  // ==========================================
-  // TROCAR ABA
-  // ==========================================
-
   const trocarAba = (novaAba) => {
-
-    if (carregando) return;
-
     setErros({});
     setAba(novaAba);
-
   };
 
-
-  // ==========================================
-  // INTERFACE
-  // ==========================================
-
   return (
-
     <Tela
       titulo="Área do nutricionista"
       subtitulo="Entre ou crie sua conta"
+      direita={
+        <View style={estilos.emblema}>
+          <Medico width={44} height={44} />
+        </View>
+      }
+      cabecalhoRolavel
     >
-
       <Cartao>
-
         <Alternador
           opcoes={[
-            { valor: 'entrar', rotulo: 'Entrar' },
-            { valor: 'criar', rotulo: 'Criar conta' },
+            { valor: "entrar", rotulo: "Entrar" },
+            { valor: "criar", rotulo: "Criar conta" },
           ]}
           valor={aba}
           aoMudar={trocarAba}
         />
 
-
-        {aba === 'entrar' ? (
-
+        {aba === "entrar" ? (
           <View>
-
             <CampoTexto
               rotulo="E-mail"
               valor={email}
@@ -240,7 +131,6 @@ const Nutricionista = ({ navigation, route }) => {
               teclado="email-address"
               erro={erros.email}
             />
-
             <CampoTexto
               rotulo="Senha"
               valor={senha}
@@ -250,55 +140,40 @@ const Nutricionista = ({ navigation, route }) => {
               erro={erros.senha}
             />
 
-
             <View style={estilos.linhaLinks}>
-
               <Text
                 style={estilos.link}
-                onPress={() => navigation.navigate('PrimeiroAcesso')}
+                onPress={() => navigation.navigate("PrimeiroAcesso")}
               >
                 Primeiro acesso
               </Text>
-
               <Text
                 style={estilos.link}
                 onPress={() =>
-                  navigation.navigate('EsqueciSenha', {
-                    perfil: 'nutricionista'
+                  navigation.navigate("EsqueciSenha", {
+                    perfil: "nutricionista",
                   })
                 }
               >
                 Esqueci minha senha
               </Text>
-
             </View>
 
-
             <Botao
-              titulo={carregando ? 'Entrando...' : 'Entrar'}
+              titulo={carregando ? "Entrando..." : "Entrar"}
               aoPressionar={entrar}
+              estilo={estilos.botaoPrincipal}
             />
 
-
             <Text style={estilos.rodapeTexto}>
-
-              Ainda não tem conta?{' '}
-
-              <Text
-                style={estilos.link}
-                onPress={() => trocarAba('criar')}
-              >
+              Ainda não tem conta?{" "}
+              <Text style={estilos.link} onPress={() => trocarAba("criar")}>
                 Criar conta
               </Text>
-
             </Text>
-
           </View>
-
         ) : (
-
           <View>
-
             <CampoTexto
               rotulo="Nome completo"
               valor={nome}
@@ -307,7 +182,6 @@ const Nutricionista = ({ navigation, route }) => {
               capitalizar="words"
               erro={erros.nome}
             />
-
             <CampoTexto
               rotulo="Registro profissional (CRN)"
               valor={crn}
@@ -316,7 +190,6 @@ const Nutricionista = ({ navigation, route }) => {
               capitalizar="characters"
               erro={erros.crn}
             />
-
             <CampoTexto
               rotulo="E-mail"
               valor={emailCadastro}
@@ -325,7 +198,6 @@ const Nutricionista = ({ navigation, route }) => {
               teclado="email-address"
               erro={erros.email}
             />
-
             <CampoTexto
               rotulo="Senha"
               valor={senhaCadastro}
@@ -335,40 +207,30 @@ const Nutricionista = ({ navigation, route }) => {
               erro={erros.senha}
             />
 
-
             <CaixaSelecao
               marcado={aceitouTermos}
               aoAlternar={() => setAceitouTermos(!aceitouTermos)}
               erro={erros.termos}
             >
-
               <Text style={estilos.textoTermos}>
-
-                Li e aceito os{' '}
-
+                Li e aceito os{" "}
                 <Text
                   style={estilos.link}
-                  onPress={() => navigation.navigate('Termos')}
+                  onPress={() => navigation.navigate("Termos")}
                 >
                   Termos de Uso e a Política de Privacidade.
                 </Text>
-
               </Text>
-
             </CaixaSelecao>
 
-
             <Botao
-              titulo={carregando ? 'Cadastrando...' : 'Criar conta'}
+              titulo={carregando ? "Criando conta..." : "Criar conta"}
               aoPressionar={criarConta}
+              estilo={estilos.botaoPrincipal}
             />
-
           </View>
-
         )}
-
       </Cartao>
-
     </Tela>
   );
 };
