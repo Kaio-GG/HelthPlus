@@ -1,39 +1,30 @@
-const express = require('express');
-const cors = require('cors');
 require('dotenv').config();
 
-const supabase = require('./connection');
+const express = require('express');
+const cors = require('cors');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// ROTAS
+const profissionalStorage = require('./storage/profissionalStorage');
+
+app.use('/api/profissional', profissionalStorage);
+
+
+
+// TESTE DE CONEXÃO
 app.get('/', (req, res) => {
     res.json({
-        mensagem: 'API funcionando!'
+        mensagem: 'API HelthPlus funcionando!'
     });
 });
 
-app.get('/teste-banco', async (req, res) => {
-    const { data, error } = await supabase
-        .from('tb_paciente')
-        .select('*');
+// PORTA DA API
+const PORT = process.env.PORT || 3000;
 
-    if (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            erro: error.message
-        });
-    }
-
-    res.json(data);
-});
-
-
-const PORT = 3000;
-
-app.listen(PORT, () => {
-    console.log(`API rodando em http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`API rodando na porta ${PORT}`);
 });
