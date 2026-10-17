@@ -1,7 +1,7 @@
 {
 "expo": {
-"name": "mer-app",
-"slug": "mer-app",
+"name": "Health Plus",
+"slug": "health-plus",
 "version": "1.0.0",
 "orientation": "portrait",
 "icon": "./assets/icon.png",
