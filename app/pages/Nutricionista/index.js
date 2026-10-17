@@ -9,17 +9,16 @@ import CampoTexto from "../../componentes/CampoTexto";
 import CaixaSelecao from "../../componentes/CaixaSelecao";
 import Botao from "../../componentes/Botao";
 import { emailValido, senhaForte } from "../../utilitarios/validacoes";
-
-
 import {
   loginNutricionista,
   cadastrarNutricionista,
-} from "../../Api/loginCadastro.js"
-
-
+} from "../../Api/loginCadastro.js";
+import { useAuth } from "../../contexto/AuthContext";
 import { estilos } from "./style";
 
 const Nutricionista = ({ navigation, route }) => {
+  const { entrarSessao } = useAuth();
+
   const [aba, setAba] = useState(route.params?.abaInicial || "entrar");
 
   // Campos do login
@@ -48,7 +47,10 @@ const Nutricionista = ({ navigation, route }) => {
     try {
       setCarregando(true);
       const dados = await loginNutricionista(email.trim(), senha);
-      console.log("Login OK:", dados); // se a API devolver token, guarde aqui
+
+      // Guarda o nutricionista logado (id_profissional, nm_profissional, ...)
+      // Quando a API devolver JWT: entrarSessao({ profissional: dados.profissional, token: dados.token })
+      await entrarSessao({ profissional: dados.profissional });
 
       navigation.reset({ index: 0, routes: [{ name: "HomeNutricionista" }] });
     } catch (erro) {

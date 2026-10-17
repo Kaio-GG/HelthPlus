@@ -1,5 +1,4 @@
-// Cadastro de paciente em 4 etapas:
-// 1) dados pessoais  2) contato e endereço  3) dados de saúde  4) acesso ao app
+
 import React, { useState } from 'react';
 import { View, Text, Switch, Alert } from 'react-native';
 import Tela from '../../componentes/Tela';
@@ -14,6 +13,8 @@ import CaixaSelecao from '../../componentes/CaixaSelecao';
 import Selo from '../../componentes/Selo';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
+import { useAuth } from '../../contexto/AuthContext';
+import { cadastrarPaciente } from '../../Api/loginCadastro.js';
 import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
 import {
@@ -59,11 +60,19 @@ const dadosIniciais = {
   informouPaciente: false,
 };
 
+// "12/12/2000" -> "2000-12-12" (formato que o banco espera)
+const dataParaISO = (dataBR) => {
+  const [dia, mes, ano] = dataBR.split('/');
+  return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+};
+
 const CadastroPaciente = ({ navigation }) => {
   const { pacientes, limitePacientes, adicionarPaciente } = useDados();
+  const { profissional } = useAuth();
   const [etapa, setEtapa] = useState(1);
   const [dados, setDados] = useState(dadosIniciais);
   const [erros, setErros] = useState({});
+  const [carregando, setCarregando] = useState(false);
 
   const limiteAtingido = limitePacientes !== null && pacientes.length >= limitePacientes;
 
@@ -110,25 +119,72 @@ const CadastroPaciente = ({ navigation }) => {
     return novosErros;
   };
 
-  const concluirCadastro = () => {
-    // TODO: integrar com a API (POST de paciente e envio do convite por e-mail).
-    adicionarPaciente({
-      nome: dados.nome.trim(),
-      nascimento: converterDataBR(dados.nascimento),
-      sexo: dados.sexo,
-      telefone: dados.telefone,
-      email: dados.email.trim(),
-      responsavel: dados.responsavel.trim(),
-      statusAcesso: dados.enviarConvite ? 'convite_pendente' : 'sem_convite',
-    });
+  const concluirCadastro = async () => {
+  
+    if (carregando) return;
 
-    Alert.alert(
-      'Paciente cadastrado!',
-      dados.enviarConvite
-        ? 'O convite foi enviado. O paciente cria a própria senha no primeiro acesso.'
-        : 'Você pode enviar o convite depois, pela ficha do paciente.',
-      [{ text: 'OK', onPress: () => navigation.replace('Pacientes') }]
-    );
+    if (!profissional?.id_profissional) {
+      Alert.alert('Sessão expirada', 'Entre novamente na sua conta para cadastrar pacientes.');
+      return;
+    }
+
+    try {
+      setCarregando(true);
+
+      const resposta = await cadastrarPaciente({
+        idProfissional: profissional.id_profissional,
+
+        // Etapa 1
+        nome: dados.nome.trim(),
+        dataNascimento: dataParaISO(dados.nascimento),
+        sexo: dados.sexo, // "F" ou "M"
+        nomeResponsavel: dados.responsavel.trim(),
+        telefoneResponsavel: dados.telefoneResponsavel,
+
+        // Etapa 2
+        telefone: dados.telefone,
+        email: dados.email.trim(),
+        cep: dados.cep,
+        numero: dados.numero,
+        logradouro: dados.logradouro.trim(),
+        cidade: dados.cidade.trim(),
+
+        // Etapa 3
+        objetivo: dados.objetivo,
+        restricoes: dados.restricoes.join(', '), // chips -> texto
+        alergias: dados.alergias.trim(),
+        condicoes: dados.doencas.trim(),
+        medicamentos: dados.medicamentos.trim(),
+
+        // Etapa 4
+        enviarConvite: dados.enviarConvite,
+        emailAcesso: dados.email.trim(),
+      });
+
+      // Mantém a lista local atualizada (provisório, até a tela Pacientes ler do banco).
+      adicionarPaciente({
+        nome: dados.nome.trim(),
+        nascimento: converterDataBR(dados.nascimento),
+        sexo: dados.sexo,
+        telefone: dados.telefone,
+        email: dados.email.trim(),
+        responsavel: dados.responsavel.trim(),
+        statusAcesso: dados.enviarConvite ? 'convite_pendente' : 'sem_convite',
+        idBanco: resposta.idPaciente,
+      });
+
+      Alert.alert(
+        'Paciente cadastrado!',
+        dados.enviarConvite
+          ? 'O convite foi registrado. O paciente cria a própria senha no primeiro acesso.'
+          : 'Você pode enviar o convite depois, pela ficha do paciente.',
+        [{ text: 'OK', onPress: () => navigation.replace('Pacientes') }]
+      );
+    } catch (erro) {
+      Alert.alert('Erro ao cadastrar', erro.message);
+    } finally {
+      setCarregando(false);
+    }
   };
 
   const continuar = () => {
@@ -163,9 +219,11 @@ const CadastroPaciente = ({ navigation }) => {
             <Botao titulo="Voltar" variante="contorno" aoPressionar={voltarEtapa} estilo={estilos.botaoVoltar} />
           ) : null}
           <Botao
-            titulo={etapa === TOTAL_ETAPAS ? 'Concluir cadastro' : 'Continuar'}
+            titulo={
+              etapa === TOTAL_ETAPAS ? (carregando ? 'Salvando...' : 'Concluir cadastro') : 'Continuar'
+            }
             aoPressionar={continuar}
-            desabilitado={limiteAtingido}
+            desabilitado={limiteAtingido || carregando}
             estilo={estilos.botaoContinuar}
           />
         </View>

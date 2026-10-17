@@ -4,13 +4,12 @@
 // assinatura do nutricionista, para que todas as telas enxerguem os mesmos
 // dados. Quando a API estiver pronta, cada função abaixo passa a chamar o
 // servidor (ex.: POST /pacientes) antes de atualizar o estado.
+//
+// O nutricionista logado vem do AuthContext (sessão salva no celular).
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
-import { pacientesIniciais } from '../dados/pacientes';
-import { consultasIniciais } from '../dados/consultas';
-import { planosAlimentaresIniciais } from '../dados/planosAlimentares';
-import { avaliacoesIniciais } from '../dados/avaliacoes';
-import { planosIndividuais, planosClinica, cobrancasIniciais } from '../dados/planosAssinatura';
+import { useAuth } from './AuthContext';
+import { planosIndividuais, planosClinica } from '../dados/planosAssinatura';
 
 const DadosContexto = createContext(null);
 
@@ -18,18 +17,18 @@ const todosOsPlanos = [...planosIndividuais, ...planosClinica];
 
 export const DadosProvider = ({ children }) => {
   const [pacientes, setPacientes] = useState([]);
-const [consultas, setConsultas] = useState([]);
-const [planosAlimentares, setPlanosAlimentares] = useState([]);
-const [avaliacoes, setAvaliacoes] = useState([]);
-const [planoAssinaturaId, setPlanoAssinaturaId] = useState(null);
-const [cobrancas, setCobrancas] = useState([]);
+  const [consultas, setConsultas] = useState([]);
+  const [planosAlimentares, setPlanosAlimentares] = useState([]);
+  const [avaliacoes, setAvaliacoes] = useState([]);
+  const [planoAssinaturaId, setPlanoAssinaturaId] = useState(null);
+  const [cobrancas, setCobrancas] = useState([]);
 
-  // Dados do nutricionista autenticado.
-// Será preenchido quando a integração com o login estiver pronta.
+  // Nutricionista autenticado: vem do login (AuthContext).
+  // Campos: id_profissional, nm_profissional, ds_email, ds_profissao, nr_registro_conselho
+  const { profissional: nutricionista } = useAuth();
 
-const [nutricionista, setNutricionista] = useState(null);
   const planoAtual =
-  todosOsPlanos.find((plano) => plano.id === planoAssinaturaId) ?? null;
+    todosOsPlanos.find((plano) => plano.id === planoAssinaturaId) ?? null;
 
   // ---------- Pacientes ----------
   const adicionarPaciente = (dados) => {
@@ -88,12 +87,10 @@ const [nutricionista, setNutricionista] = useState(null);
 
   // ---------- Assinatura ----------
   const alterarPlanoAssinatura = (idPlano) => {
-  const plano = todosOsPlanos.find((item) => item.id === idPlano);
-
-  if (!plano) return;
-
-  setPlanoAssinaturaId(idPlano);
-};
+    const plano = todosOsPlanos.find((item) => item.id === idPlano);
+    if (!plano) return;
+    setPlanoAssinaturaId(idPlano);
+  };
 
   const valor = useMemo(
     () => ({
@@ -115,7 +112,7 @@ const [nutricionista, setNutricionista] = useState(null);
       alterarPlanoAssinatura,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pacientes, consultas, planosAlimentares, avaliacoes, cobrancas, planoAssinaturaId]
+    [nutricionista, pacientes, consultas, planosAlimentares, avaliacoes, cobrancas, planoAssinaturaId]
   );
 
   return <DadosContexto.Provider value={valor}>{children}</DadosContexto.Provider>;
