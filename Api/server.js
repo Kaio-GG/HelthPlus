@@ -8,10 +8,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ROTAS
-const profissionalStorage = require('./storage/profissionalStorage');
 
+const profissionalStorage = require('./storage/profissionalStorage');
+const pacienteStorage = require("./storage/pacienteStorage");
+ 
 app.use('/api/profissional', profissionalStorage);
+app.use('/api/paciente', pacienteStorage);
 
 
 
