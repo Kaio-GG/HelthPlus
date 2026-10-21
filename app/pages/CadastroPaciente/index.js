@@ -1,6 +1,7 @@
-
+// Cadastro de paciente em 4 etapas:
+// 1) dados pessoais  2) contato e endereço  3) dados de saúde  4) acesso ao app
 import React, { useState } from 'react';
-import { View, Text, Switch, Alert } from 'react-native';
+import { View, Text, Switch, Alert, Platform } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import BarraEtapas from '../../componentes/BarraEtapas';
@@ -14,7 +15,7 @@ import Selo from '../../componentes/Selo';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
-import { cadastrarPaciente } from '../../Api/Pacientes'
+import { cadastrarPaciente } from '../../Api/Pacientes';
 import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
 import {
@@ -64,6 +65,15 @@ const dadosIniciais = {
 const dataParaISO = (dataBR) => {
   const [dia, mes, ano] = dataBR.split('/');
   return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+};
+
+// No navegador o Alert.alert não aparece, então usamos window.alert lá.
+const mostrarAviso = (titulo, mensagem) => {
+  if (Platform.OS === 'web') {
+    window.alert(`${titulo}\n\n${mensagem}`);
+  } else {
+    Alert.alert(titulo, mensagem);
+  }
 };
 
 const CadastroPaciente = ({ navigation }) => {
@@ -120,14 +130,12 @@ const CadastroPaciente = ({ navigation }) => {
   };
 
   const concluirCadastro = async () => {
-    
     if (carregando) return;
 
     if (!profissional?.id_profissional) {
-      Alert.alert('Sessão expirada', 'Entre novamente na sua conta para cadastrar pacientes.');
+      mostrarAviso('Sessão expirada', 'Entre novamente na sua conta para cadastrar pacientes.');
       return;
     }
-    
 
     try {
       setCarregando(true);
@@ -174,15 +182,17 @@ const CadastroPaciente = ({ navigation }) => {
         idBanco: resposta.idPaciente,
       });
 
-      Alert.alert(
+      mostrarAviso(
         'Paciente cadastrado!',
         dados.enviarConvite
           ? 'O convite foi registrado. O paciente cria a própria senha no primeiro acesso.'
-          : 'Você pode enviar o convite depois, pela ficha do paciente.',
-        [{ text: 'OK', onPress: () => navigation.replace('Pacientes') }]
+          : 'Você pode enviar o convite depois, pela ficha do paciente.'
       );
+
+      // Sai da tela de cadastro e vai para a lista de pacientes
+      navigation.replace('Pacientes');
     } catch (erro) {
-      Alert.alert('Erro ao cadastrar', erro.message);
+      mostrarAviso('Erro ao cadastrar', erro.message);
     } finally {
       setCarregando(false);
     }
@@ -438,7 +448,5 @@ const CadastroPaciente = ({ navigation }) => {
     </Tela>
   );
 };
-
-//rAdnZHgYB3CEdV07
 
 export default CadastroPaciente;
