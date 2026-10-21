@@ -7,7 +7,9 @@ const router = express.Router();
 const {
     buscarProfissionalPorEmail,
     buscarProfissionalPorCRN,
+    buscarProfissionalPorCRNDeOutro,
     inserirProfissional,
+    atualizarProfissional,
     buscarProfissionalPorEmailLogin
 } = require('../repository/profissionalRepository');
 
@@ -123,7 +125,8 @@ router.post('/login', async (req, res) => {
                 nm_profissional: profissional.nm_profissional,
                 ds_email: profissional.ds_email,
                 ds_profissao: profissional.ds_profissao,
-                nr_registro_conselho: profissional.nr_registro_conselho
+                nr_registro_conselho: profissional.nr_registro_conselho,
+                nr_telefone: profissional.nr_telefone
             }
         });
 
@@ -136,6 +139,81 @@ router.post('/login', async (req, res) => {
     }
 });
 
+
+
+// ATUALIZAÇÃO DOS DADOS PROFISSIONAIS
+//
+// ATENÇÃO: a API ainda não usa token. Enquanto não usar, esta rota confia
+// no id que vem da URL, ou seja: quem souber um id consegue alterar os
+// dados daquele profissional. Ao implementar o JWT, tirar o id da URL e
+// usar o do token.
+router.put('/:id', async (req, res) => {
+    try {
+        const idProfissional = Number(req.params.id);
+        const { nome, registro, telefone } = req.body;
+
+        if (!Number.isInteger(idProfissional) || idProfissional <= 0) {
+            return res.status(400).json({
+                mensagem: 'Profissional não identificado.'
+            });
+        }
+
+        if (!nome || !nome.trim()) {
+            return res.status(400).json({
+                mensagem: 'O nome é obrigatório.'
+            });
+        }
+
+        if (!registro || !registro.trim()) {
+            return res.status(400).json({
+                mensagem: 'O registro profissional é obrigatório.'
+            });
+        }
+
+        // O mesmo CRN não pode pertencer a dois profissionais.
+        const outro = await buscarProfissionalPorCRNDeOutro(
+            registro.trim(),
+            idProfissional
+        );
+
+        if (outro) {
+            return res.status(409).json({
+                mensagem: 'Este registro profissional já está cadastrado.'
+            });
+        }
+
+        const atualizou = await atualizarProfissional(
+            idProfissional,
+            nome.trim(),
+            registro.trim(),
+            telefone ? telefone.trim() : null
+        );
+
+        if (!atualizou) {
+            return res.status(404).json({
+                mensagem: 'Profissional não encontrado.'
+            });
+        }
+
+        // Devolve os campos atualizados para o app guardar na sessão.
+        return res.status(200).json({
+            mensagem: 'Dados atualizados com sucesso!',
+            profissional: {
+                id_profissional: idProfissional,
+                nm_profissional: nome.trim(),
+                nr_registro_conselho: registro.trim(),
+                nr_telefone: telefone ? telefone.trim() : null
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao atualizar profissional:', error);
+
+        return res.status(500).json({
+            mensagem: 'Erro interno ao atualizar os dados.'
+        });
+    }
+});
 
 
 module.exports = router;

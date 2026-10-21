@@ -24,20 +24,23 @@ Crie as tabelas rodando o script. Ele pode ser executado mais de uma vez
 sem dar erro:
 
 ```bash
-mysql -u root -p < Api/database/schema.sql
+mysql -u root -p -e "source Api/database/schema.sql"
 ```
 
-Isso cria o banco `healthplus` com as tabelas `profissional`, `paciente` e
-`usuario_paciente`.
+Isso cria o banco `helthplus` (sem o "a", foi assim que ele nasceu) com as
+14 tabelas do projeto.
 
-> **No Windows o comando `mysql` normalmente não está no PATH.** Use o
-> caminho completo (ajuste a versão se a sua for diferente):
+> **No Windows**, o `mysql` normalmente não está no PATH, e o PowerShell
+> não aceita o operador `<` — por isso o `-e "source ..."` acima, no lugar
+> do `< arquivo.sql` que se vê por aí. Use assim, ajustando a versão:
 >
 > ```bash
-> "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p < Api/database/schema.sql
+> & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p -e "source Api/database/schema.sql"
 > ```
 >
-> Ou abra o `schema.sql` no MySQL Workbench e execute com o raio ⚡.
+> **Mais simples ainda:** abra o `schema.sql` no MySQL Workbench em
+> **File → Open SQL Script** e execute no raio ⚡. Sem terminal e sem
+> caminho de arquivo.
 
 > `Api/database/schema.sql` é a fonte da verdade do banco. Se uma query nova
 > precisar de uma coluna ou tabela, acrescente no arquivo **no mesmo commit** —
@@ -49,8 +52,8 @@ Em vez de usar o `root` no `.env`, crie um usuário só para o projeto. Rode
 isto conectado ao MySQL, trocando a senha:
 
 ```sql
-CREATE USER 'healthplus'@'localhost' IDENTIFIED BY 'escolha_uma_senha';
-GRANT ALL PRIVILEGES ON healthplus.* TO 'healthplus'@'localhost';
+CREATE USER 'helthplus'@'localhost' IDENTIFIED BY 'escolha_uma_senha';
+GRANT ALL PRIVILEGES ON helthplus.* TO 'helthplus'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -161,8 +164,9 @@ npx expo start
 **`ER_ACCESS_DENIED_ERROR` ao subir a API**
 Usuário ou senha do MySQL errados no `Api/.env`.
 
-**`ER_NO_SUCH_TABLE`**
-Você ainda não rodou o `schema.sql` do passo 1.
+**`ER_NO_SUCH_TABLE`** ou **`ER_BAD_DB_ERROR`**
+Você ainda não rodou o `schema.sql` do passo 1, ou o `DB_NAME` do
+`Api/.env` não é `helthplus`.
 
 ## Estado atual
 
@@ -176,3 +180,7 @@ navegam, mas ainda não gravam no banco — procure por `TODO: integrar com a AP
 > ⚠️ As tabelas da OMS em `app/utilitarios/oms/dados/` são de **demonstração**
 > (poucos pontos) e a tabela de alimentos tem só 14 itens aproximados. Troque
 > pelas oficiais antes de usar com pacientes de verdade.
+>
+> O banco já tem a estrutura para guardar essas curvas (`referencia_oms`,
+> com os parâmetros L, M e S), mas as tabelas de referência ainda estão
+> vazias. Enquanto não forem carregadas, a calculadora usa os JSON.

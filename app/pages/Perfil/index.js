@@ -11,6 +11,7 @@ import Icone from '../../componentes/Icone';
 import BarraProgresso from '../../componentes/BarraProgresso';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
+import { atualizarNutricionista } from '../../Api/loginCadastro';
 import { cores } from '../../tema';
 import { aplicarMascaraTelefone } from '../../utilitarios/mascaras';
 import { formatarMoeda } from '../../utilitarios/formatos';
@@ -18,23 +19,57 @@ import { estilos } from './style';
 
 const Perfil = ({ navigation }) => {
   const { nutricionista, pacientes, planoAtual, limitePacientes, cobrancas } = useDados();
-  const { sairSessao } = useAuth();
+  const { sairSessao, atualizarProfissional } = useAuth();
 
   const [editando, setEditando] = useState(false);
+// Os nomes dos campos são os da tabela profissional, que é o que o login
+// devolve: nm_profissional, nr_registro_conselho, ds_email e nr_telefone.
 const [nome, setNome] = useState(nutricionista?.nm_profissional ?? '');
 const [crn, setCrn] = useState(nutricionista?.nr_registro_conselho ?? '');
-const [telefone, setTelefone] = useState('');
+const [telefone, setTelefone] = useState(nutricionista?.nr_telefone ?? '');
 const [mostrarCobrancas, setMostrarCobrancas] = useState(false);
 
+// O nutricionista chega depois de o app ler a sessão salva no celular,
+// então os campos precisam ser preenchidos quando ele aparecer.
 useEffect(() => {
   setNome(nutricionista?.nm_profissional ?? '');
   setCrn(nutricionista?.nr_registro_conselho ?? '');
+  setTelefone(nutricionista?.nr_telefone ?? '');
 }, [nutricionista]);
 
-  const salvarDados = () => {
-    // TODO: integrar com a API (atualizar dados profissionais).
-    setEditando(false);
-    Alert.alert('Dados salvos', 'Seus dados profissionais foram atualizados.');
+  const [salvando, setSalvando] = useState(false);
+
+  const salvarDados = async () => {
+    if (salvando) return;
+
+    if (nome.trim().length < 3) {
+      Alert.alert('Nome inválido', 'Informe seu nome completo.');
+      return;
+    }
+    if (crn.trim().length < 5) {
+      Alert.alert('Registro inválido', 'Informe seu registro profissional (CRN).');
+      return;
+    }
+
+    try {
+      setSalvando(true);
+
+      const resposta = await atualizarNutricionista(nutricionista.id_profissional, {
+        nome: nome.trim(),
+        crn: crn.trim(),
+        telefone,
+      });
+
+      // Guarda na sessão o que o servidor confirmou, não o que foi digitado.
+      await atualizarProfissional(resposta.profissional);
+
+      setEditando(false);
+      Alert.alert('Dados salvos', 'Seus dados profissionais foram atualizados.');
+    } catch (erro) {
+      Alert.alert('Erro ao salvar', erro.message);
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const sair = () => {
@@ -83,7 +118,9 @@ useEffect(() => {
             onPress={() => (editando ? salvarDados() : setEditando(true))}
           >
             <Icone nome={editando ? 'check' : 'editar'} tamanho={15} cor={cores.verdeLink} />
-            <Text style={estilos.textoEditar}>{editando ? 'Salvar' : 'Editar'}</Text>
+            <Text style={estilos.textoEditar}>
+              {editando ? (salvando ? 'Salvando...' : 'Salvar') : 'Editar'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -116,10 +153,6 @@ useEffect(() => {
             <View style={estilos.colunaDado}>
               <Text style={estilos.rotuloDado}>Telefone</Text>
               <Text style={estilos.valorDado}>{telefone}</Text>
-            </View>
-            <View style={estilos.colunaDado}>
-              <Text style={estilos.rotuloDado}>Membro desde</Text>
-              <Text style={estilos.valorDado}>{nutricionista?.dt_criacao ?? 'Não informado'}</Text>
             </View>
           </View>
         )}

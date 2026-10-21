@@ -46,6 +46,21 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Depois de salvar o perfil: troca os campos alterados e regrava a sessão,
+  // para a tela continuar certa quando o app for reaberto.
+  const atualizarProfissional = async (novosCampos) => {
+    const atualizado = { ...profissional, ...novosCampos };
+    setProfissional(atualizado);
+    try {
+      await AsyncStorage.setItem(
+        CHAVE_SESSAO,
+        JSON.stringify({ profissional: atualizado, token })
+      );
+    } catch (erro) {
+      console.log('Erro ao salvar sessão:', erro);
+    }
+  };
+
   // Chamar no botão "Sair"
   const sairSessao = async () => {
     setProfissional(null);
@@ -64,6 +79,7 @@ export function AuthProvider({ children }) {
         token,
         carregandoSessao,
         entrarSessao,
+        atualizarProfissional,
         sairSessao,
       }}
     >

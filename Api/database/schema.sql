@@ -1,128 +1,314 @@
 -- Health Plus — estrutura do banco (MySQL)
 --
--- Este arquivo é a fonte da verdade do banco. Foi montado a partir das
--- queries que já existem em Api/repository/. Sempre que uma query nova
--- precisar de uma coluna ou tabela, acrescente aqui no mesmo commit.
+-- Gerado a partir do dump do banco montado pelo Kaio (Dump20261021),
+-- com as tabelas reordenadas para que as chaves estrangeiras sejam
+-- criadas na sequência certa.
+--
+-- Contém SOMENTE a estrutura. Os dados do dump (contas, pacientes e
+-- hashes de senha) ficaram de fora de propósito: não se versiona dado
+-- de paciente nem senha, nem de teste.
 --
 -- Como rodar:
 --   mysql -u root -p < Api/database/schema.sql
 --
--- O script pode ser executado mais de uma vez sem erro (IF NOT EXISTS).
+-- No Windows o comando "mysql" costuma não estar no PATH; use o caminho
+-- completo, por exemplo:
+--   "C:Program FilesMySQLMySQL Server 8.0inmysql.exe" -u root -p < Api/database/schema.sql
+--
+-- O script pode ser executado mais de uma vez sem dar erro.
+--
+-- IMPORTANTE: ao mudar uma query que precise de coluna ou tabela nova,
+-- atualize este arquivo no MESMO commit. Senão o banco de quem baixar o
+-- código deixa de bater com o código.
 
-CREATE DATABASE IF NOT EXISTS healthplus
+CREATE DATABASE IF NOT EXISTS helthplus
   CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+  COLLATE utf8mb4_0900_ai_ci;
 
-USE healthplus;
-
-
--- ---------------------------------------------------------------
--- profissional — o nutricionista que usa o aplicativo
--- Usada em: Api/repository/profissionalRepository.js
--- ---------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS profissional (
-  id_profissional        INT           NOT NULL AUTO_INCREMENT,
-  nm_profissional        VARCHAR(150)  NOT NULL,
-  nr_registro_conselho   VARCHAR(30)   NOT NULL,
-  ds_email               VARCHAR(150)  NOT NULL,
-  -- Hash bcrypt (60 caracteres). Nunca guardar a senha em texto puro.
-  ds_senha_hash          VARCHAR(255)  NOT NULL,
-  ds_profissao           VARCHAR(50)   NOT NULL DEFAULT 'Nutricionista',
-  -- O login recusa a entrada quando st_ativo = 0.
-  st_ativo               TINYINT(1)    NOT NULL DEFAULT 1,
-  dt_criacao             DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  dt_atualizacao         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                       ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id_profissional),
-  -- O cadastro recusa e-mail e registro repetidos; o banco garante isso.
-  UNIQUE KEY uq_profissional_email (ds_email),
-  UNIQUE KEY uq_profissional_registro (nr_registro_conselho)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
-
+USE helthplus;
 
 -- ---------------------------------------------------------------
--- paciente — ficha cadastral, sempre ligada a um profissional
--- Usada em: Api/repository/pacienteRepository.js
+-- unidade_saude
+-- Unidades de saúde (clínicas, postos) às quais um profissional pode estar ligado.
 -- ---------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS paciente (
-  id_paciente                INT           NOT NULL AUTO_INCREMENT,
-  id_profissional            INT           NOT NULL,
-
-  -- Etapa 1 do cadastro: dados básicos
-  nm_paciente                VARCHAR(150)  NOT NULL,
-  dt_nascimento              DATE          NOT NULL,
-  sg_sexo                    CHAR(1)       NOT NULL,
-  nm_responsavel             VARCHAR(150)  NULL,
-  nr_telefone_responsavel    VARCHAR(20)   NULL,
-
-  -- Etapa 2: contato e endereço
-  ds_email                   VARCHAR(150)  NULL,
-  nr_telefone                VARCHAR(20)   NULL,
-  ds_cep                     VARCHAR(9)    NULL,
-  ds_numero                  VARCHAR(10)   NULL,
-  ds_logradouro              VARCHAR(200)  NULL,
-  nm_cidade                  VARCHAR(100)  NULL,
-
-  -- Etapa 3: informações clínicas
-  ds_objetivo_consulta       VARCHAR(255)  NULL,
-  ds_restricoes_alimentares  TEXT          NULL,
-  ds_alergias                TEXT          NULL,
-  ds_condicoes_saude         TEXT          NULL,
-  ds_medicamentos            TEXT          NULL,
-
-  dt_criacao                 DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  dt_atualizacao             DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                           ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id_paciente),
-  -- Busca mais comum: "todos os pacientes deste nutricionista".
-  KEY idx_paciente_profissional (id_profissional),
-  CONSTRAINT fk_paciente_profissional
-    FOREIGN KEY (id_profissional) REFERENCES profissional (id_profissional)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE,
-  -- A aplicação envia sempre 'F' ou 'M' (primeira letra, em maiúscula).
-  CONSTRAINT ck_paciente_sexo CHECK (sg_sexo IN ('F', 'M'))
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;
-
+CREATE TABLE IF NOT EXISTS `unidade_saude` (
+  `id_unidade` int NOT NULL AUTO_INCREMENT,
+  `nm_unidade` varchar(100) DEFAULT NULL,
+  `tp_unidade` varchar(50) DEFAULT NULL,
+  `ds_endereco` varchar(150) DEFAULT NULL,
+  `nm_cidade` varchar(50) DEFAULT NULL,
+  `sg_uf` char(2) DEFAULT NULL,
+  `nr_telefone` varchar(20) DEFAULT NULL,
+  `ds_email` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id_unidade`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------
--- usuario_paciente — acesso do paciente ao aplicativo
+-- profissional
+-- Nutricionistas que usam o aplicativo. Login e cadastro já integrados.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `profissional` (
+  `id_profissional` int NOT NULL AUTO_INCREMENT,
+  `nm_profissional` varchar(100) DEFAULT NULL,
+  `ds_email` varchar(100) DEFAULT NULL,
+  `ds_senha_hash` varchar(255) DEFAULT NULL,
+  `ds_profissao` varchar(50) DEFAULT NULL,
+  `nr_registro_conselho` varchar(50) DEFAULT NULL,
+  `id_unidade` int DEFAULT NULL,
+  `nr_telefone` varchar(20) DEFAULT NULL,
+  `st_ativo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id_profissional`),
+  UNIQUE KEY `ds_email` (`ds_email`),
+  KEY `id_unidade` (`id_unidade`),
+  CONSTRAINT `profissional_ibfk_1` FOREIGN KEY (`id_unidade`) REFERENCES `unidade_saude` (`id_unidade`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- paciente
+-- Ficha cadastral do paciente, preenchida pelo nutricionista em 4 etapas.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `paciente` (
+  `id_paciente` int NOT NULL AUTO_INCREMENT,
+  `id_profissional` int NOT NULL,
+  `nm_paciente` varchar(100) DEFAULT NULL,
+  `dt_nascimento` date DEFAULT NULL,
+  `sg_sexo` char(1) DEFAULT NULL,
+  `nm_responsavel` varchar(100) DEFAULT NULL,
+  `nr_telefone` varchar(20) DEFAULT NULL,
+  `ds_email` varchar(100) DEFAULT NULL,
+  `ds_endereco` varchar(150) DEFAULT NULL,
+  `nm_cidade` varchar(50) DEFAULT NULL,
+  `ds_observacoes` text,
+  `nr_telefone_responsavel` varchar(20) DEFAULT NULL,
+  `ds_cep` varchar(9) DEFAULT NULL,
+  `ds_numero` varchar(10) DEFAULT NULL,
+  `ds_logradouro` varchar(200) DEFAULT NULL,
+  `ds_objetivo_consulta` varchar(100) DEFAULT NULL,
+  `ds_restricoes_alimentares` text,
+  `ds_alergias` text,
+  `ds_condicoes_saude` text,
+  `ds_medicamentos` text,
+  PRIMARY KEY (`id_paciente`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- usuario_paciente
+-- Acesso do paciente ao aplicativo. Criado junto com o paciente quando o nutricionista envia o convite.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `usuario_paciente` (
+  `id_usuario_paciente` int NOT NULL AUTO_INCREMENT,
+  `id_paciente` int NOT NULL,
+  `ds_email` varchar(150) NOT NULL,
+  `ds_senha` varchar(255) DEFAULT NULL,
+  `ds_status` varchar(30) NOT NULL DEFAULT 'pendente',
+  `dt_criacao` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_usuario_paciente`),
+  UNIQUE KEY `id_paciente` (`id_paciente`),
+  UNIQUE KEY `ds_email` (`ds_email`),
+  CONSTRAINT `usuario_paciente_ibfk_1` FOREIGN KEY (`id_paciente`) REFERENCES `paciente` (`id_paciente`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- tipo_medida
+-- Catálogo de medidas antropométricas (peso, altura, PB, PCT, PCS...).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tipo_medida` (
+  `id_tipo_medida` int NOT NULL AUTO_INCREMENT,
+  `nm_tipo_medida` varchar(50) DEFAULT NULL,
+  `sg_tipo_medida` varchar(10) DEFAULT NULL,
+  `ds_descricao` text,
+  `ds_unidade_padrao` varchar(10) DEFAULT NULL,
+  `nr_idade_min_meses` int DEFAULT NULL,
+  `nr_idade_max_meses` int DEFAULT NULL,
+  `st_ativo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id_tipo_medida`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- indicador
+-- Catálogo de indicadores da OMS (IMC/idade, peso/idade, altura/idade...).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `indicador` (
+  `id_indicador` int NOT NULL AUTO_INCREMENT,
+  `nm_indicador` varchar(100) DEFAULT NULL,
+  `sg_indicador` varchar(20) DEFAULT NULL,
+  `ds_descricao` text,
+  `ds_formula_calculo` text,
+  `nr_idade_min_meses` int DEFAULT NULL,
+  `nr_idade_max_meses` int DEFAULT NULL,
+  `sg_sexo_aplicavel` varchar(20) DEFAULT NULL,
+  `st_ativo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id_indicador`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- padrao_crescimento
+-- Padrões de crescimento de referência (OMS 2006, OMS 2007...).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `padrao_crescimento` (
+  `id_padrao` int NOT NULL AUTO_INCREMENT,
+  `nm_padrao` varchar(100) DEFAULT NULL,
+  `ds_descricao` text,
+  `nm_fonte` varchar(100) DEFAULT NULL,
+  `nr_ano_referencia` int DEFAULT NULL,
+  `nr_idade_min_meses` int DEFAULT NULL,
+  `nr_idade_max_meses` int DEFAULT NULL,
+  `st_ativo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id_padrao`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- referencia_oms
+-- Curvas da OMS em parâmetros L, M e S, por padrão, indicador, sexo e idade. É daqui que sai o escore-z.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `referencia_oms` (
+  `id_referencia` int NOT NULL AUTO_INCREMENT,
+  `id_padrao` int NOT NULL,
+  `id_indicador` int NOT NULL,
+  `sg_sexo` char(1) DEFAULT NULL,
+  `nr_idade_meses` int DEFAULT NULL,
+  `vl_parametro_l` decimal(10,6) DEFAULT NULL,
+  `vl_parametro_m` decimal(10,6) DEFAULT NULL,
+  `vl_parametro_s` decimal(10,6) DEFAULT NULL,
+  `vl_medida_min` decimal(10,4) DEFAULT NULL,
+  `vl_medida_max` decimal(10,4) DEFAULT NULL,
+  `st_ativo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id_referencia`),
+  KEY `id_padrao` (`id_padrao`),
+  KEY `id_indicador` (`id_indicador`),
+  CONSTRAINT `referencia_oms_ibfk_1` FOREIGN KEY (`id_padrao`) REFERENCES `padrao_crescimento` (`id_padrao`),
+  CONSTRAINT `referencia_oms_ibfk_2` FOREIGN KEY (`id_indicador`) REFERENCES `indicador` (`id_indicador`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- classificacao_referencia
+-- Faixas de escore-z e o nome da classificação correspondente (eutrofia, magreza...).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `classificacao_referencia` (
+  `id_classificacao` int NOT NULL AUTO_INCREMENT,
+  `id_indicador` int NOT NULL,
+  `nm_classificacao` varchar(50) DEFAULT NULL,
+  `vl_escore_z_min` decimal(5,2) DEFAULT NULL,
+  `vl_escore_z_max` decimal(5,2) DEFAULT NULL,
+  `ds_descricao` text,
+  `st_ativo` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id_classificacao`),
+  KEY `id_indicador` (`id_indicador`),
+  CONSTRAINT `classificacao_referencia_ibfk_1` FOREIGN KEY (`id_indicador`) REFERENCES `indicador` (`id_indicador`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- avaliacao
+-- Uma consulta de avaliação: paciente, profissional, data e idade no momento.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `avaliacao` (
+  `id_avaliacao` int NOT NULL AUTO_INCREMENT,
+  `id_paciente` int NOT NULL,
+  `id_profissional` int NOT NULL,
+  `dt_avaliacao` date DEFAULT NULL,
+  `nr_idade_dias` int DEFAULT NULL,
+  `nr_idade_meses` int DEFAULT NULL,
+  `nr_idade_anos` decimal(5,2) DEFAULT NULL,
+  `nm_local_atendimento` varchar(100) DEFAULT NULL,
+  `tp_avaliacao` varchar(20) DEFAULT NULL,
+  `ds_observacoes` text,
+  PRIMARY KEY (`id_avaliacao`),
+  KEY `id_paciente` (`id_paciente`),
+  KEY `id_profissional` (`id_profissional`),
+  CONSTRAINT `avaliacao_ibfk_1` FOREIGN KEY (`id_paciente`) REFERENCES `paciente` (`id_paciente`),
+  CONSTRAINT `avaliacao_ibfk_2` FOREIGN KEY (`id_profissional`) REFERENCES `profissional` (`id_profissional`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- medida_antropometrica
+-- Os valores medidos numa avaliação (um registro por tipo de medida).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `medida_antropometrica` (
+  `id_medida` int NOT NULL AUTO_INCREMENT,
+  `id_avaliacao` int NOT NULL,
+  `id_tipo_medida` int NOT NULL,
+  `vl_medida` decimal(8,3) DEFAULT NULL,
+  `ds_unidade` varchar(10) DEFAULT NULL,
+  `sg_lado` varchar(10) DEFAULT NULL,
+  `ds_observacoes` text,
+  PRIMARY KEY (`id_medida`),
+  KEY `id_avaliacao` (`id_avaliacao`),
+  KEY `id_tipo_medida` (`id_tipo_medida`),
+  CONSTRAINT `medida_antropometrica_ibfk_1` FOREIGN KEY (`id_avaliacao`) REFERENCES `avaliacao` (`id_avaliacao`),
+  CONSTRAINT `medida_antropometrica_ibfk_2` FOREIGN KEY (`id_tipo_medida`) REFERENCES `tipo_medida` (`id_tipo_medida`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- resultado_avaliacao
+-- O que o cálculo produziu: escore-z, percentil e classificação de cada indicador.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `resultado_avaliacao` (
+  `id_resultado` int NOT NULL AUTO_INCREMENT,
+  `id_avaliacao` int NOT NULL,
+  `id_indicador` int NOT NULL,
+  `id_referencia` int DEFAULT NULL,
+  `id_classificacao` int DEFAULT NULL,
+  `vl_observado` decimal(8,3) DEFAULT NULL,
+  `vl_escore_z` decimal(5,2) DEFAULT NULL,
+  `vl_percentil` decimal(5,2) DEFAULT NULL,
+  `ds_classificacao` varchar(50) DEFAULT NULL,
+  `st_valor_extremo` tinyint(1) DEFAULT '0',
+  `ds_interpretacao` text,
+  `ds_observacoes` text,
+  PRIMARY KEY (`id_resultado`),
+  KEY `id_avaliacao` (`id_avaliacao`),
+  KEY `id_indicador` (`id_indicador`),
+  KEY `id_referencia` (`id_referencia`),
+  KEY `id_classificacao` (`id_classificacao`),
+  CONSTRAINT `resultado_avaliacao_ibfk_1` FOREIGN KEY (`id_avaliacao`) REFERENCES `avaliacao` (`id_avaliacao`),
+  CONSTRAINT `resultado_avaliacao_ibfk_2` FOREIGN KEY (`id_indicador`) REFERENCES `indicador` (`id_indicador`),
+  CONSTRAINT `resultado_avaliacao_ibfk_3` FOREIGN KEY (`id_referencia`) REFERENCES `referencia_oms` (`id_referencia`),
+  CONSTRAINT `resultado_avaliacao_ibfk_4` FOREIGN KEY (`id_classificacao`) REFERENCES `classificacao_referencia` (`id_classificacao`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- inquerito
+-- Inquéritos ou estudos populacionais que agrupam pacientes.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `inquerito` (
+  `id_inquerito` int NOT NULL AUTO_INCREMENT,
+  `nm_titulo` varchar(100) DEFAULT NULL,
+  `ds_descricao` text,
+  `dt_inicio` date DEFAULT NULL,
+  `dt_fim` date DEFAULT NULL,
+  `nm_instituicao` varchar(100) DEFAULT NULL,
+  `nm_responsavel` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id_inquerito`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- inquerito_paciente
+-- Quais pacientes participam de qual inquérito.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `inquerito_paciente` (
+  `id_inquerito` int NOT NULL,
+  `id_paciente` int NOT NULL,
+  `dt_inclusao` date DEFAULT NULL,
+  `ds_observacoes` text,
+  PRIMARY KEY (`id_inquerito`,`id_paciente`),
+  KEY `id_paciente` (`id_paciente`),
+  CONSTRAINT `inquerito_paciente_ibfk_1` FOREIGN KEY (`id_inquerito`) REFERENCES `inquerito` (`id_inquerito`),
+  CONSTRAINT `inquerito_paciente_ibfk_2` FOREIGN KEY (`id_paciente`) REFERENCES `paciente` (`id_paciente`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- Pendências conhecidas da modelagem
 --
--- Criada junto com o paciente, na mesma transação, quando o
--- nutricionista marca "enviar convite".
+-- 1. "paciente" não tem chave estrangeira para "profissional", embora
+--    guarde id_profissional e o código dependa dessa ligação. Sem ela o
+--    banco aceita paciente apontando para profissional inexistente.
 --
--- ds_status = 'pendente' significa que o paciente ainda não trocou a
--- senha inicial. O login do paciente deve exigir a troca nesse caso.
+-- 2. "nr_registro_conselho" não tem índice único. O cadastro só recusa
+--    CRN repetido pela checagem no código (profissionalStorage.js); por
+--    duas requisições ao mesmo tempo, dá para gravar duplicado.
+--
+-- 3. As tabelas de referência da OMS (tipo_medida, indicador,
+--    padrao_crescimento, referencia_oms, classificacao_referencia) estão
+--    vazias. Enquanto não forem carregadas, a calculadora continua usando
+--    os JSON de demonstração em app/utilitarios/oms/dados.
 -- ---------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS usuario_paciente (
-  id_usuario_paciente  INT           NOT NULL AUTO_INCREMENT,
-  id_paciente          INT           NOT NULL,
-  ds_email             VARCHAR(150)  NOT NULL,
-  -- Hash bcrypt da senha inicial (a data de nascimento, formato DDMMAAAA).
-  ds_senha             VARCHAR(255)  NOT NULL,
-  ds_status            VARCHAR(20)   NOT NULL DEFAULT 'pendente',
-  dt_criacao           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  dt_atualizacao       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                     ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id_usuario_paciente),
-  -- O cadastro trata ER_DUP_ENTRY como "já existe um acesso com esse
-  -- e-mail", então esta chave única é obrigatória para a mensagem funcionar.
-  UNIQUE KEY uq_usuario_paciente_email (ds_email),
-  -- Um acesso por paciente.
-  UNIQUE KEY uq_usuario_paciente_paciente (id_paciente),
-  CONSTRAINT fk_usuario_paciente_paciente
-    FOREIGN KEY (id_paciente) REFERENCES paciente (id_paciente)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT ck_usuario_paciente_status
-    CHECK (ds_status IN ('pendente', 'ativo', 'inativo'))
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_unicode_ci;

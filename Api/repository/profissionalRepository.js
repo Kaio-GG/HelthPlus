@@ -61,6 +61,7 @@ async function buscarProfissionalPorEmailLogin(email) {
             ds_senha_hash,
             ds_profissao,
             nr_registro_conselho,
+            nr_telefone,
             st_ativo
         FROM profissional
         WHERE ds_email = ?
@@ -75,9 +76,45 @@ async function buscarProfissionalPorEmailLogin(email) {
 
 
 
+// Mesma checagem do cadastro, mas ignorando o próprio profissional:
+// na edição, manter o CRN que já é dele não pode ser tratado como repetido.
+async function buscarProfissionalPorCRNDeOutro(registro, idProfissional) {
+    const sql = `
+        SELECT id_profissional
+        FROM profissional
+        WHERE nr_registro_conselho = ?
+          AND id_profissional <> ?
+    `;
+
+    const [resultado] = await pool.execute(sql, [registro, idProfissional]);
+
+    return resultado[0];
+}
+
+async function atualizarProfissional(idProfissional, nome, registro, telefone) {
+    const sql = `
+        UPDATE profissional
+        SET nm_profissional = ?,
+            nr_registro_conselho = ?,
+            nr_telefone = ?
+        WHERE id_profissional = ?
+    `;
+
+    const [resultado] = await pool.execute(sql, [
+        nome,
+        registro,
+        telefone,
+        idProfissional
+    ]);
+
+    return resultado.affectedRows > 0;
+}
+
 module.exports = {
     buscarProfissionalPorEmail,
     buscarProfissionalPorCRN,
+    buscarProfissionalPorCRNDeOutro,
     inserirProfissional,
+    atualizarProfissional,
     buscarProfissionalPorEmailLogin
 };

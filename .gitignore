@@ -14,3 +14,7 @@ web-build/
 
 # macOS
 .DS_Store
+# Dumps do banco: contêm hashes de senha e dados de paciente.
+# A estrutura versionada fica em Api/database/schema.sql.
+Dump*/
+__MACOSX/
