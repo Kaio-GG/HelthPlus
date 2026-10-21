@@ -7,8 +7,8 @@ import api from './connection';
 // CADASTRO DO PACIENTE (feito pelo nutricionista logado)
 export const cadastrarPaciente = async (dados) => {
   try {
-    console.log("aopaaaa");
     const resposta = await api.post('/api/paciente/cadastro', dados);
+    console.log(resposta.data);
 
     return resposta.data; // { mensagem, idPaciente, conviteCriado }
   } catch (erro) {

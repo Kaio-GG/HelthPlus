@@ -14,7 +14,7 @@ import Selo from '../../componentes/Selo';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
-import { cadastrarPaciente } from '../../Api/loginCadastro.js';
+import { cadastrarPaciente } from '../../Api/Pacientes'
 import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
 import {
@@ -120,13 +120,14 @@ const CadastroPaciente = ({ navigation }) => {
   };
 
   const concluirCadastro = async () => {
-  
+    
     if (carregando) return;
 
     if (!profissional?.id_profissional) {
       Alert.alert('Sessão expirada', 'Entre novamente na sua conta para cadastrar pacientes.');
       return;
     }
+    
 
     try {
       setCarregando(true);
@@ -437,5 +438,7 @@ const CadastroPaciente = ({ navigation }) => {
     </Tela>
   );
 };
+
+//rAdnZHgYB3CEdV07
 
 export default CadastroPaciente;
