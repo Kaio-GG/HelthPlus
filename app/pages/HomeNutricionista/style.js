@@ -112,32 +112,26 @@ export const estilos = StyleSheet.create({
   atalho: {
     flex: 1,
     alignItems: "center",
-    marginHorizontal: 5,
+    marginHorizontal: 2,
   },
   circuloAtalho: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: cores.verdeClaro,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
-  // Etiqueta no estilo "pílula" creme do design (73 x 37, raio 5)
+  // Rótulo solto sob o círculo: sem caixa, o texto ganha a largura toda da
+  // coluna e cabe em duas linhas sem partir palavra no meio.
   rotuloAtalho: {
     alignSelf: "stretch",
-    minHeight: 38,
     fontSize: 12,
     lineHeight: 15,
     fontWeight: "700",
     color: cores.verdeEscuro,
     textAlign: "center",
-    textAlignVertical: "center",
-    backgroundColor: paleta.creme,
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-    overflow: "hidden",
   },
 
   // ----- Próximas consultas -----
@@ -167,11 +161,31 @@ export const estilos = StyleSheet.create({
     paddingVertical: 6,
     marginHorizontal: 10,
   },
+  // Estado vazio: ícone claro + texto, para a área não ficar só um
+  // espaço morto quando o dia não tem consulta.
+  caixaVazia: {
+    alignItems: "center",
+    paddingVertical: espacamento.lg,
+  },
+  circuloVazio: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: cores.verdeSuave,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: espacamento.md,
+  },
   vazio: {
     textAlign: "center",
     fontSize: 14,
     color: cores.textoSecundario,
-    paddingVertical: 12,
+  },
+  vazioAcao: {
+    marginTop: espacamento.sm,
+    fontSize: 14,
+    fontWeight: "700",
+    color: cores.verdeLink,
   },
   // Linha com as setas « » nas laterais da lista de consultas
   linhaConsultas: {
@@ -258,6 +272,12 @@ export const estilos = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: cores.verdeEscuro,
+  },
+  semPlano: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: cores.textoSecundario,
+    marginTop: espacamento.xs,
   },
   // Botão largo em pílula, verde #2E8B57 como no design
   botaoPlano: {

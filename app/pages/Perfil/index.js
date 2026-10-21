@@ -10,6 +10,7 @@ import Botao from '../../componentes/Botao';
 import Icone from '../../componentes/Icone';
 import BarraProgresso from '../../componentes/BarraProgresso';
 import { useDados } from '../../contexto/DadosContexto';
+import { useAuth } from '../../contexto/AuthContext';
 import { cores } from '../../tema';
 import { aplicarMascaraTelefone } from '../../utilitarios/mascaras';
 import { formatarMoeda } from '../../utilitarios/formatos';
@@ -17,17 +18,17 @@ import { estilos } from './style';
 
 const Perfil = ({ navigation }) => {
   const { nutricionista, pacientes, planoAtual, limitePacientes, cobrancas } = useDados();
+  const { sairSessao } = useAuth();
 
   const [editando, setEditando] = useState(false);
-const [nome, setNome] = useState(nutricionista?.nome ?? '');
-const [crn, setCrn] = useState(nutricionista?.crn ?? '');
-const [telefone, setTelefone] = useState(nutricionista?.telefone ?? '');
+const [nome, setNome] = useState(nutricionista?.nm_profissional ?? '');
+const [crn, setCrn] = useState(nutricionista?.nr_registro_conselho ?? '');
+const [telefone, setTelefone] = useState('');
 const [mostrarCobrancas, setMostrarCobrancas] = useState(false);
 
 useEffect(() => {
-  setNome(nutricionista?.nome ?? '');
-  setCrn(nutricionista?.crn ?? '');
-  setTelefone(nutricionista?.telefone ?? '');
+  setNome(nutricionista?.nm_profissional ?? '');
+  setCrn(nutricionista?.nr_registro_conselho ?? '');
 }, [nutricionista]);
 
   const salvarDados = () => {
@@ -42,7 +43,12 @@ useEffect(() => {
       {
         text: 'Sair',
         style: 'destructive',
-        onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Inicio' }] }),
+        // Apaga a sessão salva no celular antes de voltar para a tela inicial.
+        // Sem isso o app volta logado quando for reaberto.
+        onPress: async () => {
+          await sairSessao();
+          navigation.reset({ index: 0, routes: [{ name: 'Inicio' }] });
+        },
       },
     ]);
   };
@@ -85,7 +91,7 @@ useEffect(() => {
           <View>
             <CampoTexto rotulo="Nome" valor={nome} aoMudar={setNome} capitalizar="words" />
             <CampoTexto rotulo="CRN" valor={crn} aoMudar={setCrn} capitalizar="characters" />
-            <CampoTexto rotulo="E-mail" valor={nutricionista?.email ?? ''} somenteLeitura />
+            <CampoTexto rotulo="E-mail" valor={nutricionista?.ds_email ?? ''} somenteLeitura />
             <CampoTexto
               rotulo="Telefone"
               valor={telefone}
@@ -105,7 +111,7 @@ useEffect(() => {
             </View>
             <View style={estilos.colunaDado}>
               <Text style={estilos.rotuloDado}>E-mail</Text>
-              <Text style={estilos.valorDado}>{nutricionista?.email ?? 'Não informado'}</Text>
+              <Text style={estilos.valorDado}>{nutricionista?.ds_email ?? 'Não informado'}</Text>
             </View>
             <View style={estilos.colunaDado}>
               <Text style={estilos.rotuloDado}>Telefone</Text>
@@ -113,7 +119,7 @@ useEffect(() => {
             </View>
             <View style={estilos.colunaDado}>
               <Text style={estilos.rotuloDado}>Membro desde</Text>
-              <Text style={estilos.valorDado}>{nutricionista?.membroDesde ?? 'Não informado'}</Text>
+              <Text style={estilos.valorDado}>{nutricionista?.dt_criacao ?? 'Não informado'}</Text>
             </View>
           </View>
         )}

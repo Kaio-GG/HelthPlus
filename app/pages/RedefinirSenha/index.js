@@ -1,13 +1,12 @@
 // Criação da nova senha, com checklist dos requisitos em tempo real.
 import React, { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { Alert } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoTexto from '../../componentes/CampoTexto';
-import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
-import { requisitosDaSenha, senhaForte } from '../../utilitarios/validacoes';
-import { cores } from '../../tema';
+import RequisitosSenha from '../../componentes/RequisitosSenha';
+import { senhaForte } from '../../utilitarios/validacoes';
 import { estilos } from './style';
 
 const RedefinirSenha = ({ navigation }) => {
@@ -15,7 +14,6 @@ const RedefinirSenha = ({ navigation }) => {
   const [confirmacao, setConfirmacao] = useState('');
   const [erro, setErro] = useState('');
 
-  const requisitos = requisitosDaSenha(novaSenha);
 
   const salvar = () => {
     if (!senhaForte(novaSenha)) {
@@ -41,6 +39,7 @@ const RedefinirSenha = ({ navigation }) => {
           valor={novaSenha}
           aoMudar={setNovaSenha}
           placeholder="••••••••"
+          preenchimento="senhaNova"
           senha
         />
         <CampoTexto
@@ -48,23 +47,12 @@ const RedefinirSenha = ({ navigation }) => {
           valor={confirmacao}
           aoMudar={setConfirmacao}
           placeholder="••••••••"
+          preenchimento="senhaNova"
           senha
           erro={erro}
         />
 
-        <Text style={estilos.tituloRequisitos}>Sua senha deve ter:</Text>
-        {requisitos.map((requisito) => (
-          <View key={requisito.chave} style={estilos.linhaRequisito}>
-            <View style={[estilos.marcador, requisito.atendido && estilos.marcadorAtendido]}>
-              {requisito.atendido ? (
-                <Icone nome="check" tamanho={12} cor={cores.branco} espessura={3} />
-              ) : null}
-            </View>
-            <Text style={[estilos.textoRequisito, requisito.atendido && estilos.textoAtendido]}>
-              {requisito.rotulo}
-            </Text>
-          </View>
-        ))}
+        <RequisitosSenha senha={novaSenha} />
 
         <Botao
           titulo="Salvar nova senha"

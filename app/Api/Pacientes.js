@@ -1,4 +1,4 @@
-// app/Api/loginCadastro.js
+// app/Api/Pacientes.js
 
 import api from './connection';
 

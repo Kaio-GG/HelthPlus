@@ -5,12 +5,29 @@
 //   somenteLeitura   bloqueia a edição e mostra um cadeado
 //   icone            ícone fixo à direita (ex.: 'calendario')
 //   multilinha       campo de várias linhas
+//   preenchimento    o que o celular deve sugerir neste campo (veja abaixo)
 //   teclado, capitalizar, maxCaracteres, estilo
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import Icone from '../Icone';
 import { cores } from '../../tema';
 import { estilos } from './style';
+
+// Diz ao celular o que cada campo guarda, para o preenchimento automático
+// colocar a informação certa no lugar certo.
+//
+// Sem isso o Android chuta: ao tocar num campo de senha ele procura o
+// "usuário" e acaba jogando o e-mail no primeiro campo de texto da tela.
+// Por isso o padrão é 'nenhum' — um campo só recebe sugestão quando pede.
+const PREENCHIMENTOS = {
+  nenhum: { autoComplete: 'off', textContentType: 'none' },
+  nome: { autoComplete: 'name', textContentType: 'name' },
+  email: { autoComplete: 'email', textContentType: 'emailAddress' },
+  telefone: { autoComplete: 'tel', textContentType: 'telephoneNumber' },
+  cep: { autoComplete: 'postal-code', textContentType: 'postalCode' },
+  senhaAtual: { autoComplete: 'current-password', textContentType: 'password' },
+  senhaNova: { autoComplete: 'new-password', textContentType: 'newPassword' },
+};
 
 const CampoTexto = ({
   rotulo,
@@ -22,12 +39,15 @@ const CampoTexto = ({
   somenteLeitura = false,
   icone,
   multilinha = false,
+  preenchimento = 'nenhum',
   teclado = 'default',
   capitalizar = 'sentences',
   maxCaracteres,
   estilo,
 }) => {
   const [senhaVisivel, setSenhaVisivel] = useState(false);
+
+  const dicas = PREENCHIMENTOS[preenchimento] ?? PREENCHIMENTOS.nenhum;
 
   return (
     <View style={[estilos.container, estilo]}>
@@ -53,6 +73,8 @@ const CampoTexto = ({
           keyboardType={teclado}
           autoCapitalize={senha || teclado === 'email-address' ? 'none' : capitalizar}
           autoCorrect={false}
+          autoComplete={dicas.autoComplete}
+          textContentType={dicas.textContentType}
           maxLength={maxCaracteres}
           textAlignVertical={multilinha ? 'top' : 'center'}
         />

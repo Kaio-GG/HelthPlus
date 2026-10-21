@@ -149,7 +149,7 @@ const HomeNutricionista = ({ navigation }) => {
 
   return (
     <Tela
-      titulo={`Olá, ${nutricionista?.nome?.replace(" ", "") ?? "Nutricionista"}`}
+      titulo={`Olá, ${nutricionista?.nm_profissional?.split(" ")[0] ?? "Nutricionista"}`}
       subtitulo="Ferramentas e informações essenciais para apoiar suas avaliações nutricionais."
       mostrarVoltar={false}
       cabecalhoRolavel
@@ -203,7 +203,7 @@ const HomeNutricionista = ({ navigation }) => {
 
       {/* Atalhos */}
       <Cartao>
-        <Text style={estilos.tituloCartao}>Navegue entre sessões</Text>
+        <Text style={estilos.tituloCartao}>Acesso rápido</Text>
         <View style={estilos.linhaAtalhos}>
           {atalhos.map((atalho) => (
             <TouchableOpacity
@@ -259,7 +259,17 @@ const HomeNutricionista = ({ navigation }) => {
         </View>
 
         {consultasDoDia.length === 0 ? (
-          <Text style={estilos.vazio}>Nenhuma consulta neste dia.</Text>
+          <TouchableOpacity
+            style={estilos.caixaVazia}
+            onPress={() => navigation.navigate("NovaConsulta")}
+            activeOpacity={0.8}
+          >
+            <View style={estilos.circuloVazio}>
+              <Icone nome="calendario" tamanho={24} cor={cores.verdeLink} />
+            </View>
+            <Text style={estilos.vazio}>Nenhuma consulta neste dia.</Text>
+            <Text style={estilos.vazioAcao}>Marcar uma consulta</Text>
+          </TouchableOpacity>
         ) : (
           <View style={estilos.linhaConsultas}>
             {mostrarSetasLista && (
@@ -339,23 +349,30 @@ const HomeNutricionista = ({ navigation }) => {
       <Cartao>
         <View style={estilos.linhaPlano}>
           <Text style={estilos.tituloCartao}>Meu Plano</Text>
-          <Selo texto="Pagamento em Dia" tom="sucesso" />
+          {planoAtual ? <Selo texto="Pagamento em Dia" tom="sucesso" /> : null}
         </View>
-        <Text style={estilos.textoPlano}>
-          {planoAtual ? `Plano ${planoAtual.nome} · ` : ""}Próxima cobrança em
-          20 dias
-        </Text>
 
-        <View style={estilos.linhaProgresso}>
-          <Text style={estilos.rotuloProgresso}>Pacientes Cadastrados</Text>
-          <Text style={estilos.valorProgresso}>
-            {pacientes.length}/{limitePacientes || 0}
+        {planoAtual ? (
+          <>
+            <Text style={estilos.textoPlano}>Plano {planoAtual.nome}</Text>
+
+            <View style={estilos.linhaProgresso}>
+              <Text style={estilos.rotuloProgresso}>Pacientes Cadastrados</Text>
+              <Text style={estilos.valorProgresso}>
+                {pacientes.length}/{limitePacientes || 0}
+              </Text>
+            </View>
+            <BarraProgresso valor={limitePacientes ? usoDoPlano : 0} />
+          </>
+        ) : (
+          <Text style={estilos.semPlano}>
+            Você ainda não tem um plano ativo. Escolha um para cadastrar
+            pacientes e montar planos alimentares.
           </Text>
-        </View>
-        <BarraProgresso valor={limitePacientes ? usoDoPlano : 0} />
+        )}
 
         <Botao
-          titulo="Ver plano e pagamentos"
+          titulo={planoAtual ? "Ver plano e pagamentos" : "Escolher um plano"}
           aoPressionar={() => navigation.navigate("Pacotes")}
           estilo={estilos.botaoPlano}
         />
