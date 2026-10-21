@@ -7,6 +7,7 @@ import Cartao from "../../componentes/Cartao";
 import Alternador from "../../componentes/Alternador";
 import CampoTexto from "../../componentes/CampoTexto";
 import CaixaSelecao from "../../componentes/CaixaSelecao";
+import RequisitosSenha from "../../componentes/RequisitosSenha";
 import Botao from "../../componentes/Botao";
 import { emailValido, senhaForte } from "../../utilitarios/validacoes";
 import {
@@ -65,13 +66,15 @@ const Nutricionista = ({ navigation, route }) => {
 
     const novosErros = {};
     if (nome.trim().length < 3) novosErros.nome = "Informe seu nome completo.";
+    else if (nome.includes("@"))
+      novosErros.nome = "Aqui vai seu nome, não o e-mail.";
     if (crn.trim().length < 5)
       novosErros.crn = "Informe seu registro profissional (CRN).";
     if (!emailValido(emailCadastro))
       novosErros.email = "Informe um e-mail válido.";
     if (!senhaForte(senhaCadastro)) {
       novosErros.senha =
-        "Use 8+ caracteres, com maiúscula, número e caractere especial.";
+        "A senha ainda não atende aos requisitos listados abaixo.";
     }
     if (!aceitouTermos) novosErros.termos = "Aceite os termos para continuar.";
     setErros(novosErros);
@@ -130,6 +133,7 @@ const Nutricionista = ({ navigation, route }) => {
               valor={email}
               aoMudar={setEmail}
               placeholder="nome@email.com"
+              preenchimento="email"
               teclado="email-address"
               erro={erros.email}
             />
@@ -138,6 +142,7 @@ const Nutricionista = ({ navigation, route }) => {
               valor={senha}
               aoMudar={setSenha}
               placeholder="••••••••"
+              preenchimento="senhaAtual"
               senha
               erro={erros.senha}
             />
@@ -180,7 +185,8 @@ const Nutricionista = ({ navigation, route }) => {
               rotulo="Nome completo"
               valor={nome}
               aoMudar={setNome}
-              placeholder="Seu nome"
+              placeholder="Ex.: Maria Silva"
+              preenchimento="nome"
               capitalizar="words"
               erro={erros.nome}
             />
@@ -189,6 +195,7 @@ const Nutricionista = ({ navigation, route }) => {
               valor={crn}
               aoMudar={setCrn}
               placeholder="Ex.: CRN-3 12345"
+              preenchimento="nenhum"
               capitalizar="characters"
               erro={erros.crn}
             />
@@ -197,6 +204,7 @@ const Nutricionista = ({ navigation, route }) => {
               valor={emailCadastro}
               aoMudar={setEmailCadastro}
               placeholder="nome@email.com"
+              preenchimento="email"
               teclado="email-address"
               erro={erros.email}
             />
@@ -205,9 +213,12 @@ const Nutricionista = ({ navigation, route }) => {
               valor={senhaCadastro}
               aoMudar={setSenhaCadastro}
               placeholder="••••••••"
+              preenchimento="senhaNova"
               senha
               erro={erros.senha}
             />
+
+            <RequisitosSenha senha={senhaCadastro} />
 
             <CaixaSelecao
               marcado={aceitouTermos}
