@@ -10,6 +10,7 @@ export const estilos = StyleSheet.create({
   },
   dicaCartao: {
     fontSize: 12,
+    lineHeight: 16,
     color: cores.textoSecundario,
     marginTop: -8,
     marginBottom: 12,
@@ -31,6 +32,32 @@ export const estilos = StyleSheet.create({
     fontSize: 12,
     color: cores.erro,
     marginBottom: 8,
+  },
+
+  // ----- Faixa de referência escolhida -----
+  cartaoFaixa: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  textosFaixa: {
+    flex: 1,
+  },
+  rotuloFaixa: {
+    fontSize: 12,
+    color: cores.textoSecundario,
+  },
+  valorFaixa: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: cores.verdeEscuro,
+    marginTop: 2,
+  },
+  trocarFaixa: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: cores.verdeLink,
+    paddingLeft: 12,
   },
 
   // ----- Paciente -----
@@ -71,22 +98,31 @@ export const estilos = StyleSheet.create({
   alternadorModo: {
     marginBottom: 16,
   },
+
+  // ----- Avisos da avaliação -----
   avisoIdade: {
     marginTop: 14,
   },
-  // Lembrete de que PB e pregas sao registrados sem escore-z.
-  avisoSemTabela: {
+  textoAviso: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: cores.alertaTexto,
+  },
+  acaoAviso: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: cores.alertaTexto,
+    textDecorationLine: 'underline',
+    marginTop: 8,
+  },
+
+  // ----- Medidas -----
+  notaPosicao: {
     fontSize: 12,
     lineHeight: 16,
     color: cores.textoSecundario,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  linkAvulso: {
-    marginTop: 12,
-    fontSize: 13,
-    fontWeight: '700',
-    color: cores.verdeLink,
+    marginTop: 8,
+    marginBottom: 8,
   },
 
   // ----- IMC -----
@@ -98,6 +134,7 @@ export const estilos = StyleSheet.create({
     borderRadius: raios.medio,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    marginTop: 4,
   },
   rotuloImc: {
     fontSize: 13,
@@ -108,5 +145,11 @@ export const estilos = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
     color: cores.verdeBotao,
+  },
+  notaImc: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: cores.textoSecundario,
+    marginTop: 10,
   },
 });

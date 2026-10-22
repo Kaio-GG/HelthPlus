@@ -16,6 +16,7 @@ import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
 import { cadastrarPaciente } from '../../Api/Pacientes';
+import { criarNotificacao } from '../../Api/notificacoes';
 import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
 import {
@@ -181,6 +182,16 @@ const CadastroPaciente = ({ navigation }) => {
         statusAcesso: dados.enviarConvite ? 'convite_pendente' : 'sem_convite',
         idBanco: resposta.idPaciente,
       });
+
+      // Fica na central de notificações. Um aviso que falha não pode
+      // atrapalhar um cadastro que já deu certo, por isso o catch vazio.
+      criarNotificacao({
+        idProfissional: profissional.id_profissional,
+        tipo: 'paciente',
+        titulo: 'Paciente cadastrado',
+        mensagem: dados.nome.trim() + ' entrou na sua lista de pacientes.',
+        rota: 'Pacientes',
+      }).catch(() => {});
 
       mostrarAviso(
         'Paciente cadastrado!',

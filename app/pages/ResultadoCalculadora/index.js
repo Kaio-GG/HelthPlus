@@ -1,18 +1,34 @@
-// Resultados da calculadora: z-score de cada indicador segundo a OMS.
+// Resultados da calculadora: para cada indicador, o escore-z, o percentil e a
+// classificação da OMS correspondente à faixa de idade do paciente.
+//
+// A tela é lida de cima para baixo em três níveis: a MEDIDA em destaque, a
+// CLASSIFICAÇÃO como etiqueta colorida e, só então, os números técnicos.
+// Antes estava tudo no mesmo peso e o valor se perdia no meio.
 import React from 'react';
 import { View, Text, Alert } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Botao from '../../componentes/Botao';
+import CaixaAviso from '../../componentes/CaixaAviso';
 import { useDados } from '../../contexto/DadosContexto';
 import { avaliarMedidas } from '../../utilitarios/oms/avaliacaoOms';
 import { formatarIdade, formatarDataBR } from '../../utilitarios/datas';
 import { formatarNumero, formatarZScore } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
+// Cada "tom" vindo da classificação tem um par de estilos: fundo e texto.
+const estiloDoTom = {
+  adequado: [estilos.chipAdequado, estilos.textoChipAdequado],
+  atencao: [estilos.chipAtencao, estilos.textoChipAtencao],
+  risco: [estilos.chipRisco, estilos.textoChipRisco],
+};
+
+const SEM_CLASSIFICACAO = [estilos.chipIndisponivel, estilos.textoChipIndisponivel];
+
 const ResultadoCalculadora = ({ navigation, route }) => {
   const { salvarAvaliacao } = useDados();
-  const { pacienteId, nomePaciente, nascimentoMs, dataVisitaMs, sexo, posicao, medidas } = route.params;
+  const { pacienteId, nomePaciente, nascimentoMs, dataVisitaMs, sexo, posicao, medidas } =
+    route.params;
 
   const dataDaVisita = new Date(dataVisitaMs);
 
@@ -24,14 +40,12 @@ const ResultadoCalculadora = ({ navigation, route }) => {
     ...medidas,
   });
 
-  const idadeTexto = formatarIdade(avaliacao.idadeEmMeses);
-  const calculados = avaliacao.indicadores.filter((item) => item.situacao !== 'indisponivel');
-  // Acima de 19 anos o resultado nao e escore-z, e o texto da tela muda.
-  const temAdulto = avaliacao.indicadores.some((item) => item.chave === 'imc_adulto');
-  const naFaixa = calculados.filter((item) => item.situacao === 'normal').length;
-
-  // Ex.: "14,2 kg"
-  const formatarMedida = (item) => `${formatarNumero(item.medida, 1)} ${item.unidade}`;
+  const { faixa, indicadores } = avaliacao;
+  const idadeTexto = formatarIdade(Math.floor(avaliacao.idadeEmMeses));
+  const calculados = indicadores.filter((item) => item.situacao === 'calculado');
+  const adequados = calculados.filter((item) => item.classificacao?.tom === 'adequado').length;
+  const temImplausivel = calculados.some((item) => item.implausivel);
+  const adulto = faixa.chave === 'adulto';
 
   const salvarNaFicha = () => {
     // TODO: integrar com a API (salvar a avaliação na ficha do paciente).
@@ -42,82 +56,135 @@ const ResultadoCalculadora = ({ navigation, route }) => {
       pesoKg: medidas.pesoKg || 0,
       alturaCm: medidas.alturaCm || 0,
       imc: avaliacao.imc || 0,
-      naFaixa,
+      naFaixa: adequados,
       total: calculados.length,
     });
     Alert.alert('Avaliação salva', 'A avaliação foi adicionada à ficha do paciente.', [
-      { text: 'OK', onPress: () => navigation.popTo('FichaPaciente', { pacienteId, aba: 'avaliacoes' }) },
+      {
+        text: 'OK',
+        onPress: () => navigation.popTo('FichaPaciente', { pacienteId, aba: 'avaliacoes' }),
+      },
     ]);
   };
 
   return (
     <Tela
       titulo="Resultados"
-      subtitulo={`${nomePaciente} · ${idadeTexto}`}
+      subtitulo={nomePaciente + ' · ' + idadeTexto}
       rodape={
         <View>
           {pacienteId ? (
-            <Botao titulo="Salvar na ficha do paciente" aoPressionar={salvarNaFicha} estilo={estilos.botaoSalvar} />
+            <Botao
+              titulo="Salvar na ficha do paciente"
+              aoPressionar={salvarNaFicha}
+              estilo={estilos.botaoSalvar}
+            />
           ) : null}
-          <Botao titulo="Nova avaliação" variante="contorno" aoPressionar={() => navigation.goBack()} />
+          <Botao
+            titulo="Nova avaliação"
+            variante="contorno"
+            aoPressionar={() => navigation.goBack()}
+          />
         </View>
       }
     >
-      <Cartao>
-        <Text style={estilos.titulo}>Indicadores</Text>
-        <Text style={estilos.subtitulo}>
-          {temAdulto
-            ? 'Classificação do IMC pelas faixas da OMS para adultos'
-            : 'Z-score segundo as referências da OMS'}
-        </Text>
+      {temImplausivel ? (
+        <CaixaAviso
+          tom="alerta"
+          icone="alerta"
+          texto="Um ou mais resultados estão muito fora do esperado. Na prática isso quase sempre é erro de anotação: peso em gramas, altura em metros, data de nascimento trocada. Confira as medidas antes de usar."
+          estilo={estilos.avisoTopo}
+        />
+      ) : null}
 
-        {avaliacao.indicadores.length === 0 ? (
-          <Text style={estilos.vazio}>Nenhuma medida informada.</Text>
+      {/* Resumo: a referência usada e quantos indicadores estão adequados. */}
+      <Cartao estilo={estilos.cartaoResumo}>
+        <Text style={estilos.rotuloResumo}>Referência</Text>
+        <Text style={estilos.fonteResumo}>{faixa.fonte}</Text>
+
+        {!adulto && calculados.length > 0 ? (
+          <Text style={estilos.contagem}>
+            {adequados} de {calculados.length}{' '}
+            {calculados.length === 1 ? 'indicador adequado' : 'indicadores adequados'}
+          </Text>
         ) : null}
+      </Cartao>
 
-        {avaliacao.indicadores.map((item) => (
-          <View key={item.chave} style={estilos.linha}>
-            <View style={estilos.textos}>
-              <Text style={estilos.nomeIndicador}>{item.rotulo}</Text>
-              <Text style={estilos.medida}>Medida: {formatarMedida(item)}</Text>
-              {item.situacao === 'indisponivel' ? <Text style={estilos.motivo}>{item.motivo}</Text> : null}
-              {item.referencia ? <Text style={estilos.motivo}>{item.referencia}</Text> : null}
+      {indicadores.length === 0 ? (
+        <Cartao>
+          <Text style={estilos.vazio}>Nenhuma medida informada.</Text>
+        </Cartao>
+      ) : null}
+
+      {/* Um cartão por indicador: a medida grande, a classificação como
+          etiqueta e os números técnicos embaixo, menores. */}
+      {indicadores.map((item) => {
+        const indisponivel = item.situacao === 'indisponivel';
+        const [fundoChip, textoChip] = indisponivel
+          ? SEM_CLASSIFICACAO
+          : (estiloDoTom[item.classificacao?.tom] ?? SEM_CLASSIFICACAO);
+
+        return (
+          <Cartao key={item.chave} estilo={estilos.cartaoIndicador}>
+            <Text style={estilos.nomeIndicador}>{item.rotulo}</Text>
+
+            <View style={estilos.linhaValor}>
+              <Text style={estilos.valor}>{formatarNumero(item.medida, 1)}</Text>
+              <Text style={estilos.unidade}>{item.unidade}</Text>
             </View>
 
-            {item.situacao === 'indisponivel' ? (
-              <View style={[estilos.chip, estilos.chipIndisponivel]}>
-                <Text style={[estilos.textoChip, estilos.textoChipIndisponivel]}>—</Text>
-              </View>
-            ) : (
-              <View style={[estilos.chip, item.situacao === 'normal' ? estilos.chipNormal : estilos.chipForaDaFaixa]}>
-                <Text
-                  style={[
-                    estilos.textoChip,
-                    item.situacao === 'normal' ? estilos.textoChipNormal : estilos.textoChipForaDaFaixa,
-                  ]}
-                >
-                  {item.classificacao ?? formatarZScore(item.zScore)}
+            <View style={[estilos.chip, fundoChip]}>
+              <Text style={[estilos.textoChip, textoChip]}>
+                {indisponivel ? 'Sem tabela de referência' : (item.classificacao?.nome ?? '—')}
+              </Text>
+            </View>
+
+            {item.zScore !== null ? (
+              <Text style={estilos.escores}>
+                escore-z {formatarZScore(item.zScore)} · percentil{' '}
+                {formatarNumero(item.percentil, 1)}
+              </Text>
+            ) : null}
+
+            {indisponivel ? <Text style={estilos.motivo}>{item.motivo}</Text> : null}
+            {item.referencia ? <Text style={estilos.motivo}>{item.referencia}</Text> : null}
+
+            {item.implausivel ? (
+              <Text style={estilos.implausivel}>Valor improvável para a OMS. Confira a medida.</Text>
+            ) : null}
+
+            {/* Leitura extra do mesmo número. Hoje: desnutrição aguda pelo PB. */}
+            {item.extra ? (
+              <View style={estilos.linhaExtra}>
+                <Text style={estilos.rotuloExtra}>{item.extra.rotulo}</Text>
+                <Text style={[estilos.valorExtra, estiloDoTom[item.extra.tom][1]]}>
+                  {item.extra.nome}
                 </Text>
               </View>
-            )}
-          </View>
-        ))}
+            ) : null}
+          </Cartao>
+        );
+      })}
 
+      <Cartao estilo={estilos.cartaoLegenda}>
         <View style={estilos.legenda}>
           <View style={estilos.itemLegenda}>
-            <View style={[estilos.bolinha, estilos.bolinhaNormal]} />
-            <Text style={estilos.textoLegenda}>Entre −2 e +2</Text>
+            <View style={[estilos.bolinha, estilos.bolinhaAdequado]} />
+            <Text style={estilos.textoLegenda}>Adequado</Text>
           </View>
           <View style={estilos.itemLegenda}>
-            <View style={[estilos.bolinha, estilos.bolinhaForaDaFaixa]} />
-            <Text style={estilos.textoLegenda}>Fora da faixa: avaliar</Text>
+            <View style={[estilos.bolinha, estilos.bolinhaAtencao]} />
+            <Text style={estilos.textoLegenda}>Acompanhar</Text>
+          </View>
+          <View style={estilos.itemLegenda}>
+            <View style={[estilos.bolinha, estilos.bolinhaRisco]} />
+            <Text style={estilos.textoLegenda}>Avaliar</Text>
           </View>
         </View>
 
         <Text style={estilos.nota}>
-          Referência: WHO Child Growth Standards 2006 (0 a 5 anos) e WHO Growth
-          Reference 2007 (5 a 19 anos), tabelas oficiais. PB e pregas cutâneas
-          ainda não têm tabela de referência no aplicativo.
+          O escore-z compara o paciente com crianças do mesmo sexo e da mesma idade; o percentil
+          diz quantas delas ficam abaixo dele.
         </Text>
       </Cartao>
     </Tela>

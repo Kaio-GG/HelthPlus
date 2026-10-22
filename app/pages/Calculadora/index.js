@@ -1,5 +1,6 @@
-// Calculadora OMS: escolhe o paciente (ou cálculo avulso), informa as medidas
-// e segue para a tela de resultados com os z-scores.
+// Calculadora OMS: com a faixa de referência já escolhida na tela anterior,
+// escolhe o paciente (ou faz um cálculo avulso), recebe as medidas e segue
+// para a tela de resultados.
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
@@ -14,20 +15,35 @@ import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { cores } from '../../tema';
 import { calcularImc } from '../../utilitarios/oms/avaliacaoOms';
-import { aplicarMascaraData, aplicarMascaraDecimal, decimalParaNumero } from '../../utilitarios/mascaras';
+import { FAIXAS, faixaDaIdade, obterFaixa } from '../../utilitarios/oms/faixasOms';
+import {
+  aplicarMascaraData,
+  aplicarMascaraDecimal,
+  decimalParaNumero,
+} from '../../utilitarios/mascaras';
 import {
   converterDataBR,
   formatarDataBR,
+  calcularIdadeEmDias,
   calcularIdadeEmMeses,
   formatarIdade,
 } from '../../utilitarios/datas';
 import { formatarNumero, normalizarTexto } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
-const IDADE_MAXIMA_OMS_MESES = 19 * 12;
+// Perímetro braquial e dobras cutâneas só têm tabela a partir dos 3 meses.
+const IDADE_MINIMA_BRACO_PREGAS_MESES = 3;
+
+// Até 731 dias (2 anos) a OMS espera a criança medida deitada.
+const DIAS_LIMITE_DEITADO = 731;
 
 const Calculadora = ({ navigation, route }) => {
   const { pacientes } = useDados();
+
+  // A faixa vem da tela anterior. Se alguém chegar aqui sem ela (um link
+  // antigo, por exemplo), a primeira infância é o padrão mais seguro: é a
+  // faixa com mais indicadores, e nenhum campo fica escondido.
+  const faixa = obterFaixa(route.params?.faixa) ?? FAIXAS.primeira_infancia;
 
   // ----- Paciente -----
   const [busca, setBusca] = useState('');
@@ -52,30 +68,38 @@ const Calculadora = ({ navigation, route }) => {
 
   const paciente = pacientes.find((item) => item.id === pacienteId) || null;
   const sexo = modoAvulso ? sexoAvulso : paciente ? paciente.sexo : null;
-  const nascimento = modoAvulso ? converterDataBR(nascimentoAvulso) : paciente ? paciente.nascimento : null;
+  const nascimento = modoAvulso
+    ? converterDataBR(nascimentoAvulso)
+    : paciente
+      ? paciente.nascimento
+      : null;
   const dataDaVisita = converterDataBR(dataVisita);
 
-  const idadeEmMeses = nascimento && dataDaVisita ? calcularIdadeEmMeses(nascimento, dataDaVisita) : null;
+  const temIdade = Boolean(nascimento && dataDaVisita && dataDaVisita >= nascimento);
+  const idadeEmDias = temIdade ? calcularIdadeEmDias(nascimento, dataDaVisita) : null;
+  const idadeEmMeses = temIdade ? calcularIdadeEmMeses(nascimento, dataDaVisita) : null;
 
-  // Posição padrão: menores de 2 anos são medidos deitados.
-  const posicaoPadrao = idadeEmMeses !== null && idadeEmMeses < 24 ? 'deitado' : 'de_pe';
+  // Posição padrão pela idade. A regra da OMS é em dias (731), não em meses.
+  const posicaoPadrao =
+    idadeEmDias !== null && idadeEmDias < DIAS_LIMITE_DEITADO ? 'deitado' : 'de_pe';
   const posicao = posicaoEscolhida || posicaoPadrao;
 
-  // Alguns indicadores só existem em certas idades. Antes o campo sumia da
-  // tela e ninguém entendia por quê; agora ele continua visível, bloqueado,
-  // com o motivo no lugar do texto de exemplo.
-  const perimetroCefalicoVale = idadeEmMeses === null || idadeEmMeses <= 60;
-  const bracoEPregasValem = idadeEmMeses === null || (idadeEmMeses >= 3 && idadeEmMeses <= 60);
+  // A faixa escolhida define quais campos aparecem...
+  const mostraCampo = (nome) => faixa.campos.includes(nome);
 
-  // Acima de 19 anos entra a classificação de IMC para adultos.
-  const adulto = idadeEmMeses !== null && idadeEmMeses > IDADE_MAXIMA_OMS_MESES;
+  // ...e a idade informada define quais deles ainda fazem sentido. O campo
+  // continua visível, bloqueado, com o motivo no lugar do texto de exemplo.
+  const bracoEPregasValem =
+    idadeEmMeses === null || idadeEmMeses >= IDADE_MINIMA_BRACO_PREGAS_MESES;
+  const motivoBracoEPregas = bracoEPregasValem ? null : 'A partir de 3 meses';
 
-  const motivoPerimetroCefalico = perimetroCefalicoVale ? null : 'Só até 5 anos';
-  const motivoBracoEPregas = bracoEPregasValem
-    ? null
-    : idadeEmMeses !== null && idadeEmMeses < 3
-      ? 'A partir de 3 meses'
-      : 'Só até 5 anos';
+  // A idade informada caiu em outra faixa? Avisa e oferece a troca, em vez de
+  // deixar a tela mostrando os campos da referência errada.
+  const faixaDaIdadeInformada = faixaDaIdade(idadeEmMeses);
+  const faixaDivergente =
+    faixaDaIdadeInformada && faixaDaIdadeInformada.chave !== faixa.chave
+      ? faixaDaIdadeInformada
+      : null;
 
   const pesoNumero = decimalParaNumero(peso);
   const alturaNumero = decimalParaNumero(altura);
@@ -94,23 +118,30 @@ const Calculadora = ({ navigation, route }) => {
     setPosicaoEscolhida(null);
   };
 
-  const alternarModoAvulso = () => {
-    setModoAvulso(true);
-    setPacienteId(null);
+  // O alternador no topo do cartão já é a única forma de ir e voltar entre
+  // "paciente cadastrado" e "cálculo avulso".
+  const trocarModo = (escolha) => {
+    const avulso = escolha === 'avulso';
+    setModoAvulso(avulso);
     setBusca('');
+    setPosicaoEscolhida(null);
+    if (avulso) setPacienteId(null);
+    else setNascimentoAvulso('');
   };
 
-  const voltarParaCadastrado = () => {
-    setModoAvulso(false);
-    setNascimentoAvulso('');
-  };
+  // Troca a faixa mantendo tudo o que já foi digitado.
+  const usarFaixa = (chave) => navigation.setParams({ faixa: chave });
 
   const calcular = () => {
     const novosErros = {};
-    if (!modoAvulso && !paciente) novosErros.paciente = 'Selecione um paciente ou use o cálculo avulso.';
+    if (!modoAvulso && !paciente) {
+      novosErros.paciente = 'Selecione um paciente ou use o cálculo avulso.';
+    }
     if (modoAvulso && !nascimento) novosErros.nascimento = 'Informe a data de nascimento.';
     if (!dataDaVisita) novosErros.dataVisita = 'Informe uma data válida.';
-    else if (nascimento && dataDaVisita < nascimento) novosErros.dataVisita = 'A visita não pode ser antes do nascimento.';
+    else if (nascimento && dataDaVisita < nascimento) {
+      novosErros.dataVisita = 'A visita não pode ser antes do nascimento.';
+    }
     if (!pesoNumero && !alturaNumero) novosErros.peso = 'Informe ao menos o peso ou a altura.';
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0) return;
@@ -125,10 +156,18 @@ const Calculadora = ({ navigation, route }) => {
       medidas: {
         pesoKg: pesoNumero,
         alturaCm: alturaNumero,
-        perimetroCefalicoCm: decimalParaNumero(perimetroCefalico),
-        perimetroBracoCm: decimalParaNumero(perimetroBraco),
-        pregaTricipitalMm: decimalParaNumero(pregaTricipital),
-        pregaSubescapularMm: decimalParaNumero(pregaSubescapular),
+        // O que a faixa não mostra não entra no cálculo, mesmo que tenha
+        // ficado preenchido de uma troca de faixa.
+        perimetroCefalicoCm: mostraCampo('perimetroCefalico')
+          ? decimalParaNumero(perimetroCefalico)
+          : null,
+        perimetroBracoCm: mostraCampo('perimetroBraco') ? decimalParaNumero(perimetroBraco) : null,
+        pregaTricipitalMm: mostraCampo('pregaTricipital')
+          ? decimalParaNumero(pregaTricipital)
+          : null,
+        pregaSubescapularMm: mostraCampo('pregaSubescapular')
+          ? decimalParaNumero(pregaSubescapular)
+          : null,
       },
     });
   };
@@ -136,9 +175,24 @@ const Calculadora = ({ navigation, route }) => {
   return (
     <Tela
       titulo="Calculadora OMS"
-      subtitulo="Avaliação antropométrica"
+      subtitulo={`${faixa.rotulo} · ${faixa.fonte}`}
       rodape={<Botao titulo="Calcular resultados" aoPressionar={calcular} />}
     >
+      {/* ---------- Faixa de referência ---------- */}
+      <Cartao estilo={estilos.cartaoFaixa}>
+        <View style={estilos.textosFaixa}>
+          <Text style={estilos.rotuloFaixa}>Faixa de referência</Text>
+          <Text style={estilos.valorFaixa}>{faixa.titulo}</Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="Trocar a faixa de referência"
+        >
+          <Text style={estilos.trocarFaixa}>Trocar</Text>
+        </TouchableOpacity>
+      </Cartao>
+
       {/* ---------- Paciente ---------- */}
       <Cartao>
         <Text style={estilos.tituloCartao}>Paciente</Text>
@@ -149,9 +203,7 @@ const Calculadora = ({ navigation, route }) => {
             { valor: 'avulso', rotulo: 'Cálculo avulso' },
           ]}
           valor={modoAvulso ? 'avulso' : 'cadastrado'}
-          aoMudar={(escolha) =>
-            escolha === 'avulso' ? alternarModoAvulso() : voltarParaCadastrado()
-          }
+          aoMudar={trocarModo}
           estilo={estilos.alternadorModo}
         />
 
@@ -160,7 +212,11 @@ const Calculadora = ({ navigation, route }) => {
             <CampoBusca valor={busca} aoMudar={setBusca} placeholder="Nome ou CPF" />
 
             {resultadosDaBusca.map((item) => (
-              <TouchableOpacity key={item.id} style={estilos.itemBusca} onPress={() => selecionarPaciente(item.id)}>
+              <TouchableOpacity
+                key={item.id}
+                style={estilos.itemBusca}
+                onPress={() => selecionarPaciente(item.id)}
+              >
                 <Avatar nome={item.nome} tamanho={34} />
                 <Text style={estilos.nomeBusca}>{item.nome}</Text>
               </TouchableOpacity>
@@ -204,9 +260,6 @@ const Calculadora = ({ navigation, route }) => {
               icone="calendario"
               erro={erros.nascimento}
             />
-            <Text style={estilos.linkAvulso} onPress={() => setModoAvulso(false)}>
-              Escolher um paciente cadastrado
-            </Text>
           </View>
         )}
       </Cartao>
@@ -236,7 +289,23 @@ const Calculadora = ({ navigation, route }) => {
           />
         </View>
 
-        {adulto ? (
+        {faixaDivergente ? (
+          <CaixaAviso tom="alerta" icone="alerta" estilo={estilos.avisoIdade}>
+            <Text style={estilos.textoAviso}>
+              Essa idade pertence à faixa de {faixaDivergente.rotulo}, não à que você escolheu. O
+              resultado sempre segue a idade real — mas a tela está mostrando os campos da outra
+              faixa.
+            </Text>
+            <TouchableOpacity
+              onPress={() => usarFaixa(faixaDivergente.chave)}
+              accessibilityRole="button"
+            >
+              <Text style={estilos.acaoAviso}>Usar a faixa de {faixaDivergente.rotulo}</Text>
+            </TouchableOpacity>
+          </CaixaAviso>
+        ) : null}
+
+        {faixa.chave === 'adulto' ? (
           <CaixaAviso
             tom="info"
             texto="Acima de 19 anos a OMS não tem curva de crescimento. O resultado traz o IMC classificado pelas faixas da OMS para adultos, sem escore-z."
@@ -248,7 +317,7 @@ const Calculadora = ({ navigation, route }) => {
       {/* ---------- Medidas ---------- */}
       <Cartao>
         <Text style={estilos.tituloCartao}>Medidas</Text>
-        <Text style={estilos.dicaCartao}>Alguns campos dependem da idade (OMS).</Text>
+        <Text style={estilos.dicaCartao}>{faixa.resumo}</Text>
 
         <View style={estilos.linhaCampos}>
           <CampoTexto
@@ -261,7 +330,7 @@ const Calculadora = ({ navigation, route }) => {
             estilo={estilos.campoMetade}
           />
           <CampoTexto
-            rotulo="Altura/comprimento (cm)"
+            rotulo={posicao === 'deitado' ? 'Comprimento (cm)' : 'Estatura (cm)'}
             valor={altura}
             aoMudar={(texto) => setAltura(aplicarMascaraDecimal(texto))}
             placeholder="0,0"
@@ -270,70 +339,85 @@ const Calculadora = ({ navigation, route }) => {
           />
         </View>
 
-        <Text style={estilos.rotuloCampo}>Medida(s) deitado ou de pé</Text>
-        <Alternador
-          opcoes={[
-            { valor: 'deitado', rotulo: 'Deitado' },
-            { valor: 'de_pe', rotulo: 'De pé' },
-          ]}
-          valor={posicao}
-          aoMudar={setPosicaoEscolhida}
-        />
+        {faixa.pedePosicao ? (
+          <View>
+            <Text style={estilos.rotuloCampo}>Medida feita deitado ou de pé</Text>
+            <Alternador
+              opcoes={[
+                { valor: 'deitado', rotulo: 'Deitado' },
+                { valor: 'de_pe', rotulo: 'De pé' },
+              ]}
+              valor={posicao}
+              aoMudar={setPosicaoEscolhida}
+            />
+            <Text style={estilos.notaPosicao}>
+              Até 2 anos a OMS espera a criança deitada; daí em diante, de pé. Se foi na outra
+              posição, o cálculo converte 0,7 cm antes de comparar com a curva.
+            </Text>
+          </View>
+        ) : null}
 
-        <View style={estilos.linhaCampos}>
-          <CampoTexto
-            rotulo="Perímetro cefálico (cm)"
-            valor={perimetroCefalicoVale ? perimetroCefalico : ''}
-            aoMudar={(texto) => setPerimetroCefalico(aplicarMascaraDecimal(texto))}
-            placeholder={motivoPerimetroCefalico ?? '0,0'}
-            somenteLeitura={!perimetroCefalicoVale}
-            teclado="decimal-pad"
-            estilo={estilos.campoMetade}
-          />
-          <CampoTexto
-            rotulo="Circunf. braço (PB) (cm)"
-            valor={bracoEPregasValem ? perimetroBraco : ''}
-            aoMudar={(texto) => setPerimetroBraco(aplicarMascaraDecimal(texto))}
-            placeholder={motivoBracoEPregas ?? '0,0'}
-            somenteLeitura={!bracoEPregasValem}
-            teclado="decimal-pad"
-            estilo={estilos.campoMetade}
-          />
-        </View>
+        {mostraCampo('perimetroCefalico') || mostraCampo('perimetroBraco') ? (
+          <View style={estilos.linhaCampos}>
+            {mostraCampo('perimetroCefalico') ? (
+              <CampoTexto
+                rotulo="Perímetro cefálico (cm)"
+                valor={perimetroCefalico}
+                aoMudar={(texto) => setPerimetroCefalico(aplicarMascaraDecimal(texto))}
+                placeholder="0,0"
+                teclado="decimal-pad"
+                estilo={estilos.campoMetade}
+              />
+            ) : null}
+            {mostraCampo('perimetroBraco') ? (
+              <CampoTexto
+                rotulo="Perímetro braquial (cm)"
+                valor={bracoEPregasValem ? perimetroBraco : ''}
+                aoMudar={(texto) => setPerimetroBraco(aplicarMascaraDecimal(texto))}
+                placeholder={motivoBracoEPregas ?? '0,0'}
+                somenteLeitura={!bracoEPregasValem}
+                teclado="decimal-pad"
+                estilo={estilos.campoMetade}
+              />
+            ) : null}
+          </View>
+        ) : null}
 
-        <View style={estilos.linhaCampos}>
-          <CampoTexto
-            rotulo="Prega tricipital (mm)"
-            valor={bracoEPregasValem ? pregaTricipital : ''}
-            aoMudar={(texto) => setPregaTricipital(aplicarMascaraDecimal(texto))}
-            placeholder={motivoBracoEPregas ?? '0,0'}
-            somenteLeitura={!bracoEPregasValem}
-            teclado="decimal-pad"
-            estilo={estilos.campoMetade}
-          />
-          <CampoTexto
-            rotulo="Prega subescapular (mm)"
-            valor={bracoEPregasValem ? pregaSubescapular : ''}
-            aoMudar={(texto) => setPregaSubescapular(aplicarMascaraDecimal(texto))}
-            placeholder={motivoBracoEPregas ?? '0,0'}
-            somenteLeitura={!bracoEPregasValem}
-            teclado="decimal-pad"
-            estilo={estilos.campoMetade}
-          />
-        </View>
-
-        {/* PB e pregas ainda nao tem tabela de referencia no projeto. */}
-        {bracoEPregasValem ? (
-          <Text style={estilos.avisoSemTabela}>
-            PB e pregas ainda não têm tabela de referência: ficam registrados,
-            mas sem escore-z.
-          </Text>
+        {mostraCampo('pregaTricipital') ? (
+          <View style={estilos.linhaCampos}>
+            <CampoTexto
+              rotulo="Prega tricipital (mm)"
+              linhasDoRotulo={2}
+              valor={bracoEPregasValem ? pregaTricipital : ''}
+              aoMudar={(texto) => setPregaTricipital(aplicarMascaraDecimal(texto))}
+              placeholder={motivoBracoEPregas ?? '0,0'}
+              somenteLeitura={!bracoEPregasValem}
+              teclado="decimal-pad"
+              estilo={estilos.campoMetade}
+            />
+            <CampoTexto
+              rotulo="Prega subescapular (mm)"
+              linhasDoRotulo={2}
+              valor={bracoEPregasValem ? pregaSubescapular : ''}
+              aoMudar={(texto) => setPregaSubescapular(aplicarMascaraDecimal(texto))}
+              placeholder={motivoBracoEPregas ?? '0,0'}
+              somenteLeitura={!bracoEPregasValem}
+              teclado="decimal-pad"
+              estilo={estilos.campoMetade}
+            />
+          </View>
         ) : null}
 
         <View style={estilos.caixaImc}>
           <Text style={estilos.rotuloImc}>IMC calculado</Text>
           <Text style={estilos.valorImc}>{imc ? `${formatarNumero(imc)} kg/m²` : '—'}</Text>
         </View>
+        {/* Pergunta que aparece sempre: "por que o IMC não muda com o sexo?" */}
+        <Text style={estilos.notaImc}>
+          O IMC é só peso ÷ altura², igual para qualquer pessoa. O que muda entre meninos e meninas
+          é a leitura dele: o escore-z e a classificação saem de curvas separadas por sexo, na tela
+          de resultados.
+        </Text>
       </Cartao>
     </Tela>
   );

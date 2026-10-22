@@ -14,6 +14,7 @@ import Icone from "../../componentes/Icone";
 import Selo from "../../componentes/Selo";
 import Botao from "../../componentes/Botao";
 import BarraProgresso from "../../componentes/BarraProgresso";
+import SinoNotificacoes from "../../componentes/SinoNotificacoes";
 import { useDados } from "../../contexto/DadosContexto";
 import { cores, espacamento } from "../../tema";
 import {
@@ -63,7 +64,7 @@ const atalhos = [
     chave: "calculadora",
     rotulo: "Calculadora OMS",
     icone: "calculadora",
-    rota: "Calculadora",
+    rota: "FaixaCalculadora",
   },
 ];
 
@@ -154,8 +155,11 @@ const HomeNutricionista = ({ navigation }) => {
       mostrarVoltar={false}
       cabecalhoRolavel
       direita={
-        <View style={estilos.emblema}>
-          <Medico width={44} height={44} />
+        <View style={estilos.acoesCabecalho}>
+          <SinoNotificacoes />
+          <View style={estilos.emblema}>
+            <Medico width={44} height={44} />
+          </View>
         </View>
       }
       abaAtiva="inicio"

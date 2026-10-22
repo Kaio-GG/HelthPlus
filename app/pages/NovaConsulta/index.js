@@ -12,6 +12,8 @@ import Avatar from '../../componentes/Avatar';
 import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
+import { useAuth } from '../../contexto/AuthContext';
+import { criarNotificacao } from '../../Api/notificacoes';
 import { duracoesDisponiveis, tiposDeConsulta, horariosDisponiveis } from '../../dados/consultas';
 import { cores } from '../../tema';
 import { aplicarMascaraData, aplicarMascaraTelefone } from '../../utilitarios/mascaras';
@@ -21,6 +23,7 @@ import { estilos } from './style';
 
 const NovaConsulta = ({ navigation, route }) => {
   const { pacientes, adicionarConsulta } = useDados();
+  const { profissional } = useAuth();
 
   const dataInicial = route.params?.dataMs ? new Date(route.params.dataMs) : new Date();
 
@@ -75,6 +78,23 @@ const NovaConsulta = ({ navigation, route }) => {
       status: 'pendente',
       avulso: ehAvulso,
     });
+
+    // Aviso na central de notificações. A consulta em si ainda não vai para
+    // o banco (veja o TODO acima); a notificação já vai.
+    if (profissional?.id_profissional) {
+      criarNotificacao({
+        idProfissional: profissional.id_profissional,
+        tipo: 'consulta',
+        titulo: 'Consulta agendada',
+        mensagem:
+          (ehAvulso ? nomeAvulso.trim() : pacienteEscolhido.nome) +
+          ' em ' +
+          formatarDataBR(inicio) +
+          ' às ' +
+          horario,
+        rota: 'Agenda',
+      }).catch(() => {});
+    }
 
     Alert.alert('Consulta agendada!', 'A consulta foi adicionada à sua agenda.', [
       { text: 'OK', onPress: () => navigation.replace('Agenda') },

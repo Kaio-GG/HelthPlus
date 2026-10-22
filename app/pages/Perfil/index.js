@@ -91,14 +91,24 @@ useEffect(() => {
   const usoDoPlano = limitePacientes ? pacientes.length / limitePacientes : 0;
 
   const itensDeSeguranca = [
-    { chave: 'senha', rotulo: 'Alterar senha', icone: 'cadeado', aoPressionar: () => navigation.navigate('RedefinirSenha') },
+    {
+      chave: 'senha',
+      rotulo: 'Alterar senha',
+      icone: 'cadeado',
+      aoPressionar: () => navigation.navigate('AlterarSenha'),
+    },
     {
       chave: 'notificacoes',
       rotulo: 'Notificações',
       icone: 'sino',
-      aoPressionar: () => Alert.alert('Notificações', 'As preferências de notificação serão configuráveis em breve.'),
+      aoPressionar: () => navigation.navigate('PreferenciasNotificacao'),
     },
-    { chave: 'termos', rotulo: 'Termos de Uso e Privacidade', icone: 'info', aoPressionar: () => navigation.navigate('Termos') },
+    {
+      chave: 'termos',
+      rotulo: 'Termos de Uso e Privacidade',
+      icone: 'info',
+      aoPressionar: () => navigation.navigate('Termos'),
+    },
   ];
 
   return (

@@ -18,6 +18,13 @@ const paleta = {
 export const larguraCartaoConsulta = 124;
 
 export const estilos = StyleSheet.create({
+  // Sino e emblema, lado a lado no canto direito do cabeçalho.
+  acoesCabecalho: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
   // ----- Cabeçalho (lado direito: emblema com anel amarelo como no design) -----
   emblema: {
     width: 84,

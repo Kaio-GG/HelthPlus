@@ -1,8 +1,10 @@
 {
   "fonte": "WHO Growth Reference 2007 (5-19 anos)",
+  "origem": "WorldHealthOrganization/anthroplus - data-raw/growthstandards/bfawho2007.txt",
   "indicator": "bmi_for_age_5_19",
-  "sex": "M",
   "unit": "months",
+  "observacao": "Vai ate o mes 229 porque a interpolacao precisa do ponto seguinte: sem ele, 19 anos completos ficaria sem resultado.",
+  "sex": "M",
   "points": [
     {
       "age": 61,
@@ -1008,6 +1010,12 @@
     },
     {
       "age": 228,
+      "L": -0.8419,
+      "M": 22.1883,
+      "S": 0.12948
+    },
+    {
+      "age": 229,
       "L": -0.8419,
       "M": 22.1883,
       "S": 0.12948

@@ -6,6 +6,9 @@
 //   icone            ícone fixo à direita (ex.: 'calendario')
 //   multilinha       campo de várias linhas
 //   selecionarAoFocar  marca o texto ao tocar, para digitar substituir tudo
+//   linhasDoRotulo   reserva espaço para N linhas de rótulo. Use nos campos
+//                    lado a lado quando um dos rótulos quebra em duas
+//                    linhas: sem isso, uma caixa fica mais baixa que a outra
 //   aoLimpar         mostra um "x" à direita que apaga o campo. Importante
 //                    em campos de tamanho fixo, como data: quando eles
 //                    enchem, o teclado para de inserir e sem o "x" o
@@ -34,6 +37,10 @@ const PREENCHIMENTOS = {
   senhaNova: { autoComplete: 'new-password', textContentType: 'newPassword' },
 };
 
+// Altura de uma linha do rótulo: o lineHeight fixado em style.js. É o que
+// linhasDoRotulo usa para reservar o espaço de N linhas.
+const ALTURA_DA_LINHA_DO_ROTULO = 17;
+
 const CampoTexto = ({
   rotulo,
   valor,
@@ -45,6 +52,7 @@ const CampoTexto = ({
   icone,
   multilinha = false,
   selecionarAoFocar = false,
+  linhasDoRotulo,
   aoLimpar,
   preenchimento = 'nenhum',
   teclado = 'default',
@@ -54,11 +62,38 @@ const CampoTexto = ({
 }) => {
   const [senhaVisivel, setSenhaVisivel] = useState(false);
 
+  // Seleção do texto, controlada só no momento do toque.
+  //
+  // Antes isto era o selectTextOnFocus do TextInput, e ele tem um defeito:
+  // volta a marcar o texto a CADA re-render. Num campo com máscara, cada
+  // tecla digitada muda o valor e re-renderiza — então a segunda tecla
+  // apagava a primeira (digitar "21" deixava só "1"). Agora a marcação
+  // acontece uma vez, ao focar, e some assim que o usuário digita.
+  const [selecao, setSelecao] = useState(undefined);
+
+  const aoFocar = () => {
+    if (selecionarAoFocar && valor) setSelecao({ start: 0, end: String(valor).length });
+  };
+
+  const digitou = (texto) => {
+    if (selecao) setSelecao(undefined);
+    if (aoMudar) aoMudar(texto);
+  };
+
   const dicas = PREENCHIMENTOS[preenchimento] ?? PREENCHIMENTOS.nenhum;
 
   return (
     <View style={[estilos.container, estilo]}>
-      {rotulo ? <Text style={estilos.rotulo}>{rotulo}</Text> : null}
+      {rotulo ? (
+        <Text
+          style={[
+            estilos.rotulo,
+            linhasDoRotulo ? { minHeight: ALTURA_DA_LINHA_DO_ROTULO * linhasDoRotulo } : null,
+          ]}
+        >
+          {rotulo}
+        </Text>
+      ) : null}
 
       <View
         style={[
@@ -71,7 +106,7 @@ const CampoTexto = ({
         <TextInput
           style={[estilos.entrada, multilinha && estilos.entradaMultilinha]}
           value={valor}
-          onChangeText={aoMudar}
+          onChangeText={digitou}
           placeholder={placeholder}
           placeholderTextColor={cores.textoDesabilitado}
           secureTextEntry={senha && !senhaVisivel}
@@ -82,7 +117,9 @@ const CampoTexto = ({
           autoCorrect={false}
           autoComplete={dicas.autoComplete}
           textContentType={dicas.textContentType}
-          selectTextOnFocus={selecionarAoFocar}
+          onFocus={aoFocar}
+          onBlur={() => setSelecao(undefined)}
+          selection={selecao}
           maxLength={maxCaracteres}
           textAlignVertical={multilinha ? 'top' : 'center'}
         />

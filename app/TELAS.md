@@ -17,22 +17,28 @@ Componentes reutilizáveis ficam em `componentes/<Nome>/` com o mesmo padrão. T
 | Ficha: Resumo / Avaliações / Planos / Registros | `FichaPaciente` | `pages/FichaPaciente` |
 | Planos alimentares (lista) | `PlanosAlimentares` | `pages/PlanosAlimentares` |
 | Criar plano alimentar | `CriarPlanoAlimentar` | `pages/CriarPlanoAlimentar` |
+| Escolha da faixa da calculadora | `FaixaCalculadora` | `pages/FaixaCalculadora` |
 | Calculadora OMS | `Calculadora` | `pages/Calculadora` |
 | Resultados da calculadora | `ResultadoCalculadora` | `pages/ResultadoCalculadora` |
 | Pacotes de planos (Individual / Clínica) | `Pacotes` | `pages/Pacotes` |
 | Agenda | `Agenda` | `pages/Agenda` |
 | Nova consulta (cadastrado / avulso) | `NovaConsulta` | `pages/NovaConsulta` |
 | Perfil | `Perfil` | `pages/Perfil` |
+| Alterar senha | `AlterarSenha` | `pages/AlterarSenha` |
+| Central de notificações | `Notificacoes` | `pages/Notificacoes` |
+| Preferências de notificação | `PreferenciasNotificacao` | `pages/PreferenciasNotificacao` |
 | Termos de uso / Privacidade | `Termos` | `pages/Termos` |
 
 ## Pastas novas
 - `tema/` — cores, espaçamentos, raios e sombras (um só lugar para o visual).
-- `componentes/` — Tela, Cabecalho, BarraInferior, Botao, CampoTexto, CampoBusca, CampoSelecao, Alternador, Chip, Selo, Cartao, CaixaAviso, CaixaSelecao, BarraEtapas, BarraProgresso, Avatar, Abas, Calendario, GraficoLinha, BotaoCircular, CartaoPlano, Icone.
+- `componentes/` — Tela, Cabecalho, BarraInferior, Botao, CampoTexto, CampoBusca, CampoSelecao, Alternador, Chip, Selo, Cartao, CaixaAviso, CaixaSelecao, BarraEtapas, BarraProgresso, Avatar, Abas, Calendario, GraficoLinha, BotaoCircular, CartaoPlano, Icone, RequisitosSenha, SinoNotificacoes.
 - `contexto/DadosContexto.js` — dados em memória (pacientes, consultas, planos, avaliações, assinatura).
+- `contexto/NotificacoesContexto.js` — notificações do nutricionista logado, lidas da API (lista, número do sino e preferências).
 - `dados/` — dados de exemplo (trocar por chamadas à API quando ela estiver pronta; procure por `TODO: integrar com a API`).
 - `utilitarios/` — máscaras, validações, datas, formatos e o motor da calculadora OMS (`utilitarios/oms`).
 
 ## Atenção
-- **Tabelas da OMS**: as de `utilitarios/oms/dados` são de **demonstração** (poucos pontos). Troque pelas oficiais antes de usar com pacientes reais. PB, PCT e PCS ainda não têm tabela (aparecem como "—").
+- **Tabelas da OMS**: as de `utilitarios/oms/dados` são as **oficiais**, com todos os indicadores (inclusive PB, PCT e PCS). Conferidas contra as tabelas publicadas pela OMS e contra o conjunto de teste do WHO AnthroPlus. Detalhes no README.
+- **A calculadora começa pela faixa**: `FaixaCalculadora` pergunta 0–5, 5–19 ou adulto, e a escolha define quais campos e indicadores a tela de medidas mostra. Quem manda no cálculo, porém, é sempre a idade real — se a data de nascimento não combinar com a faixa, a tela avisa e oferece a troca.
 - Etapas 1, 2 e 4 do "Criar plano alimentar" não estavam no Figma; foram feitas no mesmo estilo da etapa 3.
-- Nenhuma dependência nova: só `react-native-svg`, `react-navigation` e `safe-area-context`, que já estavam no projeto.
+- **Dependências**: no aplicativo, nenhuma nova (`react-native-svg`, `react-navigation`, `safe-area-context` e `expo-linking` já estavam). Na API entrou o `nodemailer`, para o e-mail de redefinição de senha.

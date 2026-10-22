@@ -6,6 +6,8 @@
 //   rodape            elemento fixo no fim da tela (ex.: botões Voltar/Continuar)
 //   abaAtiva          se informado, mostra a BarraInferior com essa aba marcada
 //   rolavel           false para telas sem rolagem (padrão: true)
+//   aoAtualizar       função do "puxar para atualizar" (só em telas roláveis)
+//   atualizando       true enquanto essa função está buscando os dados
 //   flutuante         elemento flutuante no canto inferior direito (ex.: botão +)
 //   cabecalhoRolavel  true: o cabeçalho verde entra na rolagem e o conteúdo vira uma
 //                     folha creme com cantos arredondados só em cima (padrão: false)
@@ -15,11 +17,13 @@ import {
   View,
   ScrollView,
   KeyboardAvoidingView,
+  RefreshControl,
   StatusBar,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Cabecalho from "../Cabecalho";
 import BarraInferior from "../BarraInferior";
+import { cores } from "../../tema";
 import { estilos } from "./style";
 
 const Tela = ({
@@ -32,6 +36,8 @@ const Tela = ({
   rodape,
   abaAtiva,
   rolavel = true,
+  aoAtualizar,
+  atualizando = false,
   flutuante,
   cabecalhoRolavel = false,
   children,
@@ -83,6 +89,16 @@ const Tela = ({
             }
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              aoAtualizar ? (
+                <RefreshControl
+                  refreshing={atualizando}
+                  onRefresh={aoAtualizar}
+                  tintColor={cores.verdeBotao}
+                  colors={[cores.verdeBotao]}
+                />
+              ) : undefined
+            }
           >
             {cabecalhoNaRolagem ? (
               <>

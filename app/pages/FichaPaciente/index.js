@@ -63,7 +63,7 @@ const FichaPaciente = ({ navigation, route }) => {
     ? paciente.historicoPeso[paciente.historicoPeso.length - 1].valor
     : null;
 
-  const novaAvaliacao = () => navigation.navigate('Calculadora', { pacienteId: paciente.id });
+  const novaAvaliacao = () => navigation.navigate('FaixaCalculadora', { pacienteId: paciente.id });
   const criarPlano = () => navigation.navigate('CriarPlanoAlimentar', { pacienteId: paciente.id });
 
   // Mostra um resumo do plano em uma janela de alerta.

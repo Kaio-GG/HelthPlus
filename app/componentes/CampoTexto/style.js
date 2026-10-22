@@ -7,6 +7,7 @@ export const estilos = StyleSheet.create({
   },
   rotulo: {
     fontSize: 13,
+    lineHeight: 17,
     fontWeight: '600',
     color: cores.verdeEscuro,
     marginBottom: 6,
