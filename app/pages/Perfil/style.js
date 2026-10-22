@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { cores } from '../../tema';
+import { cores, espacamento, raios } from '../../tema';
 
 export const estilos = StyleSheet.create({
   linhaTitulo: {
@@ -16,12 +16,37 @@ export const estilos = StyleSheet.create({
   acaoEditar: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: raios.pilula,
+    borderWidth: 1.5,
+    borderColor: cores.bordaVerde,
+    backgroundColor: cores.verdeSuave,
+  },
+  acaoSalvando: {
+    opacity: 0.6,
+  },
+  // Em modo de edição o botão fica cheio: "Salvar" é a ação principal.
+  acaoSalvar: {
+    backgroundColor: cores.verdeBotao,
+    borderColor: cores.verdeBotao,
   },
   textoEditar: {
-    marginLeft: 4,
+    marginLeft: 6,
     fontSize: 13,
     fontWeight: '700',
     color: cores.verdeLink,
+  },
+  textoSalvar: {
+    color: cores.branco,
+  },
+  // Mensagem de quem ainda não assinou nenhum plano.
+  semPlano: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: cores.textoSecundario,
+    marginTop: espacamento.xs,
+    marginBottom: espacamento.sm,
   },
   grade: {
     flexDirection: 'row',

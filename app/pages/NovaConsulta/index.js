@@ -158,6 +158,9 @@ const NovaConsulta = ({ navigation, route }) => {
             rotulo="Data"
             valor={data}
             aoMudar={(texto) => setData(aplicarMascaraData(texto))}
+            aoLimpar={() => setData('')}
+            selecionarAoFocar
+            maxCaracteres={10}
             placeholder="DD/MM/AAAA"
             teclado="number-pad"
             icone="calendario"

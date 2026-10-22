@@ -114,11 +114,23 @@ useEffect(() => {
         <View style={estilos.linhaTitulo}>
           <Text style={estilos.tituloCartao}>Dados profissionais</Text>
           <TouchableOpacity
-            style={estilos.acaoEditar}
+            style={[
+              estilos.acaoEditar,
+              editando && estilos.acaoSalvar,
+              salvando && estilos.acaoSalvando,
+            ]}
             onPress={() => (editando ? salvarDados() : setEditando(true))}
+            disabled={salvando}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={editando ? 'Salvar dados profissionais' : 'Editar dados profissionais'}
           >
-            <Icone nome={editando ? 'check' : 'editar'} tamanho={15} cor={cores.verdeLink} />
-            <Text style={estilos.textoEditar}>
+            <Icone
+              nome={editando ? 'check' : 'editar'}
+              tamanho={15}
+              cor={editando ? cores.branco : cores.verdeLink}
+            />
+            <Text style={[estilos.textoEditar, editando && estilos.textoSalvar]}>
               {editando ? (salvando ? 'Salvando...' : 'Salvar') : 'Editar'}
             </Text>
           </TouchableOpacity>
@@ -162,25 +174,42 @@ useEffect(() => {
       <Cartao>
         <View style={estilos.linhaTitulo}>
           <Text style={estilos.tituloCartao}>Meu plano</Text>
-          <Selo texto="Pagamento em dia" tom="sucesso" />
+          {planoAtual ? <Selo texto="Pagamento em dia" tom="sucesso" /> : null}
         </View>
-        <Text style={estilos.nomePlano}>Plano {planoAtual?.nome}</Text>
-        <Text style={estilos.detalhePlano}>Próxima cobrança em 20 dias</Text>
 
-        <View style={estilos.linhaProgresso}>
-          <Text style={estilos.rotuloDado}>Pacientes cadastrados</Text>
-          <Text style={estilos.valorProgresso}>
-            {pacientes.length}/{limitePacientes || '∞'}
+        {planoAtual ? (
+          <>
+            <Text style={estilos.nomePlano}>Plano {planoAtual.nome}</Text>
+            <Text style={estilos.detalhePlano}>Próxima cobrança em 20 dias</Text>
+
+            <View style={estilos.linhaProgresso}>
+              <Text style={estilos.rotuloDado}>Pacientes cadastrados</Text>
+              <Text style={estilos.valorProgresso}>
+                {pacientes.length}/{limitePacientes || '∞'}
+              </Text>
+            </View>
+            <BarraProgresso valor={limitePacientes ? usoDoPlano : 0} />
+          </>
+        ) : (
+          <Text style={estilos.semPlano}>
+            Você ainda não assinou nenhum plano. Escolha um para liberar o
+            cadastro de pacientes e os planos alimentares.
           </Text>
-        </View>
-        <BarraProgresso valor={limitePacientes ? usoDoPlano : 1} />
+        )}
 
-        <Botao titulo="Alterar plano" aoPressionar={() => navigation.navigate('Pacotes')} estilo={estilos.botaoPlano} />
+        <Botao
+          titulo={planoAtual ? 'Alterar plano' : 'Escolher um plano'}
+          aoPressionar={() => navigation.navigate('Pacotes')}
+          estilo={estilos.botaoPlano}
+        />
 
-        <TouchableOpacity style={estilos.linkCobrancas} onPress={() => setMostrarCobrancas(true)}>
-          <Text style={estilos.textoLink}>Ver histórico de cobranças</Text>
-          <Icone nome="chevron-direita" tamanho={16} cor={cores.verdeLink} />
-        </TouchableOpacity>
+        {/* Sem assinatura não existe cobrança para listar. */}
+        {planoAtual ? (
+          <TouchableOpacity style={estilos.linkCobrancas} onPress={() => setMostrarCobrancas(true)}>
+            <Text style={estilos.textoLink}>Ver histórico de cobranças</Text>
+            <Icone nome="chevron-direita" tamanho={16} cor={cores.verdeLink} />
+          </TouchableOpacity>
+        ) : null}
       </Cartao>
 
       {/* ---------- Conta e segurança ---------- */}

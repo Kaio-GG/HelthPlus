@@ -5,6 +5,11 @@
 //   somenteLeitura   bloqueia a edição e mostra um cadeado
 //   icone            ícone fixo à direita (ex.: 'calendario')
 //   multilinha       campo de várias linhas
+//   selecionarAoFocar  marca o texto ao tocar, para digitar substituir tudo
+//   aoLimpar         mostra um "x" à direita que apaga o campo. Importante
+//                    em campos de tamanho fixo, como data: quando eles
+//                    enchem, o teclado para de inserir e sem o "x" o
+//                    usuário não descobre que precisa apagar primeiro.
 //   preenchimento    o que o celular deve sugerir neste campo (veja abaixo)
 //   teclado, capitalizar, maxCaracteres, estilo
 import React, { useState } from 'react';
@@ -39,6 +44,8 @@ const CampoTexto = ({
   somenteLeitura = false,
   icone,
   multilinha = false,
+  selecionarAoFocar = false,
+  aoLimpar,
   preenchimento = 'nenhum',
   teclado = 'default',
   capitalizar = 'sentences',
@@ -75,9 +82,21 @@ const CampoTexto = ({
           autoCorrect={false}
           autoComplete={dicas.autoComplete}
           textContentType={dicas.textContentType}
+          selectTextOnFocus={selecionarAoFocar}
           maxLength={maxCaracteres}
           textAlignVertical={multilinha ? 'top' : 'center'}
         />
+
+        {aoLimpar && valor && !somenteLeitura ? (
+          <TouchableOpacity
+            onPress={aoLimpar}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Limpar ${rotulo || 'campo'}`}
+          >
+            <Icone nome="fechar" tamanho={16} cor={cores.textoSecundario} />
+          </TouchableOpacity>
+        ) : null}
 
         {senha ? (
           <TouchableOpacity

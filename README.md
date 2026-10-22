@@ -177,10 +177,31 @@ Ainda em dados de exemplo ou pendente: agenda, planos alimentares,
 avaliações, área do paciente, assinatura e notificações. As telas existem e
 navegam, mas ainda não gravam no banco — procure por `TODO: integrar com a API`.
 
-> ⚠️ As tabelas da OMS em `app/utilitarios/oms/dados/` são de **demonstração**
-> (poucos pontos) e a tabela de alimentos tem só 14 itens aproximados. Troque
-> pelas oficiais antes de usar com pacientes de verdade.
->
-> O banco já tem a estrutura para guardar essas curvas (`referencia_oms`,
-> com os parâmetros L, M e S), mas as tabelas de referência ainda estão
-> vazias. Enquanto não forem carregadas, a calculadora usa os JSON.
+### Tabelas da OMS
+
+As curvas em `app/utilitarios/oms/dados/` são as **oficiais**, convertidas
+das planilhas publicadas pela OMS:
+
+- **0–5 anos** — WHO Child Growth Standards 2006
+- **5–19 anos** — WHO Growth Reference 2007
+
+Cada curva tem um ponto por mês (ou por centímetro, em peso/estatura).
+A conversão foi conferida reconstruindo, a partir de L, M e S, os 10.234
+valores de desvio-padrão que a própria OMS publica — todos dentro da
+precisão com que ela os divulga.
+
+Dois detalhes de modelagem que seguem a orientação da OMS:
+
+- **Estatura aos 24 meses:** abaixo disso vale o comprimento deitado;
+  a partir dos 24 meses, a estatura em pé (os dois diferem ~0,7 cm).
+- **Peso/estatura aos 87 cm:** abaixo, comprimento deitado; acima,
+  estatura em pé.
+
+> ⚠️ Ainda pendente: **PB, PCT e PCS** (perímetro braquial e dobras
+> cutâneas) não têm tabela e aparecem como "—" na tela. E a tabela de
+> alimentos (`app/dados/alimentosTaco.js`) tem só 14 itens aproximados —
+> troque pela TACO oficial antes de uso real.
+
+> O banco tem a tabela `referencia_oms` para guardar essas curvas, mas ela
+> está vazia: hoje a calculadora lê os JSON do aplicativo. Se a equipe
+> decidir migrar para o banco, os mesmos dados servem.

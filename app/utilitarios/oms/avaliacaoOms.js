@@ -9,6 +9,30 @@ import { calcularIdadeEmMeses } from '../datas';
 export const LIMITE_INFERIOR_Z = -2;
 export const LIMITE_SUPERIOR_Z = 2;
 
+// As referências de crescimento da OMS vão até 19 anos (228 meses).
+export const IDADE_MAXIMA_CRESCIMENTO_MESES = 19 * 12;
+
+// Acima de 19 anos não existe escore-z da OMS: a referência passa a ser a
+// classificação do IMC para adultos, que é outra coisa — faixas fixas, sem
+// comparação com curva de crescimento.
+// Fonte: WHO, Obesity: preventing and managing the global epidemic (2000).
+const FAIXAS_IMC_ADULTO = [
+  { ate: 16, nome: 'Magreza grave' },
+  { ate: 17, nome: 'Magreza moderada' },
+  { ate: 18.5, nome: 'Magreza leve' },
+  { ate: 25, nome: 'Eutrofia' },
+  { ate: 30, nome: 'Sobrepeso' },
+  { ate: 35, nome: 'Obesidade grau I' },
+  { ate: 40, nome: 'Obesidade grau II' },
+  { ate: Infinity, nome: 'Obesidade grau III' },
+];
+
+// IMC -> nome da faixa da OMS para adultos.
+export const classificarImcAdulto = (imc) => {
+  if (!imc) return null;
+  return FAIXAS_IMC_ADULTO.find((faixa) => imc < faixa.ate).nome;
+};
+
 // Diferença entre comprimento (deitado) e estatura (em pé), em cm.
 const DIFERENCA_DEITADO_EM_PE_CM = 0.7;
 
@@ -96,8 +120,24 @@ export const avaliarMedidas = ({
       calcularIndicador('estatura_idade', sexo, idadeEmMeses, alturaAjustada), foraDaFaixa);
   }
   if (imc) {
-    adicionar('imc_idade', 'IMC por idade', imc, 'kg/m²',
-      calcularIndicador('imc_idade', sexo, idadeEmMeses, imc), foraDaFaixa);
+    // Até 19 anos, IMC por idade com escore-z. Depois disso, a OMS não tem
+    // curva de crescimento: entra a classificação por faixas de IMC.
+    if (idadeEmMeses > IDADE_MAXIMA_CRESCIMENTO_MESES) {
+      indicadores.push({
+        chave: 'imc_adulto',
+        rotulo: 'IMC (adulto)',
+        medida: imc,
+        unidade: 'kg/m²',
+        zScore: null,
+        percentil: null,
+        classificacao: classificarImcAdulto(imc),
+        situacao: imc >= 18.5 && imc < 25 ? 'normal' : 'fora',
+        referencia: 'Faixas de IMC da OMS para adultos — não é escore-z',
+      });
+    } else {
+      adicionar('imc_idade', 'IMC por idade', imc, 'kg/m²',
+        calcularIndicador('imc_idade', sexo, idadeEmMeses, imc), foraDaFaixa);
+    }
   }
   if (pesoKg && alturaCm && idadeEmMeses <= 60) {
     adicionar('peso_estatura', 'Peso por comprimento', pesoKg, 'kg',

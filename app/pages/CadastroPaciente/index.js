@@ -264,6 +264,9 @@ const CadastroPaciente = ({ navigation }) => {
               rotulo="Data de nascimento"
               valor={dados.nascimento}
               aoMudar={(texto) => atualizar('nascimento', aplicarMascaraData(texto))}
+              aoLimpar={() => atualizar('nascimento', '')}
+              selecionarAoFocar
+              maxCaracteres={10}
               placeholder="DD/MM/AAAA"
               teclado="number-pad"
               icone="calendario"

@@ -26,6 +26,8 @@ const ResultadoCalculadora = ({ navigation, route }) => {
 
   const idadeTexto = formatarIdade(avaliacao.idadeEmMeses);
   const calculados = avaliacao.indicadores.filter((item) => item.situacao !== 'indisponivel');
+  // Acima de 19 anos o resultado nao e escore-z, e o texto da tela muda.
+  const temAdulto = avaliacao.indicadores.some((item) => item.chave === 'imc_adulto');
   const naFaixa = calculados.filter((item) => item.situacao === 'normal').length;
 
   // Ex.: "14,2 kg"
@@ -63,7 +65,11 @@ const ResultadoCalculadora = ({ navigation, route }) => {
     >
       <Cartao>
         <Text style={estilos.titulo}>Indicadores</Text>
-        <Text style={estilos.subtitulo}>Z-score segundo as referências da OMS</Text>
+        <Text style={estilos.subtitulo}>
+          {temAdulto
+            ? 'Classificação do IMC pelas faixas da OMS para adultos'
+            : 'Z-score segundo as referências da OMS'}
+        </Text>
 
         {avaliacao.indicadores.length === 0 ? (
           <Text style={estilos.vazio}>Nenhuma medida informada.</Text>
@@ -75,6 +81,7 @@ const ResultadoCalculadora = ({ navigation, route }) => {
               <Text style={estilos.nomeIndicador}>{item.rotulo}</Text>
               <Text style={estilos.medida}>Medida: {formatarMedida(item)}</Text>
               {item.situacao === 'indisponivel' ? <Text style={estilos.motivo}>{item.motivo}</Text> : null}
+              {item.referencia ? <Text style={estilos.motivo}>{item.referencia}</Text> : null}
             </View>
 
             {item.situacao === 'indisponivel' ? (
@@ -89,7 +96,7 @@ const ResultadoCalculadora = ({ navigation, route }) => {
                     item.situacao === 'normal' ? estilos.textoChipNormal : estilos.textoChipForaDaFaixa,
                   ]}
                 >
-                  {formatarZScore(item.zScore)}
+                  {item.classificacao ?? formatarZScore(item.zScore)}
                 </Text>
               </View>
             )}
@@ -108,8 +115,9 @@ const ResultadoCalculadora = ({ navigation, route }) => {
         </View>
 
         <Text style={estilos.nota}>
-          Referência: Padrões de Crescimento da OMS. Cálculo feito com tabelas de demonstração incluídas
-          no projeto — substitua pelas tabelas oficiais antes de usar com pacientes reais.
+          Referência: WHO Child Growth Standards 2006 (0 a 5 anos) e WHO Growth
+          Reference 2007 (5 a 19 anos), tabelas oficiais. PB e pregas cutâneas
+          ainda não têm tabela de referência no aplicativo.
         </Text>
       </Cartao>
     </Tela>

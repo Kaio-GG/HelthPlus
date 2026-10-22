@@ -205,6 +205,9 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
                 rotulo="Início da vigência"
                 valor={inicio}
                 aoMudar={(texto) => setInicio(aplicarMascaraData(texto))}
+                aoLimpar={() => setInicio('')}
+                selecionarAoFocar
+                maxCaracteres={10}
                 placeholder="DD/MM/AAAA"
                 teclado="number-pad"
                 icone="calendario"
@@ -215,6 +218,9 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
                 rotulo="Fim da vigência"
                 valor={fim}
                 aoMudar={(texto) => setFim(aplicarMascaraData(texto))}
+                aoLimpar={() => setFim('')}
+                selecionarAoFocar
+                maxCaracteres={10}
                 placeholder="DD/MM/AAAA"
                 teclado="number-pad"
                 icone="calendario"

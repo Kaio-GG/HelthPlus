@@ -68,6 +68,20 @@ export const estilos = StyleSheet.create({
     fontSize: 12,
     color: cores.textoSecundario,
   },
+  alternadorModo: {
+    marginBottom: 16,
+  },
+  avisoIdade: {
+    marginTop: 14,
+  },
+  // Lembrete de que PB e pregas sao registrados sem escore-z.
+  avisoSemTabela: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: cores.textoSecundario,
+    marginTop: 2,
+    marginBottom: 6,
+  },
   linkAvulso: {
     marginTop: 12,
     fontSize: 13,

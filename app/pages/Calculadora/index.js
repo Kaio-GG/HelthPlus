@@ -1,12 +1,13 @@
 // Calculadora OMS: escolhe o paciente (ou cálculo avulso), informa as medidas
 // e segue para a tela de resultados com os z-scores.
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoBusca from '../../componentes/CampoBusca';
 import CampoTexto from '../../componentes/CampoTexto';
 import Alternador from '../../componentes/Alternador';
+import CaixaAviso from '../../componentes/CaixaAviso';
 import Avatar from '../../componentes/Avatar';
 import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
@@ -60,9 +61,21 @@ const Calculadora = ({ navigation, route }) => {
   const posicaoPadrao = idadeEmMeses !== null && idadeEmMeses < 24 ? 'deitado' : 'de_pe';
   const posicao = posicaoEscolhida || posicaoPadrao;
 
-  // Alguns campos dependem da idade (referências da OMS).
-  const mostrarPerimetroCefalico = idadeEmMeses === null || idadeEmMeses <= 60;
-  const mostrarBracoEPregas = idadeEmMeses === null || (idadeEmMeses >= 3 && idadeEmMeses <= 60);
+  // Alguns indicadores só existem em certas idades. Antes o campo sumia da
+  // tela e ninguém entendia por quê; agora ele continua visível, bloqueado,
+  // com o motivo no lugar do texto de exemplo.
+  const perimetroCefalicoVale = idadeEmMeses === null || idadeEmMeses <= 60;
+  const bracoEPregasValem = idadeEmMeses === null || (idadeEmMeses >= 3 && idadeEmMeses <= 60);
+
+  // Acima de 19 anos entra a classificação de IMC para adultos.
+  const adulto = idadeEmMeses !== null && idadeEmMeses > IDADE_MAXIMA_OMS_MESES;
+
+  const motivoPerimetroCefalico = perimetroCefalicoVale ? null : 'Só até 5 anos';
+  const motivoBracoEPregas = bracoEPregasValem
+    ? null
+    : idadeEmMeses !== null && idadeEmMeses < 3
+      ? 'A partir de 3 meses'
+      : 'Só até 5 anos';
 
   const pesoNumero = decimalParaNumero(peso);
   const alturaNumero = decimalParaNumero(altura);
@@ -87,6 +100,11 @@ const Calculadora = ({ navigation, route }) => {
     setBusca('');
   };
 
+  const voltarParaCadastrado = () => {
+    setModoAvulso(false);
+    setNascimentoAvulso('');
+  };
+
   const calcular = () => {
     const novosErros = {};
     if (!modoAvulso && !paciente) novosErros.paciente = 'Selecione um paciente ou use o cálculo avulso.';
@@ -96,13 +114,6 @@ const Calculadora = ({ navigation, route }) => {
     if (!pesoNumero && !alturaNumero) novosErros.peso = 'Informe ao menos o peso ou a altura.';
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0) return;
-
-    if (idadeEmMeses > IDADE_MAXIMA_OMS_MESES) {
-      Alert.alert(
-        'Paciente acima de 19 anos',
-        'As referências de crescimento da OMS cobrem até 19 anos. Os resultados mostrarão as medidas e o IMC calculado, mas sem z-score.'
-      );
-    }
 
     navigation.navigate('ResultadoCalculadora', {
       pacienteId: paciente ? paciente.id : null,
@@ -132,6 +143,18 @@ const Calculadora = ({ navigation, route }) => {
       <Cartao>
         <Text style={estilos.tituloCartao}>Paciente</Text>
 
+        <Alternador
+          opcoes={[
+            { valor: 'cadastrado', rotulo: 'Paciente cadastrado' },
+            { valor: 'avulso', rotulo: 'Cálculo avulso' },
+          ]}
+          valor={modoAvulso ? 'avulso' : 'cadastrado'}
+          aoMudar={(escolha) =>
+            escolha === 'avulso' ? alternarModoAvulso() : voltarParaCadastrado()
+          }
+          estilo={estilos.alternadorModo}
+        />
+
         {!modoAvulso ? (
           <View>
             <CampoBusca valor={busca} aoMudar={setBusca} placeholder="Nome ou CPF" />
@@ -157,10 +180,6 @@ const Calculadora = ({ navigation, route }) => {
               </View>
             ) : null}
             {erros.paciente ? <Text style={estilos.erro}>{erros.paciente}</Text> : null}
-
-            <Text style={estilos.linkAvulso} onPress={alternarModoAvulso}>
-              Calcular sem paciente (avulso)
-            </Text>
           </View>
         ) : (
           <View>
@@ -177,6 +196,9 @@ const Calculadora = ({ navigation, route }) => {
               rotulo="Data de nascimento"
               valor={nascimentoAvulso}
               aoMudar={(texto) => setNascimentoAvulso(aplicarMascaraData(texto))}
+              aoLimpar={() => setNascimentoAvulso('')}
+              selecionarAoFocar
+              maxCaracteres={10}
               placeholder="DD/MM/AAAA"
               teclado="number-pad"
               icone="calendario"
@@ -197,6 +219,9 @@ const Calculadora = ({ navigation, route }) => {
             rotulo="Data da visita"
             valor={dataVisita}
             aoMudar={(texto) => setDataVisita(aplicarMascaraData(texto))}
+            aoLimpar={() => setDataVisita('')}
+            selecionarAoFocar
+            maxCaracteres={10}
             placeholder="DD/MM/AAAA"
             teclado="number-pad"
             icone="calendario"
@@ -210,6 +235,14 @@ const Calculadora = ({ navigation, route }) => {
             estilo={estilos.campoMetade}
           />
         </View>
+
+        {adulto ? (
+          <CaixaAviso
+            tom="info"
+            texto="Acima de 19 anos a OMS não tem curva de crescimento. O resultado traz o IMC classificado pelas faixas da OMS para adultos, sem escore-z."
+            estilo={estilos.avisoIdade}
+          />
+        ) : null}
       </Cartao>
 
       {/* ---------- Medidas ---------- */}
@@ -247,50 +280,54 @@ const Calculadora = ({ navigation, route }) => {
           aoMudar={setPosicaoEscolhida}
         />
 
-        {mostrarPerimetroCefalico || mostrarBracoEPregas ? (
-          <View style={estilos.linhaCampos}>
-            {mostrarPerimetroCefalico ? (
-              <CampoTexto
-                rotulo="Perímetro cefálico (cm)"
-                valor={perimetroCefalico}
-                aoMudar={(texto) => setPerimetroCefalico(aplicarMascaraDecimal(texto))}
-                placeholder="0,0"
-                teclado="decimal-pad"
-                estilo={estilos.campoMetade}
-              />
-            ) : null}
-            {mostrarBracoEPregas ? (
-              <CampoTexto
-                rotulo="Circunf. braço (PB) (cm)"
-                valor={perimetroBraco}
-                aoMudar={(texto) => setPerimetroBraco(aplicarMascaraDecimal(texto))}
-                placeholder="0,0"
-                teclado="decimal-pad"
-                estilo={estilos.campoMetade}
-              />
-            ) : null}
-          </View>
-        ) : null}
+        <View style={estilos.linhaCampos}>
+          <CampoTexto
+            rotulo="Perímetro cefálico (cm)"
+            valor={perimetroCefalicoVale ? perimetroCefalico : ''}
+            aoMudar={(texto) => setPerimetroCefalico(aplicarMascaraDecimal(texto))}
+            placeholder={motivoPerimetroCefalico ?? '0,0'}
+            somenteLeitura={!perimetroCefalicoVale}
+            teclado="decimal-pad"
+            estilo={estilos.campoMetade}
+          />
+          <CampoTexto
+            rotulo="Circunf. braço (PB) (cm)"
+            valor={bracoEPregasValem ? perimetroBraco : ''}
+            aoMudar={(texto) => setPerimetroBraco(aplicarMascaraDecimal(texto))}
+            placeholder={motivoBracoEPregas ?? '0,0'}
+            somenteLeitura={!bracoEPregasValem}
+            teclado="decimal-pad"
+            estilo={estilos.campoMetade}
+          />
+        </View>
 
-        {mostrarBracoEPregas ? (
-          <View style={estilos.linhaCampos}>
-            <CampoTexto
-              rotulo="Prega tricipital (mm)"
-              valor={pregaTricipital}
-              aoMudar={(texto) => setPregaTricipital(aplicarMascaraDecimal(texto))}
-              placeholder="0,0"
-              teclado="decimal-pad"
-              estilo={estilos.campoMetade}
-            />
-            <CampoTexto
-              rotulo="Prega subescapular (mm)"
-              valor={pregaSubescapular}
-              aoMudar={(texto) => setPregaSubescapular(aplicarMascaraDecimal(texto))}
-              placeholder="0,0"
-              teclado="decimal-pad"
-              estilo={estilos.campoMetade}
-            />
-          </View>
+        <View style={estilos.linhaCampos}>
+          <CampoTexto
+            rotulo="Prega tricipital (mm)"
+            valor={bracoEPregasValem ? pregaTricipital : ''}
+            aoMudar={(texto) => setPregaTricipital(aplicarMascaraDecimal(texto))}
+            placeholder={motivoBracoEPregas ?? '0,0'}
+            somenteLeitura={!bracoEPregasValem}
+            teclado="decimal-pad"
+            estilo={estilos.campoMetade}
+          />
+          <CampoTexto
+            rotulo="Prega subescapular (mm)"
+            valor={bracoEPregasValem ? pregaSubescapular : ''}
+            aoMudar={(texto) => setPregaSubescapular(aplicarMascaraDecimal(texto))}
+            placeholder={motivoBracoEPregas ?? '0,0'}
+            somenteLeitura={!bracoEPregasValem}
+            teclado="decimal-pad"
+            estilo={estilos.campoMetade}
+          />
+        </View>
+
+        {/* PB e pregas ainda nao tem tabela de referencia no projeto. */}
+        {bracoEPregasValem ? (
+          <Text style={estilos.avisoSemTabela}>
+            PB e pregas ainda não têm tabela de referência: ficam registrados,
+            mas sem escore-z.
+          </Text>
         ) : null}
 
         <View style={estilos.caixaImc}>
