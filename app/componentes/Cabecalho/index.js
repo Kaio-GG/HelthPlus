@@ -23,6 +23,7 @@ const Cabecalho = ({
   direita,
   filhos,
   grande = false,
+  alto = false,
 }) => {
   const navigation = useNavigation();
   const margens = useSafeAreaInsets();
@@ -33,12 +34,21 @@ const Cabecalho = ({
   };
 
   return (
-    <View style={[estilos.container, { paddingTop: margens.top + 12 }]}>
+    <View
+      style={[
+        estilos.container,
+        alto && estilos.containerAlto,
+        { paddingTop: margens.top + 12 },
+      ]}
+    >
       <View style={estilos.linhaSuperior}>
         {mostrarVoltar ? (
           <TouchableOpacity
+            style={estilos.botaoVoltar}
             onPress={voltar}
-            hitSlop={12}
+            hitSlop={8}
+            activeOpacity={0.7}
+            accessibilityRole="button"
             accessibilityLabel="Voltar"
           >
             <Icone nome="seta-esquerda" tamanho={24} cor={cores.verdeEscuro} />

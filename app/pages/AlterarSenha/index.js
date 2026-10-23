@@ -3,19 +3,21 @@
 // Pede a senha atual: sem isso, qualquer pessoa que pegasse o celular
 // destravado trocaria a senha da conta.
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
+
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoTexto from '../../componentes/CampoTexto';
 import Botao from '../../componentes/Botao';
 import RequisitosSenha from '../../componentes/RequisitosSenha';
 import { useAuth } from '../../contexto/AuthContext';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { alterarSenha } from '../../Api/senha';
 import { senhaForte } from '../../utilitarios/validacoes';
 import { estilos } from './style';
 
 const AlterarSenha = ({ navigation }) => {
   const { profissional } = useAuth();
+  const { avisar } = useDialogo();
 
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -49,9 +51,12 @@ const AlterarSenha = ({ navigation }) => {
     try {
       await alterarSenha(profissional.id_profissional, senhaAtual, novaSenha);
 
-      Alert.alert('Senha alterada', 'Use a nova senha no próximo acesso.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      await avisar({
+        titulo: 'Senha alterada',
+        mensagem: 'Use a nova senha no próximo acesso.',
+        tom: 'sucesso',
+      });
+      navigation.goBack();
     } catch (problema) {
       setErro(problema.message);
     } finally {

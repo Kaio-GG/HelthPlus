@@ -7,6 +7,7 @@ import * as Linking from 'expo-linking';
 import { AuthProvider } from './contexto/AuthContext';
 import { DadosProvider } from './contexto/DadosContexto';
 import { NotificacoesProvider } from './contexto/NotificacoesContexto';
+import { DialogoProvider } from './contexto/DialogoContexto';
 
 // Entrada e acesso
 import Inicio from './pages/inicialHome';
@@ -62,52 +63,56 @@ export default function App() {
     <AuthProvider>
       <DadosProvider>
         <NotificacoesProvider>
-          <NavigationContainer linking={ligacoes}>
-            <Pilha.Navigator
-              initialRouteName="Inicio"
-              screenOptions={{
-                // Cada tela desenha o próprio cabeçalho verde (componente Cabecalho).
-                headerShown: false,
-                contentStyle: { backgroundColor: '#FFF8C9' },
-              }}
-            >
-              {/* Entrada e acesso */}
-              <Pilha.Screen name="Inicio" component={Inicio} />
-              <Pilha.Screen name="Nutricionista" component={Nutricionista} />
-              <Pilha.Screen name="Paciente" component={Paciente} />
-              <Pilha.Screen name="EsqueciSenha" component={EsqueciSenha} />
-              <Pilha.Screen name="VerificacaoEmail" component={VerificacaoEmail} />
-              <Pilha.Screen name="RedefinirSenha" component={RedefinirSenha} />
-              <Pilha.Screen name="PrimeiroAcesso" component={PrimeiroAcesso} />
+          {/* O DialogoProvider envolve a navegação, então o diálogo é
+              desenhado por cima de qualquer tela. */}
+          <DialogoProvider>
+            <NavigationContainer linking={ligacoes}>
+              <Pilha.Navigator
+                initialRouteName="Inicio"
+                screenOptions={{
+                  // Cada tela desenha o próprio cabeçalho verde (componente Cabecalho).
+                  headerShown: false,
+                  contentStyle: { backgroundColor: '#FFF8C9' },
+                }}
+              >
+                {/* Entrada e acesso */}
+                <Pilha.Screen name="Inicio" component={Inicio} />
+                <Pilha.Screen name="Nutricionista" component={Nutricionista} />
+                <Pilha.Screen name="Paciente" component={Paciente} />
+                <Pilha.Screen name="EsqueciSenha" component={EsqueciSenha} />
+                <Pilha.Screen name="VerificacaoEmail" component={VerificacaoEmail} />
+                <Pilha.Screen name="RedefinirSenha" component={RedefinirSenha} />
+                <Pilha.Screen name="PrimeiroAcesso" component={PrimeiroAcesso} />
 
-              {/* Abas do nutricionista */}
-              <Pilha.Screen name="HomeNutricionista" component={HomeNutricionista} options={semAnimacao} />
-              <Pilha.Screen name="Agenda" component={Agenda} options={semAnimacao} />
-              <Pilha.Screen name="Perfil" component={Perfil} options={semAnimacao} />
+                {/* Abas do nutricionista */}
+                <Pilha.Screen name="HomeNutricionista" component={HomeNutricionista} options={semAnimacao} />
+                <Pilha.Screen name="Agenda" component={Agenda} options={semAnimacao} />
+                <Pilha.Screen name="Perfil" component={Perfil} options={semAnimacao} />
 
-              {/* Pacientes */}
-              <Pilha.Screen name="CadastroPaciente" component={CadastroPaciente} />
-              <Pilha.Screen name="Pacientes" component={Pacientes} />
-              <Pilha.Screen name="FichaPaciente" component={FichaPaciente} />
+                {/* Pacientes */}
+                <Pilha.Screen name="CadastroPaciente" component={CadastroPaciente} />
+                <Pilha.Screen name="Pacientes" component={Pacientes} />
+                <Pilha.Screen name="FichaPaciente" component={FichaPaciente} />
 
-              {/* Calculadora OMS */}
-              <Pilha.Screen name="FaixaCalculadora" component={FaixaCalculadora} />
-              <Pilha.Screen name="Calculadora" component={Calculadora} />
-              <Pilha.Screen name="ResultadoCalculadora" component={ResultadoCalculadora} />
+                {/* Calculadora OMS */}
+                <Pilha.Screen name="FaixaCalculadora" component={FaixaCalculadora} />
+                <Pilha.Screen name="Calculadora" component={Calculadora} />
+                <Pilha.Screen name="ResultadoCalculadora" component={ResultadoCalculadora} />
 
-              {/* Planos alimentares */}
-              <Pilha.Screen name="PlanosAlimentares" component={PlanosAlimentares} />
-              <Pilha.Screen name="CriarPlanoAlimentar" component={CriarPlanoAlimentar} />
+                {/* Planos alimentares */}
+                <Pilha.Screen name="PlanosAlimentares" component={PlanosAlimentares} />
+                <Pilha.Screen name="CriarPlanoAlimentar" component={CriarPlanoAlimentar} />
 
-              {/* Conta, notificações, assinatura, agenda e termos */}
-              <Pilha.Screen name="AlterarSenha" component={AlterarSenha} />
-              <Pilha.Screen name="Notificacoes" component={Notificacoes} />
-              <Pilha.Screen name="PreferenciasNotificacao" component={PreferenciasNotificacao} />
-              <Pilha.Screen name="Pacotes" component={Pacotes} />
-              <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
-              <Pilha.Screen name="Termos" component={Termos} />
-            </Pilha.Navigator>
-          </NavigationContainer>
+                {/* Conta, notificações, assinatura, agenda e termos */}
+                <Pilha.Screen name="AlterarSenha" component={AlterarSenha} />
+                <Pilha.Screen name="Notificacoes" component={Notificacoes} />
+                <Pilha.Screen name="PreferenciasNotificacao" component={PreferenciasNotificacao} />
+                <Pilha.Screen name="Pacotes" component={Pacotes} />
+                <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
+                <Pilha.Screen name="Termos" component={Termos} />
+              </Pilha.Navigator>
+            </NavigationContainer>
+          </DialogoProvider>
         </NotificacoesProvider>
       </DadosProvider>
     </AuthProvider>

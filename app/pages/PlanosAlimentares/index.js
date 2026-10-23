@@ -1,6 +1,6 @@
 // Lista de todos os planos alimentares: consultar, editar, duplicar e arquivar.
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoBusca from '../../componentes/CampoBusca';
@@ -9,6 +9,7 @@ import CartaoPlano from '../../componentes/CartaoPlano';
 import BotaoCircular from '../../componentes/BotaoCircular';
 import Icone from '../../componentes/Icone';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { cores } from '../../tema';
 import { formatarNumero, normalizarTexto } from '../../utilitarios/formatos';
 import { estilos } from './style';
@@ -21,6 +22,7 @@ const filtros = [
 
 const PlanosAlimentares = ({ navigation }) => {
   const { planosAlimentares, duplicarPlanoAlimentar, alternarArquivamentoPlano } = useDados();
+  const { avisar } = useDialogo();
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('todos');
 
@@ -33,15 +35,20 @@ const PlanosAlimentares = ({ navigation }) => {
 
   const verPlano = (plano) => {
     const refeicoes = (plano.refeicoes || []).map((refeicao) => `• ${refeicao.nome}`).join('\n');
-    Alert.alert(
-      plano.nome,
-      `Paciente: ${plano.pacienteNome}\nVigência: ${plano.inicio} a ${plano.fim}\nMeta diária: ${formatarNumero(plano.metaKcal, 0)} kcal\n\nRefeições:\n${refeicoes}`
-    );
+    avisar({
+      titulo: plano.nome,
+      mensagem: `Paciente: ${plano.pacienteNome}\nVigência: ${plano.inicio} a ${plano.fim}\nMeta diária: ${formatarNumero(plano.metaKcal, 0)} kcal\n\nRefeições:\n${refeicoes}`,
+      rotuloBotao: 'Fechar',
+    });
   };
 
   const duplicarPlano = (plano) => {
     duplicarPlanoAlimentar(plano.id);
-    Alert.alert('Plano duplicado', 'Uma cópia foi criada no topo da lista.');
+    avisar({
+      titulo: 'Plano duplicado',
+      mensagem: 'Uma cópia foi criada no topo da lista.',
+      tom: 'sucesso',
+    });
   };
 
   return (
@@ -91,7 +98,12 @@ const PlanosAlimentares = ({ navigation }) => {
       <TouchableOpacity
         style={estilos.linhaModelos}
         activeOpacity={0.85}
-        onPress={() => Alert.alert('Modelos de plano', 'Em breve você poderá salvar planos como modelos e reutilizá-los.')}
+        onPress={() =>
+          avisar({
+            titulo: 'Modelos de plano',
+            mensagem: 'Em breve você poderá salvar planos como modelos e reutilizá-los.',
+          })
+        }
       >
         <View style={estilos.textosModelos}>
           <Text style={estilos.tituloModelos}>Modelos de plano</Text>

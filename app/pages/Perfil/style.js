@@ -2,6 +2,13 @@ import { StyleSheet } from 'react-native';
 import { cores, espacamento, raios } from '../../tema';
 
 export const estilos = StyleSheet.create({
+  semCobrancas: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: cores.textoSecundario,
+    paddingVertical: 24,
+    textAlign: 'center',
+  },
   linhaTitulo: {
     flexDirection: 'row',
     alignItems: 'center',

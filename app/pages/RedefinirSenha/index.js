@@ -4,17 +4,19 @@
 // que o App.js transforma no parâmetro "token", ou digitado na tela
 // "Verifique seu e-mail".
 import React, { useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Text } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoTexto from '../../componentes/CampoTexto';
 import Botao from '../../componentes/Botao';
 import RequisitosSenha from '../../componentes/RequisitosSenha';
 import { redefinirSenha } from '../../Api/senha';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { senhaForte } from '../../utilitarios/validacoes';
 import { estilos } from './style';
 
 const RedefinirSenha = ({ navigation, route }) => {
+  const { avisar } = useDialogo();
   const tokenRecebido = route.params?.token ?? '';
 
   const [token, setToken] = useState(tokenRecebido);
@@ -45,9 +47,12 @@ const RedefinirSenha = ({ navigation, route }) => {
     try {
       await redefinirSenha(token.trim(), novaSenha);
 
-      Alert.alert('Senha alterada!', 'Use a nova senha no próximo acesso.', [
-        { text: 'OK', onPress: () => navigation.popToTop() },
-      ]);
+      await avisar({
+        titulo: 'Senha alterada!',
+        mensagem: 'Use a nova senha no próximo acesso.',
+        tom: 'sucesso',
+      });
+      navigation.popToTop();
     } catch (problema) {
       setErro(problema.message);
     } finally {

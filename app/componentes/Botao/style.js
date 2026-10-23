@@ -1,9 +1,10 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, raios, tipografia, ALVO_DE_TOQUE } from '../../tema';
 
 export const estilos = StyleSheet.create({
   base: {
-    minHeight: 50,
+    // Um pouco acima do alvo mínimo: é a ação principal da tela.
+    minHeight: ALVO_DE_TOQUE + 8,
     borderRadius: raios.medio,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -11,23 +12,29 @@ export const estilos = StyleSheet.create({
     borderWidth: 1.5,
   },
   pequeno: {
-    minHeight: 38,
-    paddingHorizontal: 12,
+    minHeight: ALVO_DE_TOQUE,
+    paddingHorizontal: 14,
   },
   conteudo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    // Sem o flexShrink, um rótulo comprido estourava a largura do botão e a
+    // sobra era simplesmente cortada — "Ver plano e pagamentos" virava
+    // "Ver plano e" na tela inicial.
+    flexShrink: 1,
   },
   icone: {
     marginRight: 8,
   },
   texto: {
+    ...tipografia.corpoForte,
     fontSize: 16,
-    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   textoPequeno: {
-    fontSize: 14,
+    ...tipografia.apoioForte,
   },
   // Variantes
   primario: {

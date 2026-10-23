@@ -2,6 +2,12 @@ import { StyleSheet } from 'react-native';
 import { cores } from '../../tema';
 
 export const estilos = StyleSheet.create({
+  // Linha do ano, mostrada só quando comNavegacaoDeAno é verdadeiro.
+  tituloAno: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: cores.textoSecundario,
+  },
   cabecalho: {
     flexDirection: 'row',
     alignItems: 'center',

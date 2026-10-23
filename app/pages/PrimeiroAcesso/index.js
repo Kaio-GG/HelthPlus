@@ -1,6 +1,6 @@
 // Primeiro acesso do paciente: cria a senha e dá o consentimento (LGPD).
 import React, { useState } from 'react';
-import { Text, Alert } from 'react-native';
+import { Text } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CaixaAviso from '../../componentes/CaixaAviso';
@@ -8,8 +8,10 @@ import CampoTexto from '../../componentes/CampoTexto';
 import CaixaSelecao from '../../componentes/CaixaSelecao';
 import Botao from '../../componentes/Botao';
 import { estilos } from './style';
+import { useDialogo } from '../../contexto/DialogoContexto';
 
 const PrimeiroAcesso = ({ navigation }) => {
+  const { avisar } = useDialogo();
   // Em produção, o e-mail e o nome do nutricionista vêm do convite recebido.
   const emailDoConvite = 'maria.silva@email.com';
   const nomeDoNutricionista = 'Dr. Ayck';
@@ -20,7 +22,7 @@ const PrimeiroAcesso = ({ navigation }) => {
   const [autorizouDados, setAutorizouDados] = useState(false);
   const [erros, setErros] = useState({});
 
-  const ativarConta = () => {
+  const ativarConta = async () => {
     const novosErros = {};
     if (senha.length < 8) novosErros.senha = 'A senha precisa ter no mínimo 8 caracteres.';
     if (confirmacao !== senha) novosErros.confirmacao = 'As senhas não conferem.';
@@ -30,9 +32,12 @@ const PrimeiroAcesso = ({ navigation }) => {
     if (Object.keys(novosErros).length > 0) return;
 
     // TODO: integrar com a API (ativar conta e registrar o consentimento).
-    Alert.alert('Conta ativada!', 'Agora você já pode entrar com seu e-mail e senha.', [
-      { text: 'OK', onPress: () => navigation.popTo('Paciente') },
-    ]);
+    await avisar({
+      titulo: 'Conta ativada!',
+      mensagem: 'Agora você já pode entrar com seu e-mail e senha.',
+      tom: 'sucesso',
+    });
+    navigation.popTo('Paciente');
   };
 
   return (

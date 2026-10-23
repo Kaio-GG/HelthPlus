@@ -1,6 +1,7 @@
+import { useDialogo } from '../../contexto/DialogoContexto';
 // Área do paciente: login. O cadastro é feito pelo nutricionista.
 import React, { useState } from "react";
-import { View, Text, Alert } from "react-native";
+import { View, Text } from "react-native";
 import Pessoa from "../../assets/pessoa.svg";
 import Tela from "../../componentes/Tela";
 import Cartao from "../../componentes/Cartao";
@@ -11,6 +12,7 @@ import { emailValido } from "../../utilitarios/validacoes";
 import { estilos } from "./style";
 
 const Paciente = ({ navigation }) => {
+  const { avisar } = useDialogo();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erros, setErros] = useState({});
@@ -23,10 +25,10 @@ const Paciente = ({ navigation }) => {
     if (Object.keys(novosErros).length > 0) return;
 
     // TODO: integrar com a API (login do paciente) e abrir a tela inicial do paciente.
-    Alert.alert(
-      "Modo de demonstração",
-      "A área do paciente será conectada ao sistema em breve.",
-    );
+    avisar({
+      titulo: "Modo de demonstração",
+      mensagem: "A área do paciente será conectada ao sistema em breve.",
+    });
   };
 
   return (

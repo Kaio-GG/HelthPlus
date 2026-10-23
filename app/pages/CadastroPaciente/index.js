@@ -1,7 +1,7 @@
 // Cadastro de paciente em 4 etapas:
 // 1) dados pessoais  2) contato e endereço  3) dados de saúde  4) acesso ao app
 import React, { useState } from 'react';
-import { View, Text, Switch, Alert, Platform } from 'react-native';
+import { View, Text, Switch } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import BarraEtapas from '../../componentes/BarraEtapas';
@@ -16,6 +16,7 @@ import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
 import { cadastrarPaciente } from '../../Api/Pacientes';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { criarNotificacao } from '../../Api/notificacoes';
 import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
@@ -68,18 +69,17 @@ const dataParaISO = (dataBR) => {
   return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
 };
 
-// No navegador o Alert.alert não aparece, então usamos window.alert lá.
-const mostrarAviso = (titulo, mensagem) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${titulo}\n\n${mensagem}`);
-  } else {
-    Alert.alert(titulo, mensagem);
-  }
-};
 
 const CadastroPaciente = ({ navigation }) => {
   const { pacientes, limitePacientes, adicionarPaciente } = useDados();
   const { profissional } = useAuth();
+  const { avisar } = useDialogo();
+
+  // Antes isto precisava desviar para o window.alert no navegador, porque o
+  // Alert.alert do React Native não aparece lá. O diálogo do aplicativo é um
+  // Modal comum, que funciona nos três lugares.
+  const mostrarAviso = (titulo, mensagem, tom = 'alerta') =>
+    avisar({ titulo, mensagem, tom });
   const [etapa, setEtapa] = useState(1);
   const [dados, setDados] = useState(dadosIniciais);
   const [erros, setErros] = useState({});

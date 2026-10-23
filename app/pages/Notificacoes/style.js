@@ -1,53 +1,51 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, espacamento, raios, tipografia } from '../../tema';
 
 export const estilos = StyleSheet.create({
   aviso: {
-    marginBottom: 12,
+    marginBottom: espacamento.md,
   },
-
   // Fica no cabeçalho verde, por isso o texto é branco.
   marcarTudo: {
-    fontSize: 13,
+    ...tipografia.apoioForte,
     fontWeight: '800',
     color: cores.branco,
+    paddingVertical: espacamento.sm,
+    paddingHorizontal: espacamento.xs,
   },
 
   // ----- Lista vazia -----
   cartaoVazio: {
     alignItems: 'center',
-    paddingVertical: 28,
+    paddingVertical: espacamento.xxl,
   },
   circuloVazio: {
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     borderRadius: raios.pilula,
     backgroundColor: cores.verdeSuave,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: espacamento.md,
   },
   tituloVazio: {
-    fontSize: 15,
-    fontWeight: '800',
+    ...tipografia.secao,
     color: cores.verdeEscuro,
   },
   textoVazio: {
-    fontSize: 13,
-    lineHeight: 18,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
     textAlign: 'center',
     marginTop: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: espacamento.md,
   },
 
   // ----- Um item da lista -----
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 14,
-    marginBottom: 10,
-    borderWidth: 1,
+    marginBottom: espacamento.md,
+    borderWidth: 1.5,
     borderColor: 'transparent',
   },
   // O que ainda não foi lido fica destacado; o resto some no fundo.
@@ -56,8 +54,8 @@ export const estilos = StyleSheet.create({
     backgroundColor: cores.verdeSuave,
   },
   circuloIcone: {
-    width: 34,
-    height: 34,
+    width: 40,
+    height: 40,
     borderRadius: raios.pilula,
     backgroundColor: cores.verdeClaro,
     alignItems: 'center',
@@ -68,15 +66,15 @@ export const estilos = StyleSheet.create({
   },
   textos: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: espacamento.md,
   },
   linhaTitulo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   titulo: {
+    ...tipografia.corpo,
     flex: 1,
-    fontSize: 14,
     fontWeight: '600',
     color: cores.textoPrincipal,
   },
@@ -85,20 +83,19 @@ export const estilos = StyleSheet.create({
     color: cores.verdeEscuro,
   },
   pontoNaoLido: {
-    width: 8,
-    height: 8,
+    width: 9,
+    height: 9,
     borderRadius: raios.pilula,
     backgroundColor: cores.verdeBotao,
-    marginLeft: 8,
+    marginLeft: espacamento.sm,
   },
   mensagem: {
-    fontSize: 13,
-    lineHeight: 18,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
     marginTop: 3,
   },
   quando: {
-    fontSize: 11,
+    ...tipografia.miudo,
     color: cores.textoDesabilitado,
     marginTop: 6,
   },

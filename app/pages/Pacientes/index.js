@@ -50,6 +50,9 @@ const Pacientes = ({ navigation }) => {
     <Tela
       titulo="Pacientes"
       subtitulo={`${pacientes.length} de ${limitePacientes || 'ilimitados'} pacientes cadastrados`}
+      // Sem centralizar: a lista cresce a cada paciente novo, e um bloco
+      // centralizado ficaria pulando de lugar.
+      cabecalhoAlto
       direita={
         <BotaoCircular
           icone="mais"

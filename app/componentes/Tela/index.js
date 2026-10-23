@@ -6,6 +6,13 @@
 //   rodape            elemento fixo no fim da tela (ex.: botões Voltar/Continuar)
 //   abaAtiva          se informado, mostra a BarraInferior com essa aba marcada
 //   rolavel           false para telas sem rolagem (padrão: true)
+//   centralizar       centraliza o conteúdo na altura da tela quando ele cabe
+//                     inteiro. Serve para telas de escolha, com poucos cartões.
+//                     NÃO use em tela de lista: a lista cresce e o bloco
+//                     centralizado fica pulando de lugar a cada item novo.
+//   cabecalhoAlto     dá mais altura à faixa verde. Combina com centralizar:
+//                     sem isso o título fica sozinho lá em cima, longe do
+//                     conteúdo que desceu para o meio.
 //   aoAtualizar       função do "puxar para atualizar" (só em telas roláveis)
 //   atualizando       true enquanto essa função está buscando os dados
 //   flutuante         elemento flutuante no canto inferior direito (ex.: botão +)
@@ -36,6 +43,8 @@ const Tela = ({
   rodape,
   abaAtiva,
   rolavel = true,
+  centralizar = false,
+  cabecalhoAlto = false,
   aoAtualizar,
   atualizando = false,
   flutuante,
@@ -58,7 +67,8 @@ const Tela = ({
       mostrarVoltar={mostrarVoltar}
       direita={direita}
       filhos={cabecalhoFilhos}
-      grande={cabecalhoNaRolagem}
+      grande={cabecalhoNaRolagem || cabecalhoAlto}
+      alto={cabecalhoAlto}
     />
   );
 
@@ -85,7 +95,11 @@ const Tela = ({
             contentContainerStyle={
               cabecalhoNaRolagem
                 ? estilos.conteudoFolha
-                : [estilos.conteudo, { paddingBottom: espacoFinal }]
+                : [
+                    estilos.conteudo,
+                    centralizar && estilos.conteudoCentralizado,
+                    { paddingBottom: espacoFinal },
+                  ]
             }
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}

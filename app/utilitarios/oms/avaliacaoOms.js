@@ -226,9 +226,13 @@ export const avaliarMedidas = ({
       motivo: motivoForaDaTabela('estatura_idade', sexo, 'meses'),
       // Quando a posição da medida não combina com a idade, a OMS manda
       // converter antes de comparar com a curva. A tela mostra o valor usado.
+      // Diz, em palavras, por que o número comparado com a curva não é o
+      // número medido. Sem isso a escolha "deitado / de pé" parece enfeite.
       referencia:
         alturaPadronizadaCm !== alturaCm
-          ? `Comparado como ${deitado ? 'estatura em pé' : 'comprimento deitado'}: ${umaCasa(alturaPadronizadaCm)} cm`
+          ? `Medido ${deitado ? 'deitado' : 'de pé'}, mas nessa idade a OMS compara ` +
+            `com ${deitado ? 'a estatura em pé' : 'o comprimento deitado'}: ` +
+            `o cálculo usou ${umaCasa(alturaPadronizadaCm)} cm.`
           : undefined,
     });
   }

@@ -1,23 +1,20 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, espacamento, raios, tipografia } from '../../tema';
 
 export const estilos = StyleSheet.create({
   tituloCartao: {
-    fontSize: 16,
-    fontWeight: '800',
+    ...tipografia.secao,
     color: cores.verdeEscuro,
-    marginBottom: 12,
+    marginBottom: espacamento.md,
   },
   dicaCartao: {
-    fontSize: 12,
-    lineHeight: 16,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
-    marginTop: -8,
-    marginBottom: 12,
+    marginTop: -espacamento.sm,
+    marginBottom: espacamento.md,
   },
   rotuloCampo: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...tipografia.apoioForte,
     color: cores.verdeEscuro,
     marginBottom: 6,
   },
@@ -29,9 +26,9 @@ export const estilos = StyleSheet.create({
     width: '48%',
   },
   erro: {
-    fontSize: 12,
+    ...tipografia.apoio,
     color: cores.erro,
-    marginBottom: 8,
+    marginBottom: espacamento.sm,
   },
 
   // ----- Faixa de referência escolhida -----
@@ -44,34 +41,35 @@ export const estilos = StyleSheet.create({
     flex: 1,
   },
   rotuloFaixa: {
-    fontSize: 12,
+    ...tipografia.miudo,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
     color: cores.textoSecundario,
   },
   valorFaixa: {
-    fontSize: 15,
-    fontWeight: '800',
+    ...tipografia.corpoForte,
     color: cores.verdeEscuro,
-    marginTop: 2,
+    marginTop: 3,
   },
   trocarFaixa: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...tipografia.apoioForte,
     color: cores.verdeLink,
-    paddingLeft: 12,
+    paddingLeft: espacamento.md,
+    paddingVertical: espacamento.sm,
   },
 
   // ----- Paciente -----
   itemBusca: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: espacamento.md,
     borderBottomWidth: 1,
     borderBottomColor: cores.linha,
   },
   nomeBusca: {
-    marginLeft: 10,
-    fontSize: 14,
-    fontWeight: '600',
+    ...tipografia.corpoForte,
+    marginLeft: espacamento.md,
     color: cores.textoPrincipal,
   },
   pacienteSelecionado: {
@@ -79,50 +77,47 @@ export const estilos = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: cores.verdeSuave,
     borderRadius: raios.medio,
-    padding: 10,
+    padding: espacamento.md,
     marginTop: 6,
   },
   dadosSelecionado: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: espacamento.md,
   },
   nomeSelecionado: {
-    fontSize: 14,
-    fontWeight: '800',
+    ...tipografia.corpoForte,
     color: cores.verdeEscuro,
   },
   detalheSelecionado: {
-    fontSize: 12,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
   },
   alternadorModo: {
-    marginBottom: 16,
+    marginBottom: espacamento.lg,
   },
 
   // ----- Avisos da avaliação -----
   avisoIdade: {
-    marginTop: 14,
+    marginTop: espacamento.lg,
   },
   textoAviso: {
-    fontSize: 13,
-    lineHeight: 18,
+    ...tipografia.apoio,
     color: cores.alertaTexto,
   },
   acaoAviso: {
-    fontSize: 13,
+    ...tipografia.apoioForte,
     fontWeight: '800',
     color: cores.alertaTexto,
     textDecorationLine: 'underline',
-    marginTop: 8,
+    marginTop: espacamento.sm,
   },
 
   // ----- Medidas -----
   notaPosicao: {
-    fontSize: 12,
-    lineHeight: 16,
+    ...tipografia.miudo,
     color: cores.textoSecundario,
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: espacamento.sm,
+    marginBottom: espacamento.md,
   },
 
   // ----- IMC -----
@@ -132,24 +127,21 @@ export const estilos = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: cores.verdeSuave,
     borderRadius: raios.medio,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 4,
+    paddingHorizontal: espacamento.lg,
+    paddingVertical: espacamento.md,
+    marginTop: espacamento.xs,
   },
   rotuloImc: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...tipografia.apoioForte,
     color: cores.verdeEscuro,
   },
   valorImc: {
-    fontSize: 17,
-    fontWeight: '800',
+    ...tipografia.secao,
     color: cores.verdeBotao,
   },
   notaImc: {
-    fontSize: 12,
-    lineHeight: 16,
+    ...tipografia.miudo,
     color: cores.textoSecundario,
-    marginTop: 10,
+    marginTop: espacamento.md,
   },
 });

@@ -1,78 +1,83 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, espacamento, raios, tipografia } from '../../tema';
 
 export const estilos = StyleSheet.create({
   avisoTopo: {
-    marginBottom: 12,
+    marginBottom: espacamento.md,
   },
 
   // ----- Resumo do topo -----
   cartaoResumo: {
-    paddingVertical: 14,
-    marginBottom: 12,
+    marginBottom: espacamento.md,
   },
   rotuloResumo: {
-    fontSize: 11,
+    ...tipografia.miudo,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: cores.textoSecundario,
   },
   fonteResumo: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...tipografia.corpoForte,
     color: cores.verdeEscuro,
     marginTop: 3,
   },
   contagem: {
-    fontSize: 13,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
-    marginTop: 8,
+    marginTop: espacamento.sm,
   },
   vazio: {
-    fontSize: 13,
+    ...tipografia.corpo,
     color: cores.textoSecundario,
   },
 
   // ----- Um cartão por indicador -----
   cartaoIndicador: {
-    paddingVertical: 16,
-    marginBottom: 12,
+    marginBottom: espacamento.md,
+  },
+  // O nome do indicador e o status dele dividem a primeira linha.
+  linhaTopo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: espacamento.sm,
   },
   nomeIndicador: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...tipografia.apoioForte,
+    flexShrink: 1,
     color: cores.textoSecundario,
+    paddingTop: 4,
   },
-  // A medida é a informação principal da tela: fica grande e escura.
+  // A medida é a informação principal da tela: grande e escura.
   linhaValor: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginTop: 4,
-    marginBottom: 10,
+    marginTop: espacamento.sm,
   },
   valor: {
-    fontSize: 28,
-    fontWeight: '800',
+    ...tipografia.destaque,
     color: cores.verdeEscuro,
   },
   unidade: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...tipografia.corpoForte,
     color: cores.textoSecundario,
     marginLeft: 5,
   },
 
-  // ----- Etiqueta da classificação -----
+  // ----- Etiqueta do status -----
+  // O limite de largura deixa o nome do indicador caber numa linha só;
+  // o texto do status quebra em duas, que é onde há espaço de sobra.
   chip: {
-    alignSelf: 'flex-start',
+    maxWidth: '56%',
     borderRadius: raios.pilula,
-    paddingHorizontal: 12,
+    paddingHorizontal: espacamento.sm,
     paddingVertical: 6,
   },
   textoChip: {
-    fontSize: 12,
+    ...tipografia.miudo,
     fontWeight: '800',
+    textAlign: 'center',
   },
   chipAdequado: {
     backgroundColor: cores.verdeClaro,
@@ -101,50 +106,57 @@ export const estilos = StyleSheet.create({
 
   // ----- Números técnicos e observações -----
   escores: {
-    fontSize: 12,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
-    marginTop: 10,
+    marginTop: espacamento.sm,
   },
   motivo: {
-    fontSize: 12,
-    lineHeight: 16,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
-    marginTop: 6,
+    marginTop: espacamento.sm,
+  },
+  // A conversão de posição muda o número comparado com a curva, então ela
+  // aparece destacada, e não como nota solta.
+  conversao: {
+    ...tipografia.miudo,
+    color: cores.infoTexto,
+    backgroundColor: cores.infoFundo,
+    borderRadius: raios.pequeno,
+    paddingHorizontal: espacamento.md,
+    paddingVertical: espacamento.sm,
+    marginTop: espacamento.md,
   },
   implausivel: {
-    fontSize: 12,
-    lineHeight: 16,
+    ...tipografia.apoio,
     fontWeight: '700',
     color: cores.alertaTexto,
-    marginTop: 6,
+    marginTop: espacamento.sm,
   },
 
   // Leitura extra do mesmo número (desnutrição aguda pelo PB).
   linhaExtra: {
     backgroundColor: cores.campoSomenteLeitura,
     borderRadius: raios.pequeno,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 12,
+    paddingHorizontal: espacamento.md,
+    paddingVertical: espacamento.md,
+    marginTop: espacamento.md,
   },
   rotuloExtra: {
-    fontSize: 11,
+    ...tipografia.miudo,
     color: cores.textoSecundario,
   },
   valorExtra: {
-    fontSize: 13,
+    ...tipografia.apoioForte,
     fontWeight: '800',
     marginTop: 2,
   },
 
   // ----- Legenda e nota -----
-  cartaoLegenda: {
-    paddingVertical: 14,
-  },
+  cartaoLegenda: {},
   legenda: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: espacamento.lg,
   },
   itemLegenda: {
     flexDirection: 'row',
@@ -166,17 +178,16 @@ export const estilos = StyleSheet.create({
     backgroundColor: cores.erro,
   },
   textoLegenda: {
-    fontSize: 12,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
   },
   nota: {
-    fontSize: 11,
-    lineHeight: 16,
+    ...tipografia.miudo,
     color: cores.textoSecundario,
-    marginTop: 12,
+    marginTop: espacamento.md,
   },
 
   botaoSalvar: {
-    marginBottom: 10,
+    marginBottom: espacamento.md,
   },
 });

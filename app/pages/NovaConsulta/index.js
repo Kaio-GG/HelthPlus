@@ -1,6 +1,6 @@
 // Agendamento de consulta para paciente cadastrado ou avulso.
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Alternador from '../../componentes/Alternador';
@@ -12,6 +12,7 @@ import Avatar from '../../componentes/Avatar';
 import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { useAuth } from '../../contexto/AuthContext';
 import { criarNotificacao } from '../../Api/notificacoes';
 import { duracoesDisponiveis, tiposDeConsulta, horariosDisponiveis } from '../../dados/consultas';
@@ -22,6 +23,7 @@ import { normalizarTexto } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
 const NovaConsulta = ({ navigation, route }) => {
+  const { avisar } = useDialogo();
   const { pacientes, adicionarConsulta } = useDados();
   const { profissional } = useAuth();
 
@@ -46,7 +48,7 @@ const NovaConsulta = ({ navigation, route }) => {
     ? pacientes.filter((item) => normalizarTexto(item.nome).includes(normalizarTexto(busca))).slice(0, 4)
     : [];
 
-  const agendar = () => {
+  const agendar = async () => {
     const novosErros = {};
     const ehAvulso = tipoPaciente === 'avulso';
 
@@ -96,9 +98,12 @@ const NovaConsulta = ({ navigation, route }) => {
       }).catch(() => {});
     }
 
-    Alert.alert('Consulta agendada!', 'A consulta foi adicionada à sua agenda.', [
-      { text: 'OK', onPress: () => navigation.replace('Agenda') },
-    ]);
+    await avisar({
+      titulo: 'Consulta agendada!',
+      mensagem: 'A consulta foi adicionada à sua agenda.',
+      tom: 'sucesso',
+    });
+    navigation.replace('Agenda');
   };
 
   return (

@@ -14,8 +14,17 @@ export const estilos = StyleSheet.create({
   rolagem: {
     flex: 1,
   },
+  // O conteúdo sobe sobre a curva do cabeçalho (ver "corpo"), e esse
+  // respiro impede que o texto do primeiro cartão encoste na faixa verde.
   conteudo: {
+    flexGrow: 1,
     paddingHorizontal: espacamento.lg,
+    paddingTop: espacamento.sm,
+  },
+  // Só com a prop "centralizar": o conteúdo fica no meio da altura da tela
+  // quando cabe inteiro, e volta ao normal quando passa a rolar.
+  conteudoCentralizado: {
+    justifyContent: "center",
   },
   semRolagem: {
     flex: 1,

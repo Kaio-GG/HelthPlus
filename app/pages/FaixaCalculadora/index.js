@@ -32,7 +32,12 @@ const FaixaCalculadora = ({ navigation, route }) => {
     navigation.navigate('Calculadora', { faixa: faixa.chave, pacienteId });
 
   return (
-    <Tela titulo="Calculadora OMS" subtitulo="Escolha a faixa de referência">
+    <Tela
+      titulo="Calculadora OMS"
+      subtitulo="Escolha a faixa de referência"
+      centralizar
+      cabecalhoAlto
+    >
       {paciente ? (
         <Cartao estilo={estilos.cartaoPaciente}>
           <Avatar nome={paciente.nome} tamanho={40} />
@@ -57,7 +62,7 @@ const FaixaCalculadora = ({ navigation, route }) => {
           >
             <Cartao estilo={[estilos.cartao, sugerida && estilos.cartaoSugerido]}>
               <View style={[estilos.circulo, sugerida && estilos.circuloSugerido]}>
-                <Icone nome={faixa.icone} tamanho={20} cor={cores.verdeBotao} />
+                <Icone nome={faixa.icone} tamanho={26} cor={cores.verdeBotao} />
               </View>
 
               <View style={estilos.textos}>
@@ -70,7 +75,7 @@ const FaixaCalculadora = ({ navigation, route }) => {
                 ) : null}
               </View>
 
-              <Icone nome="chevron-direita" tamanho={18} cor={cores.textoSecundario} />
+              <Icone nome="chevron-direita" tamanho={20} cor={cores.textoSecundario} />
             </Cartao>
           </TouchableOpacity>
         );

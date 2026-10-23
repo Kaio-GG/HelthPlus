@@ -363,7 +363,8 @@ const HomeNutricionista = ({ navigation }) => {
             <View style={estilos.linhaProgresso}>
               <Text style={estilos.rotuloProgresso}>Pacientes Cadastrados</Text>
               <Text style={estilos.valorProgresso}>
-                {pacientes.length}/{limitePacientes || 0}
+                {/* Sem limite, o plano é ilimitado — antes aparecia "3/0". */}
+                {pacientes.length}/{limitePacientes || '∞'}
               </Text>
             </View>
             <BarraProgresso valor={limitePacientes ? usoDoPlano : 0} />
@@ -376,7 +377,7 @@ const HomeNutricionista = ({ navigation }) => {
         )}
 
         <Botao
-          titulo={planoAtual ? "Ver plano e pagamentos" : "Escolher um plano"}
+          titulo={planoAtual ? "Ver meu plano" : "Escolher um plano"}
           aoPressionar={() => navigation.navigate("Pacotes")}
           estilo={estilos.botaoPlano}
         />

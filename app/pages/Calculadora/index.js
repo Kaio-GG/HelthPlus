@@ -7,6 +7,7 @@ import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoBusca from '../../componentes/CampoBusca';
 import CampoTexto from '../../componentes/CampoTexto';
+import CampoData from '../../componentes/CampoData';
 import Alternador from '../../componentes/Alternador';
 import CaixaAviso from '../../componentes/CaixaAviso';
 import Avatar from '../../componentes/Avatar';
@@ -16,11 +17,7 @@ import { useDados } from '../../contexto/DadosContexto';
 import { cores } from '../../tema';
 import { calcularImc } from '../../utilitarios/oms/avaliacaoOms';
 import { FAIXAS, faixaDaIdade, obterFaixa } from '../../utilitarios/oms/faixasOms';
-import {
-  aplicarMascaraData,
-  aplicarMascaraDecimal,
-  decimalParaNumero,
-} from '../../utilitarios/mascaras';
+import { aplicarMascaraDecimal, decimalParaNumero } from '../../utilitarios/mascaras';
 import {
   converterDataBR,
   formatarDataBR,
@@ -248,16 +245,12 @@ const Calculadora = ({ navigation, route }) => {
               valor={sexoAvulso}
               aoMudar={setSexoAvulso}
             />
-            <CampoTexto
+            <CampoData
               rotulo="Data de nascimento"
               valor={nascimentoAvulso}
-              aoMudar={(texto) => setNascimentoAvulso(aplicarMascaraData(texto))}
-              aoLimpar={() => setNascimentoAvulso('')}
-              selecionarAoFocar
-              maxCaracteres={10}
-              placeholder="DD/MM/AAAA"
-              teclado="number-pad"
-              icone="calendario"
+              aoMudar={setNascimentoAvulso}
+              // Ninguém nasce depois de hoje.
+              dataMaxima={new Date()}
               erro={erros.nascimento}
             />
           </View>
@@ -268,16 +261,10 @@ const Calculadora = ({ navigation, route }) => {
       <Cartao>
         <Text style={estilos.tituloCartao}>Avaliação</Text>
         <View style={estilos.linhaCampos}>
-          <CampoTexto
+          <CampoData
             rotulo="Data da visita"
             valor={dataVisita}
-            aoMudar={(texto) => setDataVisita(aplicarMascaraData(texto))}
-            aoLimpar={() => setDataVisita('')}
-            selecionarAoFocar
-            maxCaracteres={10}
-            placeholder="DD/MM/AAAA"
-            teclado="number-pad"
-            icone="calendario"
+            aoMudar={setDataVisita}
             erro={erros.dataVisita}
             estilo={estilos.campoMetade}
           />
@@ -285,6 +272,8 @@ const Calculadora = ({ navigation, route }) => {
             rotulo="Idade na visita"
             valor={idadeEmMeses === null ? '—' : formatarIdade(idadeEmMeses)}
             somenteLeitura
+            // Sem o cadeado: "10 anos e 5 meses" não cabia ao lado dele.
+            mostrarCadeado={false}
             estilo={estilos.campoMetade}
           />
         </View>

@@ -5,12 +5,13 @@
 // CLASSIFICAÇÃO como etiqueta colorida e, só então, os números técnicos.
 // Antes estava tudo no mesmo peso e o valor se perdia no meio.
 import React from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Text } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Botao from '../../componentes/Botao';
 import CaixaAviso from '../../componentes/CaixaAviso';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { avaliarMedidas } from '../../utilitarios/oms/avaliacaoOms';
 import { formatarIdade, formatarDataBR } from '../../utilitarios/datas';
 import { formatarNumero, formatarZScore } from '../../utilitarios/formatos';
@@ -27,6 +28,7 @@ const SEM_CLASSIFICACAO = [estilos.chipIndisponivel, estilos.textoChipIndisponiv
 
 const ResultadoCalculadora = ({ navigation, route }) => {
   const { salvarAvaliacao } = useDados();
+  const { avisar } = useDialogo();
   const { pacienteId, nomePaciente, nascimentoMs, dataVisitaMs, sexo, posicao, medidas } =
     route.params;
 
@@ -47,7 +49,7 @@ const ResultadoCalculadora = ({ navigation, route }) => {
   const temImplausivel = calculados.some((item) => item.implausivel);
   const adulto = faixa.chave === 'adulto';
 
-  const salvarNaFicha = () => {
+  const salvarNaFicha = async () => {
     // TODO: integrar com a API (salvar a avaliação na ficha do paciente).
     salvarAvaliacao({
       pacienteId,
@@ -59,12 +61,12 @@ const ResultadoCalculadora = ({ navigation, route }) => {
       naFaixa: adequados,
       total: calculados.length,
     });
-    Alert.alert('Avaliação salva', 'A avaliação foi adicionada à ficha do paciente.', [
-      {
-        text: 'OK',
-        onPress: () => navigation.popTo('FichaPaciente', { pacienteId, aba: 'avaliacoes' }),
-      },
-    ]);
+    await avisar({
+      titulo: 'Avaliação salva',
+      mensagem: 'A avaliação foi adicionada à ficha do paciente.',
+      tom: 'sucesso',
+    });
+    navigation.popTo('FichaPaciente', { pacienteId, aba: 'avaliacoes' });
   };
 
   return (
@@ -116,8 +118,8 @@ const ResultadoCalculadora = ({ navigation, route }) => {
         </Cartao>
       ) : null}
 
-      {/* Um cartão por indicador: a medida grande, a classificação como
-          etiqueta e os números técnicos embaixo, menores. */}
+      {/* Um cartão por indicador. A linha de cima diz O QUE é e COMO está;
+          embaixo vem a medida e, por último, os números técnicos. */}
       {indicadores.map((item) => {
         const indisponivel = item.situacao === 'indisponivel';
         const [fundoChip, textoChip] = indisponivel
@@ -126,28 +128,34 @@ const ResultadoCalculadora = ({ navigation, route }) => {
 
         return (
           <Cartao key={item.chave} estilo={estilos.cartaoIndicador}>
-            <Text style={estilos.nomeIndicador}>{item.rotulo}</Text>
+            <View style={estilos.linhaTopo}>
+              <Text style={estilos.nomeIndicador}>{item.rotulo}</Text>
+
+              <View style={[estilos.chip, fundoChip]}>
+                <Text style={[estilos.textoChip, textoChip]}>
+                  {indisponivel ? 'Sem tabela' : (item.classificacao?.nome ?? '—')}
+                </Text>
+              </View>
+            </View>
 
             <View style={estilos.linhaValor}>
               <Text style={estilos.valor}>{formatarNumero(item.medida, 1)}</Text>
               <Text style={estilos.unidade}>{item.unidade}</Text>
             </View>
 
-            <View style={[estilos.chip, fundoChip]}>
-              <Text style={[estilos.textoChip, textoChip]}>
-                {indisponivel ? 'Sem tabela de referência' : (item.classificacao?.nome ?? '—')}
-              </Text>
-            </View>
-
             {item.zScore !== null ? (
               <Text style={estilos.escores}>
-                escore-z {formatarZScore(item.zScore)} · percentil{' '}
+                z-score {formatarZScore(item.zScore)} · percentil{' '}
                 {formatarNumero(item.percentil, 1)}
               </Text>
             ) : null}
 
             {indisponivel ? <Text style={estilos.motivo}>{item.motivo}</Text> : null}
-            {item.referencia ? <Text style={estilos.motivo}>{item.referencia}</Text> : null}
+
+            {/* Quando a posição da medida não combina com a idade, a OMS manda
+                converter antes de comparar com a curva. A tela mostra o valor
+                que realmente entrou na conta. */}
+            {item.referencia ? <Text style={estilos.conversao}>{item.referencia}</Text> : null}
 
             {item.implausivel ? (
               <Text style={estilos.implausivel}>Valor improvável para a OMS. Confira a medida.</Text>

@@ -5,7 +5,7 @@
 // não abre), por isso a mesma mensagem traz um código: quem não conseguiu
 // clicar digita o código aqui.
 import React, { useState } from 'react';
-import { View, Text, Alert } from 'react-native';
+import { View, Text } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Icone from '../../componentes/Icone';
@@ -13,10 +13,12 @@ import Botao from '../../componentes/Botao';
 import CampoTexto from '../../componentes/CampoTexto';
 import CaixaAviso from '../../componentes/CaixaAviso';
 import { pedirLinkDeSenha } from '../../Api/senha';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { cores } from '../../tema';
 import { estilos } from './style';
 
 const VerificacaoEmail = ({ navigation, route }) => {
+  const { avisar } = useDialogo();
   const perfil = route.params?.perfil || 'nutricionista';
   const email = route.params?.email ?? '';
   // false quando a API está sem SMTP configurado e só imprimiu a mensagem
@@ -43,9 +45,13 @@ const VerificacaoEmail = ({ navigation, route }) => {
     setReenviando(true);
     try {
       await pedirLinkDeSenha(email);
-      Alert.alert('Link reenviado', 'Confira a caixa de entrada e o spam.');
+      avisar({
+        titulo: 'Link reenviado',
+        mensagem: 'Confira a caixa de entrada e o spam.',
+        tom: 'sucesso',
+      });
     } catch (problema) {
-      Alert.alert('Não foi possível reenviar', problema.message);
+      avisar({ titulo: 'Não foi possível reenviar', mensagem: problema.message, tom: 'erro' });
     } finally {
       setReenviando(false);
     }

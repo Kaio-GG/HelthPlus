@@ -3,7 +3,12 @@
 //   rotulo, valor, aoMudar, placeholder, erro
 //   senha            esconde o texto e mostra o botão de "olho"
 //   somenteLeitura   bloqueia a edição e mostra um cadeado
+//   mostrarCadeado   false tira o cadeado de um campo só-leitura. Use em
+//                    campo CALCULADO, que nunca foi editável em lugar nenhum:
+//                    ali o cadeado não informa nada e ainda rouba uns 26px
+//                    de largura do valor
 //   icone            ícone fixo à direita (ex.: 'calendario')
+//   aoTocarIcone     torna esse ícone um botão (ex.: abrir o calendário)
 //   multilinha       campo de várias linhas
 //   selecionarAoFocar  marca o texto ao tocar, para digitar substituir tudo
 //   linhasDoRotulo   reserva espaço para N linhas de rótulo. Use nos campos
@@ -49,7 +54,9 @@ const CampoTexto = ({
   erro,
   senha = false,
   somenteLeitura = false,
+  mostrarCadeado = true,
   icone,
+  aoTocarIcone,
   multilinha = false,
   selecionarAoFocar = false,
   linhasDoRotulo,
@@ -143,8 +150,17 @@ const CampoTexto = ({
           >
             <Icone nome={senhaVisivel ? 'olho' : 'olho-fechado'} tamanho={20} cor={cores.textoSecundario} />
           </TouchableOpacity>
-        ) : somenteLeitura ? (
+        ) : somenteLeitura && mostrarCadeado ? (
           <Icone nome="cadeado" tamanho={18} cor={cores.textoSecundario} />
+        ) : icone && aoTocarIcone ? (
+          <TouchableOpacity
+            onPress={aoTocarIcone}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={`Escolher ${(rotulo || 'data').toLowerCase()} no calendário`}
+          >
+            <Icone nome={icone} tamanho={20} cor={cores.verdeBotao} />
+          </TouchableOpacity>
         ) : icone ? (
           <Icone nome={icone} tamanho={18} cor={cores.textoSecundario} />
         ) : null}

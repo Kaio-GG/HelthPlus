@@ -1,6 +1,6 @@
 // Ficha do paciente com 4 abas: Resumo, Avaliações, Planos e Registros.
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Abas from '../../componentes/Abas';
@@ -12,6 +12,7 @@ import GraficoLinha from '../../componentes/GraficoLinha';
 import CartaoPlano from '../../componentes/CartaoPlano';
 import BarraProgresso from '../../componentes/BarraProgresso';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { obterRegistrosDoDia } from '../../dados/registros';
 import { cores } from '../../tema';
 import {
@@ -34,6 +35,7 @@ const abasDaFicha = [
 ];
 
 const FichaPaciente = ({ navigation, route }) => {
+  const { avisar } = useDialogo();
   const { pacientes, avaliacoes, planosAlimentares, duplicarPlanoAlimentar, alternarArquivamentoPlano } = useDados();
   const [aba, setAba] = useState(route.params?.aba || 'resumo');
   const [diaDosRegistros, setDiaDosRegistros] = useState(new Date());
@@ -69,15 +71,20 @@ const FichaPaciente = ({ navigation, route }) => {
   // Mostra um resumo do plano em uma janela de alerta.
   const verPlano = (plano) => {
     const refeicoes = (plano.refeicoes || []).map((refeicao) => `• ${refeicao.nome}`).join('\n');
-    Alert.alert(
-      plano.nome,
-      `Vigência: ${plano.inicio} a ${plano.fim}\nMeta diária: ${formatarNumero(plano.metaKcal, 0)} kcal\n\nRefeições:\n${refeicoes}`
-    );
+    avisar({
+      titulo: plano.nome,
+      mensagem: `Vigência: ${plano.inicio} a ${plano.fim}\nMeta diária: ${formatarNumero(plano.metaKcal, 0)} kcal\n\nRefeições:\n${refeicoes}`,
+      rotuloBotao: 'Fechar',
+    });
   };
 
   const duplicarPlano = (plano) => {
     duplicarPlanoAlimentar(plano.id);
-    Alert.alert('Plano duplicado', 'Uma cópia foi criada na lista de planos.');
+    avisar({
+      titulo: 'Plano duplicado',
+      mensagem: 'Uma cópia foi criada na lista de planos.',
+      tom: 'sucesso',
+    });
   };
 
   // ----- Registros: navegação entre os dias -----
@@ -94,7 +101,11 @@ const FichaPaciente = ({ navigation, route }) => {
 
   const lembrarRefeicao = (nomeDaRefeicao) => {
     // TODO: integrar com a API (notificação push para o paciente).
-    Alert.alert('Lembrete enviado', `${paciente.nome.split(' ')[0]} receberá um aviso sobre: ${nomeDaRefeicao}.`);
+    avisar({
+      titulo: 'Lembrete enviado',
+      mensagem: `${paciente.nome.split(' ')[0]} receberá um aviso sobre: ${nomeDaRefeicao}.`,
+      tom: 'sucesso',
+    });
   };
 
   // ======================== ABAS ========================

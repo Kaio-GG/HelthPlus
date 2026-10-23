@@ -94,7 +94,7 @@ const Notificacoes = ({ navigation }) => {
               <View style={[estilos.circuloIcone, lida && estilos.circuloLido]}>
                 <Icone
                   nome={ICONE_DO_TIPO[item.tp_notificacao] ?? 'info'}
-                  tamanho={17}
+                  tamanho={19}
                   cor={lida ? cores.textoSecundario : cores.verdeBotao}
                 />
               </View>
