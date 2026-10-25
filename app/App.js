@@ -45,17 +45,11 @@ import EvolucaoPaciente from './pages/EvolucaoPaciente';
 import AgendaPaciente from './pages/AgendaPaciente';
 import PerfilPaciente from './pages/PerfilPaciente';
 
+
 const Pilha = createNativeStackNavigator();
 
-// Telas das abas inferiores (Início, Agenda, Perfil e as do paciente): trocam sem animação.
 const semAnimacao = { animation: 'none' };
 
-// Links que abrem o aplicativo direto numa tela.
-//
-// O e-mail de redefinição manda "healthplus://redefinir-senha?token=XXXXXXXX".
-// O prefixo do Linking.createURL cobre o Expo Go, que usa um endereço
-// "exp://..." em vez do esquema do aplicativo. Se mesmo assim o link não
-// abrir, a tela "Verifique seu e-mail" aceita o código digitado.
 const ligacoes = {
   prefixes: [Linking.createURL('/'), 'healthplus://'],
   config: {
@@ -67,18 +61,14 @@ const ligacoes = {
 
 export default function App() {
   return (
-    // AuthProvider por fora: os outros precisam dele para saber quem está logado.
     <AuthProvider>
       <DadosProvider>
         <NotificacoesProvider>
-          {/* O DialogoProvider envolve a navegação, então o diálogo é
-              desenhado por cima de qualquer tela. */}
           <DialogoProvider>
             <NavigationContainer linking={ligacoes}>
               <Pilha.Navigator
                 initialRouteName="Inicio"
                 screenOptions={{
-                  // Cada tela desenha o próprio cabeçalho verde (componente Cabecalho).
                   headerShown: false,
                   contentStyle: { backgroundColor: '#FFF8C9' },
                 }}
@@ -92,12 +82,10 @@ export default function App() {
                 <Pilha.Screen name="RedefinirSenha" component={RedefinirSenha} />
                 <Pilha.Screen name="PrimeiroAcesso" component={PrimeiroAcesso} />
 
-                {/* Abas do nutricionista */}
+                {/* Área do nutricionista */}
                 <Pilha.Screen name="HomeNutricionista" component={HomeNutricionista} options={semAnimacao} />
                 <Pilha.Screen name="Agenda" component={Agenda} options={semAnimacao} />
                 <Pilha.Screen name="Perfil" component={Perfil} options={semAnimacao} />
-
-                {/* Pacientes */}
                 <Pilha.Screen name="CadastroPaciente" component={CadastroPaciente} />
                 <Pilha.Screen name="Pacientes" component={Pacientes} />
                 <Pilha.Screen name="FichaPaciente" component={FichaPaciente} />
@@ -107,31 +95,25 @@ export default function App() {
                 <Pilha.Screen name="Calculadora" component={Calculadora} />
                 <Pilha.Screen name="ResultadoCalculadora" component={ResultadoCalculadora} />
 
-                {/* Planos alimentares */}
+                {/* Planos e consultas */}
                 <Pilha.Screen name="PlanosAlimentares" component={PlanosAlimentares} />
                 <Pilha.Screen name="CriarPlanoAlimentar" component={CriarPlanoAlimentar} />
+                <Pilha.Screen name="Pacotes" component={Pacotes} />
+                <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
 
-            {/* Assinatura, agenda e termos */}
-            <Pilha.Screen name="Pacotes" component={Pacotes} />
-            <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
-            <Pilha.Screen name="Termos" component={Termos} />
-
-            {/* Área do paciente: abas (Início, Registros, Consultas, Perfil) e telas de consulta */}
-            <Pilha.Screen name="HomePaciente" component={HomePaciente} options={semAnimacao} />
-            <Pilha.Screen name="RegistrosPaciente" component={RegistrosPaciente} options={semAnimacao} />
-            <Pilha.Screen name="AgendaPaciente" component={AgendaPaciente} options={semAnimacao} />
-            <Pilha.Screen name="PerfilPaciente" component={PerfilPaciente} options={semAnimacao} />
-            <Pilha.Screen name="MeuPlano" component={MeuPlano} />
-            <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} />
-          </Pilha.Navigator>
-        </NavigationContainer>
-                {/* Conta, notificações, assinatura, agenda e termos */}
+                {/* Conta e notificações */}
                 <Pilha.Screen name="AlterarSenha" component={AlterarSenha} />
                 <Pilha.Screen name="Notificacoes" component={Notificacoes} />
                 <Pilha.Screen name="PreferenciasNotificacao" component={PreferenciasNotificacao} />
-                <Pilha.Screen name="Pacotes" component={Pacotes} />
-                <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
                 <Pilha.Screen name="Termos" component={Termos} />
+
+                {/* Área do paciente */}
+                <Pilha.Screen name="HomePaciente" component={HomePaciente} options={semAnimacao} />
+                <Pilha.Screen name="RegistrosPaciente" component={RegistrosPaciente} options={semAnimacao} />
+                <Pilha.Screen name="AgendaPaciente" component={AgendaPaciente} options={semAnimacao} />
+                <Pilha.Screen name="PerfilPaciente" component={PerfilPaciente} options={semAnimacao} />
+                <Pilha.Screen name="MeuPlano" component={MeuPlano} />
+                <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} />
               </Pilha.Navigator>
             </NavigationContainer>
           </DialogoProvider>

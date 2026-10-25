@@ -37,7 +37,6 @@ const abasDaFicha = [
 const FichaPaciente = ({ navigation, route }) => {
   const { pacientes, avaliacoes, planosAlimentares, duplicarPlanoAlimentar, alternarArquivamentoPlano, obterRegistrosDoDia } = useDados();
   const { avisar } = useDialogo();
-  const { pacientes, avaliacoes, planosAlimentares, duplicarPlanoAlimentar, alternarArquivamentoPlano } = useDados();
   const [aba, setAba] = useState(route.params?.aba || 'resumo');
   const [diaDosRegistros, setDiaDosRegistros] = useState(new Date());
 

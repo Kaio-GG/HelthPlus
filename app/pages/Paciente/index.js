@@ -1,7 +1,7 @@
 import { useDialogo } from '../../contexto/DialogoContexto';
 // Área do paciente: login. O cadastro é feito pelo nutricionista.
 import React, { useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, Alert } from "react-native";
 import Pessoa from "../../assets/pessoa.svg";
 import Tela from "../../componentes/Tela";
 import Cartao from "../../componentes/Cartao";
