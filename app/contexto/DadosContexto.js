@@ -1,8 +1,8 @@
 // Estado compartilhado do aplicativo (em memória, modo demonstração).
 //
-// Guarda pacientes, consultas, planos alimentares, avaliações e o plano de
-// assinatura do nutricionista, para que todas as telas enxerguem os mesmos
-// dados. Quando a API estiver pronta, cada função abaixo passa a chamar o
+// Guarda pacientes, consultas, planos alimentares, avaliações, registros do
+// paciente (água e refeições) e o plano de assinatura do nutricionista, para
+// que todas as telas enxerguem os mesmos dados. Quando a API estiver pronta, cada função abaixo passa a chamar o
 // servidor (ex.: POST /pacientes) antes de atualizar o estado.
 //
 // O nutricionista logado vem do AuthContext (sessão salva no celular).
@@ -10,6 +10,9 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { planosIndividuais, planosClinica } from '../dados/planosAssinatura';
+import { META_AGUA_PADRAO_LITROS } from '../dados/registros';
+import { nomesDasRefeicoes } from '../dados/alimentosTaco';
+import { chaveDoDia, formatarHora } from '../utilitarios/datas';
 
 const DadosContexto = createContext(null);
 
@@ -22,6 +25,11 @@ export const DadosProvider = ({ children }) => {
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [planoAssinaturaId, setPlanoAssinaturaId] = useState(null);
   const [cobrancas, setCobrancas] = useState([]);
+  // Registros do paciente. Chave "<idPaciente>|<dia>" ->
+  // { aguaLitros, refeicoes: { [nomeDaRefeicao]: { horario, descricao } } }
+  const [registros, setRegistros] = useState({});
+  // Paciente que entrou pela área do paciente (null = ninguém).
+  const [pacienteAtualId, setPacienteAtualId] = useState(null);
 
   // Nutricionista autenticado: vem do login (AuthContext).
   // Campos: id_profissional, nm_profissional, ds_email, ds_profissao, nr_registro_conselho
@@ -85,6 +93,69 @@ export const DadosProvider = ({ children }) => {
     return nova;
   };
 
+  // ---------- Registros do paciente (água e refeições) ----------
+  const chaveDoRegistro = (pacienteId, dia) => `${pacienteId}|${chaveDoDia(dia)}`;
+
+  // Monta o dia completo: todas as refeições esperadas (as do plano em vigor ou,
+  // sem plano, as padrão), com horário e descrição quando já foram registradas.
+  // Sempre devolve um objeto (usado pela tela de registros do paciente).
+  const montarRegistrosDoDia = (pacienteId, dia) => {
+    const registro = registros[chaveDoRegistro(pacienteId, dia)] ?? { aguaLitros: 0, refeicoes: {} };
+    const plano = planosAlimentares.find((item) => item.pacienteId === pacienteId && item.status === 'ativo');
+    const nomesEsperados = plano?.refeicoes?.length ? plano.refeicoes.map((item) => item.nome) : nomesDasRefeicoes;
+    const nomes = [
+      ...nomesEsperados,
+      ...Object.keys(registro.refeicoes).filter((nome) => !nomesEsperados.includes(nome)),
+    ];
+    return {
+      aguaLitros: registro.aguaLitros,
+      metaAguaLitros: plano?.metaAguaLitros || META_AGUA_PADRAO_LITROS,
+      refeicoes: nomes.map((nome) => ({
+        nome,
+        horario: registro.refeicoes[nome]?.horario ?? null,
+        descricao: registro.refeicoes[nome]?.descricao ?? null,
+      })),
+    };
+  };
+
+  // Para a ficha do nutricionista: null quando o paciente não registrou nada naquele dia.
+  const obterRegistrosDoDia = (pacienteId, dia) =>
+    registros[chaveDoRegistro(pacienteId, dia)] ? montarRegistrosDoDia(pacienteId, dia) : null;
+
+  // Soma (ou, com valor negativo, tira) água do dia de hoje. Nunca fica abaixo de zero.
+  const registrarAgua = (pacienteId, mililitros) => {
+    // TODO: integrar com a API (salvar o registro de água).
+    const chave = chaveDoRegistro(pacienteId, new Date());
+    setRegistros((atuais) => {
+      const anterior = atuais[chave] ?? { aguaLitros: 0, refeicoes: {} };
+      const total = Math.max(0, Math.round(anterior.aguaLitros * 1000 + mililitros)) / 1000;
+      return { ...atuais, [chave]: { ...anterior, aguaLitros: total } };
+    });
+  };
+
+  // Registra (ou corrige) o que o paciente comeu numa refeição de hoje.
+  // Na correção o horário original é mantido.
+  const registrarRefeicao = (pacienteId, nomeDaRefeicao, descricao) => {
+    // TODO: integrar com a API (salvar o registro da refeição).
+    const chave = chaveDoRegistro(pacienteId, new Date());
+    setRegistros((atuais) => {
+      const anterior = atuais[chave] ?? { aguaLitros: 0, refeicoes: {} };
+      const horario = anterior.refeicoes[nomeDaRefeicao]?.horario ?? formatarHora(new Date());
+      return {
+        ...atuais,
+        [chave]: {
+          ...anterior,
+          refeicoes: { ...anterior.refeicoes, [nomeDaRefeicao]: { horario, descricao: descricao.trim() } },
+        },
+      };
+    });
+  };
+
+  // ---------- Paciente logado (área do paciente) ----------
+  const entrarComoPaciente = (id) => setPacienteAtualId(id);
+  const sairComoPaciente = () => setPacienteAtualId(null);
+  const pacienteAtual = pacientes.find((paciente) => paciente.id === pacienteAtualId) ?? null;
+
   // ---------- Assinatura ----------
   const alterarPlanoAssinatura = (idPlano) => {
     const plano = todosOsPlanos.find((item) => item.id === idPlano);
@@ -100,6 +171,7 @@ export const DadosProvider = ({ children }) => {
       planosAlimentares,
       avaliacoes,
       cobrancas,
+      pacienteAtual,
       planoAtual,
       limitePacientes: planoAtual ? planoAtual.limitePacientes : null,
       adicionarPaciente,
@@ -109,10 +181,16 @@ export const DadosProvider = ({ children }) => {
       duplicarPlanoAlimentar,
       alternarArquivamentoPlano,
       salvarAvaliacao,
+      montarRegistrosDoDia,
+      obterRegistrosDoDia,
+      registrarAgua,
+      registrarRefeicao,
+      entrarComoPaciente,
+      sairComoPaciente,
       alterarPlanoAssinatura,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nutricionista, pacientes, consultas, planosAlimentares, avaliacoes, cobrancas, planoAssinaturaId]
+    [nutricionista, pacientes, consultas, planosAlimentares, avaliacoes, cobrancas, planoAssinaturaId, registros, pacienteAtualId]
   );
 
   return <DadosContexto.Provider value={valor}>{children}</DadosContexto.Provider>;

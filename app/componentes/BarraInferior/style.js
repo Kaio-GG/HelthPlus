@@ -16,7 +16,7 @@ export const estilos = StyleSheet.create({
   },
   item: {
     alignItems: 'center',
-    minWidth: 80,
+    minWidth: 72,
   },
   pilula: {
     width: 64,

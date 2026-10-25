@@ -30,9 +30,17 @@ import NovaConsulta from './pages/NovaConsulta';
 import Perfil from './pages/Perfil';
 import Termos from './pages/Termos';
 
+// Área do paciente
+import HomePaciente from './pages/HomePaciente';
+import RegistrosPaciente from './pages/RegistrosPaciente';
+import MeuPlano from './pages/MeuPlano';
+import EvolucaoPaciente from './pages/EvolucaoPaciente';
+import AgendaPaciente from './pages/AgendaPaciente';
+import PerfilPaciente from './pages/PerfilPaciente';
+
 const Pilha = createNativeStackNavigator();
 
-// Telas das abas inferiores (Início, Agenda, Perfil): trocam sem animação.
+// Telas das abas inferiores (Início, Agenda, Perfil e as do paciente): trocam sem animação.
 const semAnimacao = { animation: 'none' };
 
 export default function App() {
@@ -80,6 +88,14 @@ export default function App() {
             <Pilha.Screen name="Pacotes" component={Pacotes} />
             <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
             <Pilha.Screen name="Termos" component={Termos} />
+
+            {/* Área do paciente: abas (Início, Registros, Consultas, Perfil) e telas de consulta */}
+            <Pilha.Screen name="HomePaciente" component={HomePaciente} options={semAnimacao} />
+            <Pilha.Screen name="RegistrosPaciente" component={RegistrosPaciente} options={semAnimacao} />
+            <Pilha.Screen name="AgendaPaciente" component={AgendaPaciente} options={semAnimacao} />
+            <Pilha.Screen name="PerfilPaciente" component={PerfilPaciente} options={semAnimacao} />
+            <Pilha.Screen name="MeuPlano" component={MeuPlano} />
+            <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} />
           </Pilha.Navigator>
         </NavigationContainer>
       </DadosProvider>

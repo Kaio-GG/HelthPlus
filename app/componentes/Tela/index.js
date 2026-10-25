@@ -5,6 +5,7 @@
 //   titulo, subtitulo, aoVoltar, mostrarVoltar, direita, cabecalhoFilhos
 //   rodape            elemento fixo no fim da tela (ex.: botões Voltar/Continuar)
 //   abaAtiva          se informado, mostra a BarraInferior com essa aba marcada
+//   perfilBarra       'nutricionista' (padrão) ou 'paciente': define quais abas a barra mostra
 //   rolavel           false para telas sem rolagem (padrão: true)
 //   flutuante         elemento flutuante no canto inferior direito (ex.: botão +)
 //   cabecalhoRolavel  true: o cabeçalho verde entra na rolagem e o conteúdo vira uma
@@ -31,6 +32,7 @@ const Tela = ({
   cabecalhoFilhos,
   rodape,
   abaAtiva,
+  perfilBarra,
   rolavel = true,
   flutuante,
   cabecalhoRolavel = false,
@@ -114,7 +116,7 @@ const Tela = ({
         </View>
       ) : null}
 
-      {comBarraInferior ? <BarraInferior abaAtiva={abaAtiva} /> : null}
+      {comBarraInferior ? <BarraInferior abaAtiva={abaAtiva} perfil={perfilBarra} /> : null}
     </View>
   );
 };

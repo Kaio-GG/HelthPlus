@@ -7,10 +7,12 @@ import Cartao from "../../componentes/Cartao";
 import CampoTexto from "../../componentes/CampoTexto";
 import CaixaAviso from "../../componentes/CaixaAviso";
 import Botao from "../../componentes/Botao";
+import { useDados } from "../../contexto/DadosContexto";
 import { emailValido } from "../../utilitarios/validacoes";
 import { estilos } from "./style";
 
 const Paciente = ({ navigation }) => {
+  const { pacientes, entrarComoPaciente } = useDados();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erros, setErros] = useState({});
@@ -22,11 +24,22 @@ const Paciente = ({ navigation }) => {
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0) return;
 
-    // TODO: integrar com a API (login do paciente) e abrir a tela inicial do paciente.
-    Alert.alert(
-      "Modo de demonstração",
-      "A área do paciente será conectada ao sistema em breve.",
+    // Modo de demonstração: procura o paciente cadastrado neste aparelho pelo e-mail.
+    // TODO: integrar com a API (login do paciente). A senha ainda NÃO é conferida,
+    // porque a API não tem rota de login do paciente (tabela usuario_paciente).
+    const paciente = pacientes.find(
+      (item) => (item.email || "").toLowerCase() === email.trim().toLowerCase(),
     );
+    if (!paciente) {
+      Alert.alert(
+        "Paciente não encontrado",
+        "Não há paciente cadastrado com este e-mail. Peça ao seu nutricionista para fazer o seu cadastro.",
+      );
+      return;
+    }
+
+    entrarComoPaciente(paciente.id);
+    navigation.reset({ index: 0, routes: [{ name: "HomePaciente" }] });
   };
 
   return (

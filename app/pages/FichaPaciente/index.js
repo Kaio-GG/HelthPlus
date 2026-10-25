@@ -12,7 +12,6 @@ import GraficoLinha from '../../componentes/GraficoLinha';
 import CartaoPlano from '../../componentes/CartaoPlano';
 import BarraProgresso from '../../componentes/BarraProgresso';
 import { useDados } from '../../contexto/DadosContexto';
-import { obterRegistrosDoDia } from '../../dados/registros';
 import { cores } from '../../tema';
 import {
   calcularIdadeEmMeses,
@@ -34,7 +33,7 @@ const abasDaFicha = [
 ];
 
 const FichaPaciente = ({ navigation, route }) => {
-  const { pacientes, avaliacoes, planosAlimentares, duplicarPlanoAlimentar, alternarArquivamentoPlano } = useDados();
+  const { pacientes, avaliacoes, planosAlimentares, duplicarPlanoAlimentar, alternarArquivamentoPlano, obterRegistrosDoDia } = useDados();
   const [aba, setAba] = useState(route.params?.aba || 'resumo');
   const [diaDosRegistros, setDiaDosRegistros] = useState(new Date());
 

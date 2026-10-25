@@ -1,5 +1,8 @@
-// Barra de navegação inferior (Início, Agenda, Perfil).
-// Prop: abaAtiva = 'inicio' | 'agenda' | 'perfil'
+// Barra de navegação inferior.
+// Props:
+//   abaAtiva   nutricionista: 'inicio' | 'agenda' | 'perfil'
+//              paciente: 'inicio' | 'registros' | 'consultas' | 'perfil'
+//   perfil     'nutricionista' (padrão) | 'paciente'
 
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
@@ -9,13 +12,21 @@ import Icone from '../Icone';
 import { cores } from '../../tema';
 import { estilos } from './style';
 
-const abas = [
+const abasDoNutricionista = [
   { chave: 'inicio', rotulo: 'Início', icone: 'casa', rota: 'HomeNutricionista' },
   { chave: 'agenda', rotulo: 'Agenda', icone: 'calendario', rota: 'Agenda' },
   { chave: 'perfil', rotulo: 'Perfil', icone: 'usuario', rota: 'Perfil' },
 ];
 
-const BarraInferior = ({ abaAtiva }) => {
+const abasDoPaciente = [
+  { chave: 'inicio', rotulo: 'Início', icone: 'casa', rota: 'HomePaciente' },
+  { chave: 'registros', rotulo: 'Registros', icone: 'prato', rota: 'RegistrosPaciente' },
+  { chave: 'consultas', rotulo: 'Consultas', icone: 'calendario', rota: 'AgendaPaciente' },
+  { chave: 'perfil', rotulo: 'Perfil', icone: 'usuario', rota: 'PerfilPaciente' },
+];
+
+const BarraInferior = ({ abaAtiva, perfil = 'nutricionista' }) => {
+  const abas = perfil === 'paciente' ? abasDoPaciente : abasDoNutricionista;
   const navigation = useNavigation();
   const margens = useSafeAreaInsets();
 

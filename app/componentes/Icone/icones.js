@@ -62,4 +62,6 @@ export const icones = {
   'cartao-credito': [['retangulo', 1, 4, 22, 16, 2], ['linha', 1, 10, 23, 10]],
   alerta: [['circulo', 12, 12, 10], ['linha', 12, 8, 12, 12], ['linha', 12, 16, 12.01, 16]],
   enviar: [['linha', 22, 2, 11, 13], ['caminho', 'M22 2L15 22l-4-9-9-4 20-7z']],
+  grafico: [['polilinha', '3 17 9 11 13 15 21 7'], ['polilinha', '15 7 21 7 21 13']],
+  prato: [['circulo', 12, 12, 10], ['circulo', 12, 12, 5]],
 };
