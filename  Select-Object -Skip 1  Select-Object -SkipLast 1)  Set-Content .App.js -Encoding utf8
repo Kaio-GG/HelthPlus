@@ -1,0 +1,162 @@
+[1mdiff --git a/app/App.js b/app/App.js[m
+[1mindex accc908..c7caab1 100644[m
+[1m--- a/app/App.js[m
+[1m+++ b/app/App.js[m
+[36m@@ -1,5 +1,5 @@[m
+[32m+[m[32m```jsx[m
+ // Navegação principal do aplicativo Health Plus.[m
+[31m-// Todas as telas ficam em ./pages/<NomeDaTela>/ (index.js = código, style.js = estilo).[m
+ import { NavigationContainer } from '@react-navigation/native';[m
+ import { createNativeStackNavigator } from '@react-navigation/native-stack';[m
+ import * as Linking from 'expo-linking';[m
+[36m@@ -9,7 +9,7 @@[m [mimport { DadosProvider } from './contexto/DadosContexto';[m
+ import { NotificacoesProvider } from './contexto/NotificacoesContexto';[m
+ import { DialogoProvider } from './contexto/DialogoContexto';[m
+ [m
+[31m-// Entrada e acesso[m
+[32m+[m[32m// Entrada e autenticação[m
+ import Inicio from './pages/inicialHome';[m
+ import Nutricionista from './pages/Nutricionista';[m
+ import Paciente from './pages/Paciente';[m
+[36m@@ -47,15 +47,9 @@[m [mimport PerfilPaciente from './pages/PerfilPaciente';[m
+ [m
+ const Pilha = createNativeStackNavigator();[m
+ [m
+[31m-// Telas das abas inferiores (Início, Agenda, Perfil e as do paciente): trocam sem animação.[m
+ const semAnimacao = { animation: 'none' };[m
+ [m
+[31m-// Links que abrem o aplicativo direto numa tela.[m
+[31m-//[m
+[31m-// O e-mail de redefinição manda "healthplus://redefinir-senha?token=XXXXXXXX".[m
+[31m-// O prefixo do Linking.createURL cobre o Expo Go, que usa um endereço[m
+[31m-// "exp://..." em vez do esquema do aplicativo. Se mesmo assim o link não[m
+[31m-// abrir, a tela "Verifique seu e-mail" aceita o código digitado.[m
+[32m+[m[32m// Links para redefinição de senha enviados por e-mail.[m
+ const ligacoes = {[m
+   prefixes: [Linking.createURL('/'), 'healthplus://'],[m
+   config: {[m
+[36m@@ -67,23 +61,19 @@[m [mconst ligacoes = {[m
+ [m
+ export default function App() {[m
+   return ([m
+[31m-    // AuthProvider por fora: os outros precisam dele para saber quem está logado.[m
+     <AuthProvider>[m
+       <DadosProvider>[m
+         <NotificacoesProvider>[m
+[31m-          {/* O DialogoProvider envolve a navegação, então o diálogo é[m
+[31m-              desenhado por cima de qualquer tela. */}[m
+           <DialogoProvider>[m
+             <NavigationContainer linking={ligacoes}>[m
+               <Pilha.Navigator[m
+                 initialRouteName="Inicio"[m
+                 screenOptions={{[m
+[31m-                  // Cada tela desenha o próprio cabeçalho verde (componente Cabecalho).[m
+                   headerShown: false,[m
+                   contentStyle: { backgroundColor: '#FFF8C9' },[m
+                 }}[m
+               >[m
+[31m-                {/* Entrada e acesso */}[m
+[32m+[m[32m                {/* Entrada e autenticação */}[m
+                 <Pilha.Screen name="Inicio" component={Inicio} />[m
+                 <Pilha.Screen name="Nutricionista" component={Nutricionista} />[m
+                 <Pilha.Screen name="Paciente" component={Paciente} />[m
+[36m@@ -92,12 +82,14 @@[m [mexport default function App() {[m
+                 <Pilha.Screen name="RedefinirSenha" component={RedefinirSenha} />[m
+                 <Pilha.Screen name="PrimeiroAcesso" component={PrimeiroAcesso} />[m
+ [m
+[31m-                {/* Abas do nutricionista */}[m
+[31m-                <Pilha.Screen name="HomeNutricionista" component={HomeNutricionista} options={semAnimacao} />[m
+[32m+[m[32m                {/* Área do nutricionista */}[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="HomeNutricionista"[m
+[32m+[m[32m                  component={HomeNutricionista}[m
+[32m+[m[32m                  options={semAnimacao}[m
+[32m+[m[32m                />[m
+                 <Pilha.Screen name="Agenda" component={Agenda} options={semAnimacao} />[m
+                 <Pilha.Screen name="Perfil" component={Perfil} options={semAnimacao} />[m
+[31m-[m
+[31m-                {/* Pacientes */}[m
+                 <Pilha.Screen name="CadastroPaciente" component={CadastroPaciente} />[m
+                 <Pilha.Screen name="Pacientes" component={Pacientes} />[m
+                 <Pilha.Screen name="FichaPaciente" component={FichaPaciente} />[m
+[36m@@ -105,33 +97,52 @@[m [mexport default function App() {[m
+                 {/* Calculadora OMS */}[m
+                 <Pilha.Screen name="FaixaCalculadora" component={FaixaCalculadora} />[m
+                 <Pilha.Screen name="Calculadora" component={Calculadora} />[m
+[31m-                <Pilha.Screen name="ResultadoCalculadora" component={ResultadoCalculadora} />[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="ResultadoCalculadora"[m
+[32m+[m[32m                  component={ResultadoCalculadora}[m
+[32m+[m[32m                />[m
+ [m
+[31m-                {/* Planos alimentares */}[m
+[32m+[m[32m                {/* Planos alimentares e assinatura */}[m
+                 <Pilha.Screen name="PlanosAlimentares" component={PlanosAlimentares} />[m
+[31m-                <Pilha.Screen name="CriarPlanoAlimentar" component={CriarPlanoAlimentar} />[m
+[31m-[m
+[31m-            {/* Assinatura, agenda e termos */}[m
+[31m-            <Pilha.Screen name="Pacotes" component={Pacotes} />[m
+[31m-            <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />[m
+[31m-            <Pilha.Screen name="Termos" component={Termos} />[m
+[31m-[m
+[31m-            {/* Área do paciente: abas (Início, Registros, Consultas, Perfil) e telas de consulta */}[m
+[31m-            <Pilha.Screen name="HomePaciente" component={HomePaciente} options={semAnimacao} />[m
+[31m-            <Pilha.Screen name="RegistrosPaciente" component={RegistrosPaciente} options={semAnimacao} />[m
+[31m-            <Pilha.Screen name="AgendaPaciente" component={AgendaPaciente} options={semAnimacao} />[m
+[31m-            <Pilha.Screen name="PerfilPaciente" component={PerfilPaciente} options={semAnimacao} />[m
+[31m-            <Pilha.Screen name="MeuPlano" component={MeuPlano} />[m
+[31m-            <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} />[m
+[31m-          </Pilha.Navigator>[m
+[31m-        </NavigationContainer>[m
+[31m-                {/* Conta, notificações, assinatura, agenda e termos */}[m
+[31m-                <Pilha.Screen name="AlterarSenha" component={AlterarSenha} />[m
+[31m-                <Pilha.Screen name="Notificacoes" component={Notificacoes} />[m
+[31m-                <Pilha.Screen name="PreferenciasNotificacao" component={PreferenciasNotificacao} />[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="CriarPlanoAlimentar"[m
+[32m+[m[32m                  component={CriarPlanoAlimentar}[m
+[32m+[m[32m                />[m
+                 <Pilha.Screen name="Pacotes" component={Pacotes} />[m
+                 <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />[m
+                 <Pilha.Screen name="Termos" component={Termos} />[m
+[32m+[m
+[32m+[m[32m                {/* Conta e notificações */}[m
+[32m+[m[32m                <Pilha.Screen name="AlterarSenha" component={AlterarSenha} />[m
+[32m+[m[32m                <Pilha.Screen name="Notificacoes" component={Notificacoes} />[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="PreferenciasNotificacao"[m
+[32m+[m[32m                  component={PreferenciasNotificacao}[m
+[32m+[m[32m                />[m
+[32m+[m
+[32m+[m[32m                {/* Área do paciente */}[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="HomePaciente"[m
+[32m+[m[32m                  component={HomePaciente}[m
+[32m+[m[32m                  options={semAnimacao}[m
+[32m+[m[32m                />[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="RegistrosPaciente"[m
+[32m+[m[32m                  component={RegistrosPaciente}[m
+[32m+[m[32m                  options={semAnimacao}[m
+[32m+[m[32m                />[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="AgendaPaciente"[m
+[32m+[m[32m                  component={AgendaPaciente}[m
+[32m+[m[32m                  options={semAnimacao}[m
+[32m+[m[32m                />[m
+[32m+[m[32m                <Pilha.Screen[m
+[32m+[m[32m                  name="PerfilPaciente"[m
+[32m+[m[32m                  component={PerfilPaciente}[m
+[32m+[m[32m                  options={semAnimacao}[m
+[32m+[m[32m                />[m
+[32m+[m[32m                <Pilha.Screen name="MeuPlano" component={MeuPlano} />[m
+[32m+[m[32m                <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} />[m
+               </Pilha.Navigator>[m
+             </NavigationContainer>[m
+           </DialogoProvider>[m
+[36m@@ -140,3 +151,4 @@[m [mexport default function App() {[m
+     </AuthProvider>[m
+   );[m
+ }[m
+[32m+[m[32m```[m
+\ No newline at end of file[m
