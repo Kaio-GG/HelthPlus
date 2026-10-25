@@ -60,3 +60,30 @@ export const sombras = {
 
 // Quanto o conteúdo "sobe" por cima da curva do cabeçalho verde.
 export const SOBREPOSICAO_CABECALHO = 28;
+
+// Menor área tocável confortável num celular. É a recomendação das duas
+// plataformas (44pt no iOS, 48dp no Android); abaixo disso o dedo erra.
+export const ALVO_DE_TOQUE = 44;
+
+// Escala de tipografia.
+//
+// São cinco degraus e cada um tem um papel. Antes cada tela escolhia o
+// próprio tamanho no olho, e o resultado era texto de 13 ao lado de texto
+// de 14 sem motivo, com títulos que não pareciam títulos.
+//
+//   titulo     o nome da tela, no cabeçalho verde
+//   secao      o título de um cartão
+//   destaque   o número ou dado que a tela existe para mostrar
+//   corpo      o texto normal
+//   apoio      rótulo, legenda, unidade, data — o que acompanha
+//   miudo      nota de rodapé e fonte bibliográfica
+export const tipografia = {
+  titulo: { fontSize: 26, lineHeight: 32, fontWeight: "800" },
+  secao: { fontSize: 17, lineHeight: 23, fontWeight: "800" },
+  destaque: { fontSize: 28, lineHeight: 34, fontWeight: "800" },
+  corpo: { fontSize: 15, lineHeight: 21, fontWeight: "400" },
+  corpoForte: { fontSize: 15, lineHeight: 21, fontWeight: "700" },
+  apoio: { fontSize: 13, lineHeight: 18, fontWeight: "400" },
+  apoioForte: { fontSize: 13, lineHeight: 18, fontWeight: "700" },
+  miudo: { fontSize: 11, lineHeight: 16, fontWeight: "400" },
+};

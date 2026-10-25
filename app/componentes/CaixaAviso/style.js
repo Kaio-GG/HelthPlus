@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, raios, tipografia } from '../../tema';
 
 export const estilos = StyleSheet.create({
   container: {
@@ -17,7 +17,7 @@ export const estilos = StyleSheet.create({
     flex: 1,
   },
   texto: {
-    fontSize: 13,
+    ...tipografia.apoio,
     lineHeight: 19,
   },
   fundo_sucesso: { backgroundColor: cores.verdeSuave },

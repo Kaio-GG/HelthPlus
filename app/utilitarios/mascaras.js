@@ -4,6 +4,12 @@
 export const apenasDigitos = (texto = '') => texto.replace(/\D/g, '');
 
 // 12062023 -> 12/06/2023
+//
+// Atenção ao usar: o campo guarda no máximo 8 dígitos. Quando ele já está
+// cheio, o que o usuário digitar a mais é descartado aqui e a tela não
+// muda — parece que o aplicativo travou. Por isso os campos de data usam
+// "selecionarAoFocar", que marca o conteúdo ao tocar: digitar substitui a
+// data inteira em vez de tentar acrescentar no fim.
 export const aplicarMascaraData = (texto) => {
   const digitos = apenasDigitos(texto).slice(0, 8);
   if (digitos.length <= 2) return digitos;

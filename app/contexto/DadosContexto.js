@@ -163,6 +163,27 @@ export const DadosProvider = ({ children }) => {
     setPlanoAssinaturaId(idPlano);
   };
 
+  // Volta ao estado de quem nunca assinou. Os pacientes já cadastrados
+  // continuam no lugar: cancelar assinatura não é apagar o trabalho.
+  const cancelarPlanoAssinatura = () => setPlanoAssinaturaId(null);
+
+  // Registra uma cobrança no histórico que o Perfil mostra.
+  //
+  // TODO: integrar com a API de pagamento. Hoje a lista nasce da própria
+  // contratação feita no aplicativo, em memória — antes ela era um array
+  // vazio que nunca recebia nada, e o histórico abria sempre em branco.
+  const registrarCobranca = ({ referencia, valor }) => {
+    const hoje = new Date();
+    const nova = {
+      id: `cb${Date.now()}`,
+      referencia,
+      valor,
+      data: `${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}/${hoje.getFullYear()}`,
+    };
+    setCobrancas((atuais) => [nova, ...atuais]);
+    return nova;
+  };
+
   const valor = useMemo(
     () => ({
       nutricionista,
@@ -188,6 +209,8 @@ export const DadosProvider = ({ children }) => {
       entrarComoPaciente,
       sairComoPaciente,
       alterarPlanoAssinatura,
+      cancelarPlanoAssinatura,
+      registrarCobranca,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [nutricionista, pacientes, consultas, planosAlimentares, avaliacoes, cobrancas, planoAssinaturaId, registros, pacienteAtualId]

@@ -35,5 +35,25 @@ export const estilos = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: cores.verdeLink,
+    alignSelf: 'center',
+  },
+
+  // ----- Aviso de que a API está sem SMTP -----
+  avisoDev: {
+    marginBottom: 4,
+  },
+
+  // ----- Código digitado à mão -----
+  tituloCodigo: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: cores.verdeEscuro,
+  },
+  textoCodigo: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: cores.textoSecundario,
+    marginTop: 4,
+    marginBottom: 12,
   },
 });

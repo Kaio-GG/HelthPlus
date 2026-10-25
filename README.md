@@ -28,7 +28,12 @@ mysql -u root -p -e "source Api/database/schema.sql"
 ```
 
 Isso cria o banco `helthplus` (sem o "a", foi assim que ele nasceu) com as
-14 tabelas do projeto.
+17 tabelas do projeto.
+
+> **Já tem o banco de antes?** Rode o script de novo. Ele é idempotente, e
+> as três tabelas mais novas (`token_senha`, `notificacao` e
+> `preferencia_notificacao`) só aparecem depois disso — sem elas, a troca de
+> senha e as notificações respondem erro 500.
 
 > **No Windows**, o `mysql` normalmente não está no PATH, e o PowerShell
 > não aceita o operador `<` — por isso o `-e "source ..."` acima, no lugar
@@ -76,6 +81,17 @@ npm run dev
 A API sobe em `http://localhost:3000`. Para conferir, abra esse endereço no
 navegador: deve aparecer `{"mensagem":"API HelthPlus funcionando!"}`.
 
+### E-mail (opcional)
+
+O "esqueci minha senha" funciona **sem configurar nada**: sem SMTP no `.env`,
+a API não envia o e-mail — ela imprime a mensagem no próprio terminal, com o
+código de redefinição. É só copiar o código de lá e colar no aplicativo, na
+tela *Verifique seu e-mail*.
+
+Para enviar de verdade, preencha as variáveis `SMTP_*` do `Api/.env`
+(o `.env.example` traz os dados de Gmail, Brevo e Mailtrap). Nada no código
+muda: a mesma rota passa a enviar.
+
 ## 3. Aplicativo
 
 Descubra o IP da sua máquina na rede Wi-Fi. No Windows:
@@ -116,7 +132,20 @@ Leia o QR Code com o Expo Go.
 | `GET` | `/` | Teste de conexão |
 | `POST` | `/api/profissional/cadastro` | Cadastra nutricionista |
 | `POST` | `/api/profissional/login` | Login do nutricionista |
+| `PUT` | `/api/profissional/:id` | Atualiza nome, CRN e telefone |
 | `POST` | `/api/paciente/cadastro` | Cadastra paciente (do nutricionista logado) |
+| `POST` | `/api/senha/esqueci` | Gera o código e envia o e-mail de redefinição |
+| `POST` | `/api/senha/redefinir` | Troca a senha usando o código do e-mail |
+| `PUT` | `/api/senha/:id` | Troca a senha pedindo a senha atual |
+| `GET` | `/api/notificacao/:id` | Lista as notificações e quantas não foram lidas |
+| `POST` | `/api/notificacao` | Cria uma notificação |
+| `PUT` | `/api/notificacao/:id/:idNotificacao/lida` | Marca uma como lida |
+| `PUT` | `/api/notificacao/:id/todas-lidas` | Marca todas como lidas |
+| `GET` | `/api/notificacao/:id/preferencias` | Lê as preferências de notificação |
+| `PUT` | `/api/notificacao/:id/preferencias` | Salva as preferências |
+
+> As rotas de senha ficam em `/api/senha`, e não em `/api/profissional/senha`,
+> porque o `PUT /api/profissional/:id` capturaria esse caminho antes.
 
 ## Como o projeto é organizado
 
@@ -170,17 +199,54 @@ Você ainda não rodou o `schema.sql` do passo 1, ou o `DB_NAME` do
 
 ## Estado atual
 
-Funcionando de ponta a ponta: cadastro e login do nutricionista, sessão que
-sobrevive a fechar o app, cadastro de paciente.
+Funcionando de ponta a ponta, gravando no banco: cadastro e login do
+nutricionista, sessão que sobrevive a fechar o app, cadastro de paciente,
+edição dos dados do perfil, troca de senha (pelo perfil e por e-mail) e a
+central de notificações com as preferências.
 
-Ainda em dados de exemplo ou pendente: agenda, planos alimentares,
-avaliações, área do paciente, assinatura e notificações. As telas existem e
-navegam, mas ainda não gravam no banco — procure por `TODO: integrar com a API`.
+A calculadora da OMS funciona inteira, mas em memória: o resultado só vai
+para a ficha do paciente enquanto o app está aberto.
 
-> ⚠️ As tabelas da OMS em `app/utilitarios/oms/dados/` são de **demonstração**
-> (poucos pontos) e a tabela de alimentos tem só 14 itens aproximados. Troque
-> pelas oficiais antes de usar com pacientes de verdade.
->
-> O banco já tem a estrutura para guardar essas curvas (`referencia_oms`,
-> com os parâmetros L, M e S), mas as tabelas de referência ainda estão
-> vazias. Enquanto não forem carregadas, a calculadora usa os JSON.
+Ainda em dados de exemplo: agenda, planos alimentares, avaliações salvas,
+área do paciente e assinatura. As telas existem e navegam, mas ainda não
+gravam no banco — procure por `TODO: integrar com a API`.
+
+### Tabelas da OMS
+
+As curvas em `app/utilitarios/oms/dados/` são as **oficiais**, convertidas
+das planilhas publicadas pela OMS:
+
+- **0–5 anos** — WHO Child Growth Standards 2006
+- **5–19 anos** — WHO Growth Reference 2007
+
+Cada curva tem um ponto por mês (ou por centímetro, em peso/estatura).
+A conversão foi conferida reconstruindo, a partir de L, M e S, os 10.234
+valores de desvio-padrão que a própria OMS publica — todos dentro da
+precisão com que ela os divulga.
+
+Dois detalhes de modelagem que seguem a orientação da OMS:
+
+- **Estatura aos 24 meses:** abaixo disso vale o comprimento deitado;
+  a partir dos 24 meses, a estatura em pé (os dois diferem ~0,7 cm).
+- **Peso/estatura aos 87 cm:** abaixo, comprimento deitado; acima,
+  estatura em pé.
+
+Todos os indicadores da OMS têm tabela: peso por idade (0 a 10 anos, que é
+onde a OMS para), comprimento/estatura por idade, IMC por idade, peso por
+comprimento e por estatura, perímetro cefálico, perímetro braquial e as
+dobras cutâneas tricipital e subescapular.
+
+A conversão foi conferida de duas formas:
+
+- contra as tabelas mensais publicadas pela OMS (L, M e S iguais, casa por casa);
+- contra o conjunto de teste oficial do WHO AnthroPlus (933 casos): os
+  escores-z de estatura, peso e IMC por idade saem **idênticos** aos que a
+  OMS publica, e as marcações de medida implausível batem em todos os casos.
+
+> ⚠️ Ainda pendente: a tabela de alimentos (`app/dados/alimentosTaco.js`)
+> tem só 14 itens aproximados — troque pela TACO oficial antes de uso real.
+
+> O banco tem a tabela `referencia_oms` para guardar essas curvas, mas ela
+> está vazia: a calculadora lê os JSON do aplicativo, e funciona assim. Migrar
+> para o banco só compensa se a equipe quiser editar as curvas sem publicar
+> uma versão nova do aplicativo.

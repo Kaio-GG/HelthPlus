@@ -3,6 +3,9 @@
 //   dataSelecionada   Date do dia selecionado
 //   aoSelecionar      função chamada com o Date do dia tocado
 //   diasComConsulta   Set com as chaves 'AAAA-MM-DD' dos dias que têm consulta
+//   comNavegacaoDeAno acrescenta uma linha para andar de ano em ano. Sem ela,
+//                     chegar a uma data de nascimento custaria uma centena de
+//                     toques na seta de mês
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
@@ -27,7 +30,12 @@ const montarSemanas = (ano, mes) => {
   return semanas;
 };
 
-const Calendario = ({ dataSelecionada, aoSelecionar, diasComConsulta }) => {
+const Calendario = ({
+  dataSelecionada,
+  aoSelecionar,
+  diasComConsulta,
+  comNavegacaoDeAno = false,
+}) => {
   const [mesExibido, setMesExibido] = useState(
     new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), 1)
   );
@@ -37,15 +45,36 @@ const Calendario = ({ dataSelecionada, aoSelecionar, diasComConsulta }) => {
   const semanas = montarSemanas(ano, mes);
 
   const mudarMes = (deslocamento) => setMesExibido(new Date(ano, mes + deslocamento, 1));
+  const mudarAno = (deslocamento) => setMesExibido(new Date(ano + deslocamento, mes, 1));
 
   return (
     <View>
+      {comNavegacaoDeAno ? (
+        <View style={estilos.cabecalho}>
+          <TouchableOpacity
+            onPress={() => mudarAno(-1)}
+            hitSlop={10}
+            accessibilityLabel="Ano anterior"
+          >
+            <Icone nome="chevron-esquerda" tamanho={20} cor={cores.textoSecundario} />
+          </TouchableOpacity>
+          <Text style={estilos.tituloAno}>{ano}</Text>
+          <TouchableOpacity
+            onPress={() => mudarAno(1)}
+            hitSlop={10}
+            accessibilityLabel="Próximo ano"
+          >
+            <Icone nome="chevron-direita" tamanho={20} cor={cores.textoSecundario} />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <View style={estilos.cabecalho}>
         <TouchableOpacity onPress={() => mudarMes(-1)} hitSlop={10} accessibilityLabel="Mês anterior">
           <Icone nome="chevron-esquerda" tamanho={22} cor={cores.verdeBotao} />
         </TouchableOpacity>
         <Text style={estilos.tituloMes}>
-          {nomesMeses[mes]} {ano}
+          {comNavegacaoDeAno ? nomesMeses[mes] : `${nomesMeses[mes]} ${ano}`}
         </Text>
         <TouchableOpacity onPress={() => mudarMes(1)} hitSlop={10} accessibilityLabel="Próximo mês">
           <Icone nome="chevron-direita" tamanho={22} cor={cores.verdeBotao} />

@@ -297,6 +297,65 @@ CREATE TABLE IF NOT EXISTS `inquerito_paciente` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------
+-- token_senha
+-- Pedidos de redefinição de senha. Guarda o HASH do token, nunca o token
+-- em si: quem ler o banco não consegue redefinir a senha de ninguém.
+-- O token vale 30 minutos e só pode ser usado uma vez (dt_uso).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `token_senha` (
+  `id_token` int NOT NULL AUTO_INCREMENT,
+  `id_profissional` int NOT NULL,
+  `ds_token_hash` char(64) NOT NULL,
+  `dt_expiracao` datetime NOT NULL,
+  `dt_uso` datetime DEFAULT NULL,
+  `dt_criacao` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_token`),
+  UNIQUE KEY `ds_token_hash` (`ds_token_hash`),
+  KEY `id_profissional` (`id_profissional`),
+  CONSTRAINT `token_senha_ibfk_1` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- notificacao
+-- Avisos para o nutricionista dentro do aplicativo: consulta chegando,
+-- paciente novo, plano vencendo. dt_leitura nulo = ainda não lida (é o que
+-- alimenta o número no sino).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `notificacao` (
+  `id_notificacao` int NOT NULL AUTO_INCREMENT,
+  `id_profissional` int NOT NULL,
+  `tp_notificacao` varchar(20) NOT NULL,
+  `ds_titulo` varchar(120) NOT NULL,
+  `ds_mensagem` varchar(255) DEFAULT NULL,
+  `ds_rota` varchar(60) DEFAULT NULL,
+  `id_referencia` int DEFAULT NULL,
+  `dt_criacao` datetime DEFAULT CURRENT_TIMESTAMP,
+  `dt_leitura` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_notificacao`),
+  KEY `nao_lidas` (`id_profissional`,`dt_leitura`),
+  CONSTRAINT `notificacao_ibfk_1` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- preferencia_notificacao
+-- Quais tipos de aviso o nutricionista quer receber. Uma linha por
+-- profissional; quem não tem linha recebe tudo (o padrao das colunas).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `preferencia_notificacao` (
+  `id_profissional` int NOT NULL,
+  `st_consultas` tinyint(1) DEFAULT '1',
+  `st_pacientes` tinyint(1) DEFAULT '1',
+  `st_planos` tinyint(1) DEFAULT '1',
+  `st_sistema` tinyint(1) DEFAULT '1',
+  `st_email` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`id_profissional`),
+  CONSTRAINT `preferencia_notificacao_ibfk_1` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
 -- Pendências conhecidas da modelagem
 --
 -- 1. "paciente" não tem chave estrangeira para "profissional", embora
@@ -309,6 +368,11 @@ CREATE TABLE IF NOT EXISTS `inquerito_paciente` (
 --
 -- 3. As tabelas de referência da OMS (tipo_medida, indicador,
 --    padrao_crescimento, referencia_oms, classificacao_referencia) estão
---    vazias. Enquanto não forem carregadas, a calculadora continua usando
---    os JSON de demonstração em app/utilitarios/oms/dados.
+--    vazias. A calculadora lê os JSON de app/utilitarios/oms/dados, que são
+--    as tabelas OFICIAIS da OMS — não é dado de demonstração, e funciona.
+--    Carregar essas tabelas só passa a valer a pena se a equipe quiser
+--    editar as curvas sem publicar uma versão nova do aplicativo.
+--
+-- 4. "notificacao" não tem índice por data. Com a lista crescendo, o
+--    ORDER BY dt_criacao de cada abertura da tela passa a ordenar tudo.
 -- ---------------------------------------------------------------

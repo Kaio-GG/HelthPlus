@@ -1,12 +1,13 @@
 // Agenda: calendário mensal e lista de consultas do dia selecionado.
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Calendario from '../../componentes/Calendario';
 import Selo from '../../componentes/Selo';
 import BotaoCircular from '../../componentes/BotaoCircular';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { chaveDoDia, formatarDataExtensa, formatarHora, mesmoDia } from '../../utilitarios/datas';
 import { estilos } from './style';
 
@@ -19,6 +20,7 @@ const statusDaConsulta = {
 
 const Agenda = ({ navigation }) => {
   const { consultas, atualizarStatusConsulta } = useDados();
+  const { escolher } = useDialogo();
   const [diaSelecionado, setDiaSelecionado] = useState(new Date());
 
   // Dias que têm consulta (ignorando as canceladas) ficam com um pontinho.
@@ -31,24 +33,25 @@ const Agenda = ({ navigation }) => {
     .sort((a, b) => a.inicio - b.inicio);
 
   // Abre as ações possíveis para a consulta tocada.
-  const abrirAcoes = (consulta) => {
-    const botoes = [];
+  const abrirAcoes = async (consulta) => {
+    const opcoes = [];
     if (consulta.status === 'pendente') {
-      botoes.push({ text: 'Confirmar consulta', onPress: () => atualizarStatusConsulta(consulta.id, 'confirmada') });
+      opcoes.push({ rotulo: 'Confirmar consulta', valor: 'confirmada', variante: 'primario' });
     }
     if (consulta.status === 'confirmada') {
-      botoes.push({ text: 'Marcar como concluída', onPress: () => atualizarStatusConsulta(consulta.id, 'concluida') });
+      opcoes.push({ rotulo: 'Marcar como concluída', valor: 'concluida', variante: 'primario' });
     }
     if (consulta.status === 'pendente' || consulta.status === 'confirmada') {
-      botoes.push({
-        text: 'Cancelar consulta',
-        style: 'destructive',
-        onPress: () => atualizarStatusConsulta(consulta.id, 'cancelada'),
-      });
+      opcoes.push({ rotulo: 'Cancelar consulta', valor: 'cancelada', variante: 'perigo' });
     }
-    botoes.push({ text: 'Fechar', style: 'cancel' });
 
-    Alert.alert(consulta.nome, `${consulta.tipo} · ${formatarHora(consulta.inicio)}`, botoes);
+    const novoStatus = await escolher({
+      titulo: consulta.nome,
+      mensagem: `${consulta.tipo} · ${formatarHora(consulta.inicio)}`,
+      opcoes,
+    });
+
+    if (novoStatus) atualizarStatusConsulta(consulta.id, novoStatus);
   };
 
   const quantidade = consultasDoDia.length;

@@ -5,6 +5,7 @@ import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoTexto from '../../componentes/CampoTexto';
 import Botao from '../../componentes/Botao';
+import { pedirLinkDeSenha } from '../../Api/senha';
 import { emailValido } from '../../utilitarios/validacoes';
 import { estilos } from './style';
 
@@ -15,15 +16,34 @@ const EsqueciSenha = ({ navigation, route }) => {
 
   const [email, setEmail] = useState('');
   const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
-  const enviarLink = () => {
+  const enviarLink = async () => {
+    if (enviando) return;
+
     if (!emailValido(email)) {
       setErro('Informe um e-mail válido.');
       return;
     }
+
     setErro('');
-    // TODO: integrar com a API (envio do link de redefinição).
-    navigation.navigate('VerificacaoEmail', { email: email.trim(), perfil });
+    setEnviando(true);
+
+    try {
+      const resposta = await pedirLinkDeSenha(email.trim());
+
+      // A API responde igual exista ou não a conta — de propósito, para não
+      // dizer a estranhos quem tem cadastro aqui.
+      navigation.navigate('VerificacaoEmail', {
+        email: email.trim(),
+        perfil,
+        emailEnviado: resposta.emailEnviado !== false,
+      });
+    } catch (problema) {
+      setErro(problema.message);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
@@ -38,9 +58,14 @@ const EsqueciSenha = ({ navigation, route }) => {
           aoMudar={setEmail}
           placeholder="nome@email.com"
           teclado="email-address"
+          preenchimento="email"
           erro={erro}
         />
-        <Botao titulo="Enviar link" aoPressionar={enviarLink} />
+        <Botao
+          titulo={enviando ? 'Enviando...' : 'Enviar link'}
+          aoPressionar={enviarLink}
+          desabilitado={enviando}
+        />
         <Text style={estilos.linkCentral} onPress={() => navigation.popTo(rotaDoLogin)}>
           Voltar ao login
         </Text>

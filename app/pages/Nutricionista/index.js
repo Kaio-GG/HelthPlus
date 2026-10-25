@@ -1,6 +1,6 @@
 // Área do nutricionista: login e criação de conta na mesma tela (duas abas).
 import React, { useState } from "react";
-import { View, Text, Alert } from "react-native";
+import { View, Text } from "react-native";
 import Medico from "../../assets/Medico.svg";
 import Tela from "../../componentes/Tela";
 import Cartao from "../../componentes/Cartao";
@@ -15,9 +15,11 @@ import {
   cadastrarNutricionista,
 } from "../../Api/loginCadastro.js";
 import { useAuth } from "../../contexto/AuthContext";
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { estilos } from "./style";
 
 const Nutricionista = ({ navigation, route }) => {
+  const { avisar } = useDialogo();
   const { entrarSessao } = useAuth();
 
   const [aba, setAba] = useState(route.params?.abaInicial || "entrar");
@@ -55,7 +57,7 @@ const Nutricionista = ({ navigation, route }) => {
 
       navigation.reset({ index: 0, routes: [{ name: "HomeNutricionista" }] });
     } catch (erro) {
-      Alert.alert("Erro ao entrar", erro.message);
+      avisar({ titulo: "Erro ao entrar", mensagem: erro.message, tom: "erro" });
     } finally {
       setCarregando(false);
     }
@@ -89,12 +91,16 @@ const Nutricionista = ({ navigation, route }) => {
         senhaCadastro
       );
 
-      Alert.alert("Conta criada!", "Agora é só entrar com seu e-mail e senha.");
+      avisar({
+        titulo: "Conta criada!",
+        mensagem: "Agora é só entrar com seu e-mail e senha.",
+        tom: "sucesso",
+      });
       setEmail(emailCadastro.trim());
       setSenha("");
       setAba("entrar");
     } catch (erro) {
-      Alert.alert("Erro ao cadastrar", erro.message);
+      avisar({ titulo: "Erro ao cadastrar", mensagem: erro.message, tom: "erro" });
     } finally {
       setCarregando(false);
     }

@@ -1,6 +1,6 @@
 // Perfil do nutricionista: dados profissionais, plano e segurança da conta.
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, ScrollView, Pressable } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Avatar from '../../componentes/Avatar';
@@ -11,6 +11,7 @@ import Icone from '../../componentes/Icone';
 import BarraProgresso from '../../componentes/BarraProgresso';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { atualizarNutricionista } from '../../Api/loginCadastro';
 import { cores } from '../../tema';
 import { aplicarMascaraTelefone } from '../../utilitarios/mascaras';
@@ -20,6 +21,7 @@ import { estilos } from './style';
 const Perfil = ({ navigation }) => {
   const { nutricionista, pacientes, planoAtual, limitePacientes, cobrancas } = useDados();
   const { sairSessao, atualizarProfissional } = useAuth();
+  const { avisar, confirmar } = useDialogo();
 
   const [editando, setEditando] = useState(false);
 // Os nomes dos campos são os da tabela profissional, que é o que o login
@@ -43,11 +45,15 @@ useEffect(() => {
     if (salvando) return;
 
     if (nome.trim().length < 3) {
-      Alert.alert('Nome inválido', 'Informe seu nome completo.');
+      avisar({ titulo: 'Nome inválido', mensagem: 'Informe seu nome completo.', tom: 'alerta' });
       return;
     }
     if (crn.trim().length < 5) {
-      Alert.alert('Registro inválido', 'Informe seu registro profissional (CRN).');
+      avisar({
+        titulo: 'Registro inválido',
+        mensagem: 'Informe seu registro profissional (CRN).',
+        tom: 'alerta',
+      });
       return;
     }
 
@@ -64,41 +70,54 @@ useEffect(() => {
       await atualizarProfissional(resposta.profissional);
 
       setEditando(false);
-      Alert.alert('Dados salvos', 'Seus dados profissionais foram atualizados.');
+      avisar({
+        titulo: 'Dados salvos',
+        mensagem: 'Seus dados profissionais foram atualizados.',
+        tom: 'sucesso',
+      });
     } catch (erro) {
-      Alert.alert('Erro ao salvar', erro.message);
+      avisar({ titulo: 'Erro ao salvar', mensagem: erro.message, tom: 'erro' });
     } finally {
       setSalvando(false);
     }
   };
 
-  const sair = () => {
-    Alert.alert('Sair da conta', 'Deseja realmente sair?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        // Apaga a sessão salva no celular antes de voltar para a tela inicial.
-        // Sem isso o app volta logado quando for reaberto.
-        onPress: async () => {
-          await sairSessao();
-          navigation.reset({ index: 0, routes: [{ name: 'Inicio' }] });
-        },
-      },
-    ]);
+  const sair = async () => {
+    const confirmou = await confirmar({
+      titulo: 'Sair da conta',
+      mensagem: 'Você vai precisar entrar de novo com e-mail e senha.',
+      rotuloConfirmar: 'Sair',
+      perigo: true,
+    });
+    if (!confirmou) return;
+
+    // Apaga a sessão salva no celular antes de voltar para a tela inicial.
+    // Sem isso o app volta logado quando for reaberto.
+    await sairSessao();
+    navigation.reset({ index: 0, routes: [{ name: 'Inicio' }] });
   };
 
   const usoDoPlano = limitePacientes ? pacientes.length / limitePacientes : 0;
 
   const itensDeSeguranca = [
-    { chave: 'senha', rotulo: 'Alterar senha', icone: 'cadeado', aoPressionar: () => navigation.navigate('RedefinirSenha') },
+    {
+      chave: 'senha',
+      rotulo: 'Alterar senha',
+      icone: 'cadeado',
+      aoPressionar: () => navigation.navigate('AlterarSenha'),
+    },
     {
       chave: 'notificacoes',
       rotulo: 'Notificações',
       icone: 'sino',
-      aoPressionar: () => Alert.alert('Notificações', 'As preferências de notificação serão configuráveis em breve.'),
+      aoPressionar: () => navigation.navigate('PreferenciasNotificacao'),
     },
-    { chave: 'termos', rotulo: 'Termos de Uso e Privacidade', icone: 'info', aoPressionar: () => navigation.navigate('Termos') },
+    {
+      chave: 'termos',
+      rotulo: 'Termos de Uso e Privacidade',
+      icone: 'info',
+      aoPressionar: () => navigation.navigate('Termos'),
+    },
   ];
 
   return (
@@ -114,11 +133,23 @@ useEffect(() => {
         <View style={estilos.linhaTitulo}>
           <Text style={estilos.tituloCartao}>Dados profissionais</Text>
           <TouchableOpacity
-            style={estilos.acaoEditar}
+            style={[
+              estilos.acaoEditar,
+              editando && estilos.acaoSalvar,
+              salvando && estilos.acaoSalvando,
+            ]}
             onPress={() => (editando ? salvarDados() : setEditando(true))}
+            disabled={salvando}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={editando ? 'Salvar dados profissionais' : 'Editar dados profissionais'}
           >
-            <Icone nome={editando ? 'check' : 'editar'} tamanho={15} cor={cores.verdeLink} />
-            <Text style={estilos.textoEditar}>
+            <Icone
+              nome={editando ? 'check' : 'editar'}
+              tamanho={15}
+              cor={editando ? cores.branco : cores.verdeLink}
+            />
+            <Text style={[estilos.textoEditar, editando && estilos.textoSalvar]}>
               {editando ? (salvando ? 'Salvando...' : 'Salvar') : 'Editar'}
             </Text>
           </TouchableOpacity>
@@ -162,25 +193,42 @@ useEffect(() => {
       <Cartao>
         <View style={estilos.linhaTitulo}>
           <Text style={estilos.tituloCartao}>Meu plano</Text>
-          <Selo texto="Pagamento em dia" tom="sucesso" />
+          {planoAtual ? <Selo texto="Pagamento em dia" tom="sucesso" /> : null}
         </View>
-        <Text style={estilos.nomePlano}>Plano {planoAtual?.nome}</Text>
-        <Text style={estilos.detalhePlano}>Próxima cobrança em 20 dias</Text>
 
-        <View style={estilos.linhaProgresso}>
-          <Text style={estilos.rotuloDado}>Pacientes cadastrados</Text>
-          <Text style={estilos.valorProgresso}>
-            {pacientes.length}/{limitePacientes || '∞'}
+        {planoAtual ? (
+          <>
+            <Text style={estilos.nomePlano}>Plano {planoAtual.nome}</Text>
+            <Text style={estilos.detalhePlano}>Próxima cobrança em 20 dias</Text>
+
+            <View style={estilos.linhaProgresso}>
+              <Text style={estilos.rotuloDado}>Pacientes cadastrados</Text>
+              <Text style={estilos.valorProgresso}>
+                {pacientes.length}/{limitePacientes || '∞'}
+              </Text>
+            </View>
+            <BarraProgresso valor={limitePacientes ? usoDoPlano : 0} />
+          </>
+        ) : (
+          <Text style={estilos.semPlano}>
+            Você ainda não assinou nenhum plano. Escolha um para liberar o
+            cadastro de pacientes e os planos alimentares.
           </Text>
-        </View>
-        <BarraProgresso valor={limitePacientes ? usoDoPlano : 1} />
+        )}
 
-        <Botao titulo="Alterar plano" aoPressionar={() => navigation.navigate('Pacotes')} estilo={estilos.botaoPlano} />
+        <Botao
+          titulo={planoAtual ? 'Alterar plano' : 'Escolher um plano'}
+          aoPressionar={() => navigation.navigate('Pacotes')}
+          estilo={estilos.botaoPlano}
+        />
 
-        <TouchableOpacity style={estilos.linkCobrancas} onPress={() => setMostrarCobrancas(true)}>
-          <Text style={estilos.textoLink}>Ver histórico de cobranças</Text>
-          <Icone nome="chevron-direita" tamanho={16} cor={cores.verdeLink} />
-        </TouchableOpacity>
+        {/* Sem assinatura não existe cobrança para listar. */}
+        {planoAtual ? (
+          <TouchableOpacity style={estilos.linkCobrancas} onPress={() => setMostrarCobrancas(true)}>
+            <Text style={estilos.textoLink}>Ver histórico de cobranças</Text>
+            <Icone nome="chevron-direita" tamanho={16} cor={cores.verdeLink} />
+          </TouchableOpacity>
+        ) : null}
       </Cartao>
 
       {/* ---------- Conta e segurança ---------- */}
@@ -206,6 +254,12 @@ useEffect(() => {
           <View style={estilos.alcaModal} />
           <Text style={estilos.tituloModal}>Histórico de cobranças</Text>
           <ScrollView style={estilos.listaModal}>
+            {cobrancas.length === 0 ? (
+              <Text style={estilos.semCobrancas}>
+                Nenhuma cobrança ainda. A primeira aparece aqui quando você contratar um plano.
+              </Text>
+            ) : null}
+
             {cobrancas.map((cobranca) => (
               <View key={cobranca.id} style={estilos.linhaCobranca}>
                 <View>

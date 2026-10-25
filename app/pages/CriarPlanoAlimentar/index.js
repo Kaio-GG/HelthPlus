@@ -1,7 +1,7 @@
 // Criação/edição de plano alimentar em 4 etapas:
 // 1) paciente e período  2) metas diárias  3) refeições e alimentos  4) revisão
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import BarraEtapas from '../../componentes/BarraEtapas';
@@ -13,6 +13,7 @@ import Selo from '../../componentes/Selo';
 import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { alimentosTaco, nomesDasRefeicoes } from '../../dados/alimentosTaco';
 import { cores } from '../../tema';
 import { aplicarMascaraData, aplicarMascaraDecimal, decimalParaNumero, apenasDigitos } from '../../utilitarios/mascaras';
@@ -36,6 +37,7 @@ const somarAlimentos = (alimentos) =>
   );
 
 const CriarPlanoAlimentar = ({ navigation, route }) => {
+  const { avisar } = useDialogo();
   const { pacientes, planosAlimentares, salvarPlanoAlimentar } = useDados();
 
   const planoEmEdicao = planosAlimentares.find((plano) => plano.id === route.params?.planoId) || null;
@@ -122,7 +124,7 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
     return novosErros;
   };
 
-  const salvarPlano = () => {
+  const salvarPlano = async () => {
     const paciente = pacientes.find((item) => item.nome === nomePacienteEscolhido);
 
     // TODO: integrar com a API (salvar o plano alimentar).
@@ -142,9 +144,12 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
         .map((nome) => ({ nome, alimentos: refeicoes[nome] })),
     });
 
-    Alert.alert('Plano salvo!', 'O plano alimentar foi salvo com sucesso.', [
-      { text: 'OK', onPress: () => navigation.replace('PlanosAlimentares') },
-    ]);
+    await avisar({
+      titulo: 'Plano salvo!',
+      mensagem: 'O plano alimentar foi salvo com sucesso.',
+      tom: 'sucesso',
+    });
+    navigation.replace('PlanosAlimentares');
   };
 
   const continuar = () => {
@@ -205,6 +210,9 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
                 rotulo="Início da vigência"
                 valor={inicio}
                 aoMudar={(texto) => setInicio(aplicarMascaraData(texto))}
+                aoLimpar={() => setInicio('')}
+                selecionarAoFocar
+                maxCaracteres={10}
                 placeholder="DD/MM/AAAA"
                 teclado="number-pad"
                 icone="calendario"
@@ -215,6 +223,9 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
                 rotulo="Fim da vigência"
                 valor={fim}
                 aoMudar={(texto) => setFim(aplicarMascaraData(texto))}
+                aoLimpar={() => setFim('')}
+                selecionarAoFocar
+                maxCaracteres={10}
                 placeholder="DD/MM/AAAA"
                 teclado="number-pad"
                 icone="calendario"

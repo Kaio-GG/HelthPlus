@@ -1,7 +1,7 @@
 // Cadastro de paciente em 4 etapas:
 // 1) dados pessoais  2) contato e endereço  3) dados de saúde  4) acesso ao app
 import React, { useState } from 'react';
-import { View, Text, Switch, Alert, Platform } from 'react-native';
+import { View, Text, Switch } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import BarraEtapas from '../../componentes/BarraEtapas';
@@ -16,6 +16,8 @@ import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
 import { cadastrarPaciente } from '../../Api/Pacientes';
+import { useDialogo } from '../../contexto/DialogoContexto';
+import { criarNotificacao } from '../../Api/notificacoes';
 import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
 import {
@@ -67,18 +69,17 @@ const dataParaISO = (dataBR) => {
   return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
 };
 
-// No navegador o Alert.alert não aparece, então usamos window.alert lá.
-const mostrarAviso = (titulo, mensagem) => {
-  if (Platform.OS === 'web') {
-    window.alert(`${titulo}\n\n${mensagem}`);
-  } else {
-    Alert.alert(titulo, mensagem);
-  }
-};
 
 const CadastroPaciente = ({ navigation }) => {
   const { pacientes, limitePacientes, adicionarPaciente } = useDados();
   const { profissional } = useAuth();
+  const { avisar } = useDialogo();
+
+  // Antes isto precisava desviar para o window.alert no navegador, porque o
+  // Alert.alert do React Native não aparece lá. O diálogo do aplicativo é um
+  // Modal comum, que funciona nos três lugares.
+  const mostrarAviso = (titulo, mensagem, tom = 'alerta') =>
+    avisar({ titulo, mensagem, tom });
   const [etapa, setEtapa] = useState(1);
   const [dados, setDados] = useState(dadosIniciais);
   const [erros, setErros] = useState({});
@@ -182,6 +183,16 @@ const CadastroPaciente = ({ navigation }) => {
         idBanco: resposta.idPaciente,
       });
 
+      // Fica na central de notificações. Um aviso que falha não pode
+      // atrapalhar um cadastro que já deu certo, por isso o catch vazio.
+      criarNotificacao({
+        idProfissional: profissional.id_profissional,
+        tipo: 'paciente',
+        titulo: 'Paciente cadastrado',
+        mensagem: dados.nome.trim() + ' entrou na sua lista de pacientes.',
+        rota: 'Pacientes',
+      }).catch(() => {});
+
       mostrarAviso(
         'Paciente cadastrado!',
         dados.enviarConvite
@@ -264,6 +275,9 @@ const CadastroPaciente = ({ navigation }) => {
               rotulo="Data de nascimento"
               valor={dados.nascimento}
               aoMudar={(texto) => atualizar('nascimento', aplicarMascaraData(texto))}
+              aoLimpar={() => atualizar('nascimento', '')}
+              selecionarAoFocar
+              maxCaracteres={10}
               placeholder="DD/MM/AAAA"
               teclado="number-pad"
               icone="calendario"

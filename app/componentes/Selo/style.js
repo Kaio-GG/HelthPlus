@@ -1,16 +1,16 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, raios, tipografia } from '../../tema';
 
 export const estilos = StyleSheet.create({
   container: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: raios.pilula,
   },
   texto: {
-    fontSize: 11.5,
-    fontWeight: '700',
+    ...tipografia.miudo,
+    fontWeight: '800',
   },
   fundo_sucesso: { backgroundColor: cores.verdeClaro },
   texto_sucesso: { color: cores.verdeEscuro },

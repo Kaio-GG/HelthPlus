@@ -1,95 +1,193 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, espacamento, raios, tipografia } from '../../tema';
 
 export const estilos = StyleSheet.create({
-  titulo: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: cores.verdeEscuro,
+  avisoTopo: {
+    marginBottom: espacamento.md,
   },
-  subtitulo: {
-    fontSize: 12.5,
+
+  // ----- Resumo do topo -----
+  cartaoResumo: {
+    marginBottom: espacamento.md,
+  },
+  rotuloResumo: {
+    ...tipografia.miudo,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
     color: cores.textoSecundario,
-    marginBottom: 12,
+  },
+  fonteResumo: {
+    ...tipografia.corpoForte,
+    color: cores.verdeEscuro,
+    marginTop: 3,
+  },
+  contagem: {
+    ...tipografia.apoio,
+    color: cores.textoSecundario,
+    marginTop: espacamento.sm,
   },
   vazio: {
-    textAlign: 'center',
+    ...tipografia.corpo,
     color: cores.textoSecundario,
-    paddingVertical: 16,
   },
-  linha: {
+
+  // ----- Um cartão por indicador -----
+  cartaoIndicador: {
+    marginBottom: espacamento.md,
+  },
+  // O nome do indicador e o status dele dividem a primeira linha.
+  linhaTopo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: cores.linha,
-  },
-  textos: {
-    flex: 1,
-    paddingRight: 10,
+    gap: espacamento.sm,
   },
   nomeIndicador: {
-    fontSize: 14,
-    fontWeight: '800',
+    ...tipografia.apoioForte,
+    flexShrink: 1,
+    color: cores.textoSecundario,
+    paddingTop: 4,
+  },
+  // A medida é a informação principal da tela: grande e escura.
+  linhaValor: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: espacamento.sm,
+  },
+  valor: {
+    ...tipografia.destaque,
     color: cores.verdeEscuro,
   },
-  medida: {
-    fontSize: 12,
+  unidade: {
+    ...tipografia.corpoForte,
     color: cores.textoSecundario,
-    marginTop: 2,
+    marginLeft: 5,
   },
-  motivo: {
-    fontSize: 11.5,
-    color: cores.alertaTexto,
-    marginTop: 2,
-  },
+
+  // ----- Etiqueta do status -----
+  // O limite de largura deixa o nome do indicador caber numa linha só;
+  // o texto do status quebra em duas, que é onde há espaço de sobra.
   chip: {
-    minWidth: 58,
-    alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    maxWidth: '56%',
     borderRadius: raios.pilula,
+    paddingHorizontal: espacamento.sm,
+    paddingVertical: 6,
   },
   textoChip: {
-    fontSize: 14,
+    ...tipografia.miudo,
     fontWeight: '800',
+    textAlign: 'center',
   },
-  chipNormal: { backgroundColor: cores.verdeClaro },
-  textoChipNormal: { color: cores.verdeEscuro },
-  chipForaDaFaixa: { backgroundColor: cores.alertaFundo },
-  textoChipForaDaFaixa: { color: cores.alertaTexto },
-  chipIndisponivel: { backgroundColor: cores.linha },
-  textoChipIndisponivel: { color: cores.textoSecundario },
+  chipAdequado: {
+    backgroundColor: cores.verdeClaro,
+  },
+  textoChipAdequado: {
+    color: cores.verdeLink,
+  },
+  chipAtencao: {
+    backgroundColor: cores.alertaFundo,
+  },
+  textoChipAtencao: {
+    color: cores.alertaTexto,
+  },
+  chipRisco: {
+    backgroundColor: cores.erroFundo,
+  },
+  textoChipRisco: {
+    color: cores.erro,
+  },
+  chipIndisponivel: {
+    backgroundColor: cores.campoSomenteLeitura,
+  },
+  textoChipIndisponivel: {
+    color: cores.textoDesabilitado,
+  },
 
+  // ----- Números técnicos e observações -----
+  escores: {
+    ...tipografia.apoio,
+    color: cores.textoSecundario,
+    marginTop: espacamento.sm,
+  },
+  motivo: {
+    ...tipografia.apoio,
+    color: cores.textoSecundario,
+    marginTop: espacamento.sm,
+  },
+  // A conversão de posição muda o número comparado com a curva, então ela
+  // aparece destacada, e não como nota solta.
+  conversao: {
+    ...tipografia.miudo,
+    color: cores.infoTexto,
+    backgroundColor: cores.infoFundo,
+    borderRadius: raios.pequeno,
+    paddingHorizontal: espacamento.md,
+    paddingVertical: espacamento.sm,
+    marginTop: espacamento.md,
+  },
+  implausivel: {
+    ...tipografia.apoio,
+    fontWeight: '700',
+    color: cores.alertaTexto,
+    marginTop: espacamento.sm,
+  },
+
+  // Leitura extra do mesmo número (desnutrição aguda pelo PB).
+  linhaExtra: {
+    backgroundColor: cores.campoSomenteLeitura,
+    borderRadius: raios.pequeno,
+    paddingHorizontal: espacamento.md,
+    paddingVertical: espacamento.md,
+    marginTop: espacamento.md,
+  },
+  rotuloExtra: {
+    ...tipografia.miudo,
+    color: cores.textoSecundario,
+  },
+  valorExtra: {
+    ...tipografia.apoioForte,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+
+  // ----- Legenda e nota -----
+  cartaoLegenda: {},
   legenda: {
     flexDirection: 'row',
-    marginTop: 8,
-    marginBottom: 8,
+    flexWrap: 'wrap',
+    gap: espacamento.lg,
   },
   itemLegenda: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
   },
   bolinha: {
     width: 9,
     height: 9,
-    borderRadius: 5,
+    borderRadius: raios.pilula,
     marginRight: 6,
   },
-  bolinhaNormal: { backgroundColor: cores.verdeBotao },
-  bolinhaForaDaFaixa: { backgroundColor: '#E0A800' },
+  bolinhaAdequado: {
+    backgroundColor: cores.verdeBotao,
+  },
+  bolinhaAtencao: {
+    backgroundColor: cores.alertaTexto,
+  },
+  bolinhaRisco: {
+    backgroundColor: cores.erro,
+  },
   textoLegenda: {
-    fontSize: 11.5,
+    ...tipografia.apoio,
     color: cores.textoSecundario,
   },
   nota: {
-    fontSize: 11.5,
-    lineHeight: 16,
+    ...tipografia.miudo,
     color: cores.textoSecundario,
+    marginTop: espacamento.md,
   },
+
   botaoSalvar: {
-    marginBottom: 10,
+    marginBottom: espacamento.md,
   },
 });

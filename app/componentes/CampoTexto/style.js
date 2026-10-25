@@ -1,12 +1,13 @@
 import { StyleSheet } from 'react-native';
-import { cores, raios } from '../../tema';
+import { cores, raios, tipografia, ALVO_DE_TOQUE } from '../../tema';
 
 export const estilos = StyleSheet.create({
   container: {
     marginBottom: 14,
   },
   rotulo: {
-    fontSize: 13,
+    ...tipografia.apoio,
+    lineHeight: 17,
     fontWeight: '600',
     color: cores.verdeEscuro,
     marginBottom: 6,
@@ -19,7 +20,7 @@ export const estilos = StyleSheet.create({
     borderColor: cores.bordaVerde,
     borderRadius: raios.medio,
     paddingHorizontal: 14,
-    minHeight: 48,
+    minHeight: ALVO_DE_TOQUE + 4,
   },
   caixaMultilinha: {
     alignItems: 'flex-start',
@@ -33,8 +34,8 @@ export const estilos = StyleSheet.create({
     borderColor: cores.erro,
   },
   entrada: {
+    ...tipografia.corpo,
     flex: 1,
-    fontSize: 15,
     color: cores.textoPrincipal,
     paddingVertical: 10,
   },

@@ -3,8 +3,21 @@
 //   rotulo, valor, aoMudar, placeholder, erro
 //   senha            esconde o texto e mostra o botão de "olho"
 //   somenteLeitura   bloqueia a edição e mostra um cadeado
+//   mostrarCadeado   false tira o cadeado de um campo só-leitura. Use em
+//                    campo CALCULADO, que nunca foi editável em lugar nenhum:
+//                    ali o cadeado não informa nada e ainda rouba uns 26px
+//                    de largura do valor
 //   icone            ícone fixo à direita (ex.: 'calendario')
+//   aoTocarIcone     torna esse ícone um botão (ex.: abrir o calendário)
 //   multilinha       campo de várias linhas
+//   selecionarAoFocar  marca o texto ao tocar, para digitar substituir tudo
+//   linhasDoRotulo   reserva espaço para N linhas de rótulo. Use nos campos
+//                    lado a lado quando um dos rótulos quebra em duas
+//                    linhas: sem isso, uma caixa fica mais baixa que a outra
+//   aoLimpar         mostra um "x" à direita que apaga o campo. Importante
+//                    em campos de tamanho fixo, como data: quando eles
+//                    enchem, o teclado para de inserir e sem o "x" o
+//                    usuário não descobre que precisa apagar primeiro.
 //   preenchimento    o que o celular deve sugerir neste campo (veja abaixo)
 //   teclado, capitalizar, maxCaracteres, estilo
 import React, { useState } from 'react';
@@ -29,6 +42,10 @@ const PREENCHIMENTOS = {
   senhaNova: { autoComplete: 'new-password', textContentType: 'newPassword' },
 };
 
+// Altura de uma linha do rótulo: o lineHeight fixado em style.js. É o que
+// linhasDoRotulo usa para reservar o espaço de N linhas.
+const ALTURA_DA_LINHA_DO_ROTULO = 17;
+
 const CampoTexto = ({
   rotulo,
   valor,
@@ -37,8 +54,13 @@ const CampoTexto = ({
   erro,
   senha = false,
   somenteLeitura = false,
+  mostrarCadeado = true,
   icone,
+  aoTocarIcone,
   multilinha = false,
+  selecionarAoFocar = false,
+  linhasDoRotulo,
+  aoLimpar,
   preenchimento = 'nenhum',
   teclado = 'default',
   capitalizar = 'sentences',
@@ -47,11 +69,38 @@ const CampoTexto = ({
 }) => {
   const [senhaVisivel, setSenhaVisivel] = useState(false);
 
+  // Seleção do texto, controlada só no momento do toque.
+  //
+  // Antes isto era o selectTextOnFocus do TextInput, e ele tem um defeito:
+  // volta a marcar o texto a CADA re-render. Num campo com máscara, cada
+  // tecla digitada muda o valor e re-renderiza — então a segunda tecla
+  // apagava a primeira (digitar "21" deixava só "1"). Agora a marcação
+  // acontece uma vez, ao focar, e some assim que o usuário digita.
+  const [selecao, setSelecao] = useState(undefined);
+
+  const aoFocar = () => {
+    if (selecionarAoFocar && valor) setSelecao({ start: 0, end: String(valor).length });
+  };
+
+  const digitou = (texto) => {
+    if (selecao) setSelecao(undefined);
+    if (aoMudar) aoMudar(texto);
+  };
+
   const dicas = PREENCHIMENTOS[preenchimento] ?? PREENCHIMENTOS.nenhum;
 
   return (
     <View style={[estilos.container, estilo]}>
-      {rotulo ? <Text style={estilos.rotulo}>{rotulo}</Text> : null}
+      {rotulo ? (
+        <Text
+          style={[
+            estilos.rotulo,
+            linhasDoRotulo ? { minHeight: ALTURA_DA_LINHA_DO_ROTULO * linhasDoRotulo } : null,
+          ]}
+        >
+          {rotulo}
+        </Text>
+      ) : null}
 
       <View
         style={[
@@ -64,7 +113,7 @@ const CampoTexto = ({
         <TextInput
           style={[estilos.entrada, multilinha && estilos.entradaMultilinha]}
           value={valor}
-          onChangeText={aoMudar}
+          onChangeText={digitou}
           placeholder={placeholder}
           placeholderTextColor={cores.textoDesabilitado}
           secureTextEntry={senha && !senhaVisivel}
@@ -75,9 +124,23 @@ const CampoTexto = ({
           autoCorrect={false}
           autoComplete={dicas.autoComplete}
           textContentType={dicas.textContentType}
+          onFocus={aoFocar}
+          onBlur={() => setSelecao(undefined)}
+          selection={selecao}
           maxLength={maxCaracteres}
           textAlignVertical={multilinha ? 'top' : 'center'}
         />
+
+        {aoLimpar && valor && !somenteLeitura ? (
+          <TouchableOpacity
+            onPress={aoLimpar}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Limpar ${rotulo || 'campo'}`}
+          >
+            <Icone nome="fechar" tamanho={16} cor={cores.textoSecundario} />
+          </TouchableOpacity>
+        ) : null}
 
         {senha ? (
           <TouchableOpacity
@@ -87,8 +150,17 @@ const CampoTexto = ({
           >
             <Icone nome={senhaVisivel ? 'olho' : 'olho-fechado'} tamanho={20} cor={cores.textoSecundario} />
           </TouchableOpacity>
-        ) : somenteLeitura ? (
+        ) : somenteLeitura && mostrarCadeado ? (
           <Icone nome="cadeado" tamanho={18} cor={cores.textoSecundario} />
+        ) : icone && aoTocarIcone ? (
+          <TouchableOpacity
+            onPress={aoTocarIcone}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={`Escolher ${(rotulo || 'data').toLowerCase()} no calendário`}
+          >
+            <Icone nome={icone} tamanho={20} cor={cores.verdeBotao} />
+          </TouchableOpacity>
         ) : icone ? (
           <Icone nome={icone} tamanho={18} cor={cores.textoSecundario} />
         ) : null}

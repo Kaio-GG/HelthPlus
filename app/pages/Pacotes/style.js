@@ -2,6 +2,10 @@ import { StyleSheet } from 'react-native';
 import { cores } from '../../tema';
 
 export const estilos = StyleSheet.create({
+  botaoCancelar: {
+    marginBottom: 16,
+  },
+
   alternador: {
     marginBottom: 12,
   },
