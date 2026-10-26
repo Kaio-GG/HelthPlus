@@ -355,6 +355,26 @@ CREATE TABLE IF NOT EXISTS `preferencia_notificacao` (
     REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+
+
+
+
+
+CREATE TABLE IF NOT EXISTS consentimento_paciente (
+  id_consentimento INT NOT NULL AUTO_INCREMENT,
+  id_paciente INT NOT NULL,
+  tp_consentimento VARCHAR(50) NOT NULL,
+  st_aceito TINYINT(1) NOT NULL DEFAULT 1,
+  ds_versao_termos VARCHAR(30) NOT NULL,
+  dt_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  dt_revogacao TIMESTAMP NULL DEFAULT NULL,
+  PRIMARY KEY (id_consentimento),
+  INDEX idx_consentimento_paciente (id_paciente),
+  CONSTRAINT fk_consentimento_paciente
+    FOREIGN KEY (id_paciente)
+    REFERENCES paciente (id_paciente)
+);
+
 -- ---------------------------------------------------------------
 -- Pendências conhecidas da modelagem
 --

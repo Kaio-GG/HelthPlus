@@ -1,52 +1,93 @@
-import { useDialogo } from '../../contexto/DialogoContexto';
-// Área do paciente: login. O cadastro é feito pelo nutricionista.
-import React, { useState } from "react";
-import { View, Text, Alert } from "react-native";
-import Pessoa from "../../assets/pessoa.svg";
-import Tela from "../../componentes/Tela";
-import Cartao from "../../componentes/Cartao";
-import CampoTexto from "../../componentes/CampoTexto";
-import CaixaAviso from "../../componentes/CaixaAviso";
-import Botao from "../../componentes/Botao";
-import { useDados } from "../../contexto/DadosContexto";
-import { emailValido } from "../../utilitarios/validacoes";
-import { estilos } from "./style";
+
+import React, { useState } from 'react';
+import { View, Text, Alert } from 'react-native';
+
+import Pessoa from '../../assets/pessoa.svg';
+import Tela from '../../componentes/Tela';
+import Cartao from '../../componentes/Cartao';
+import CampoTexto from '../../componentes/CampoTexto';
+import CaixaAviso from '../../componentes/CaixaAviso';
+import Botao from '../../componentes/Botao';
+
+import { useDados } from '../../contexto/DadosContexto';
+import { emailValido } from '../../utilitarios/validacoes';
+import { loginPaciente } from '../../Api/Pacientes';
+import { estilos } from './style';
 
 const Paciente = ({ navigation }) => {
-  const { pacientes, entrarComoPaciente } = useDados();
-  const { avisar } = useDialogo();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const { entrarComoPaciente } = useDados();
+
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [erros, setErros] = useState({});
+  const [carregando, setCarregando] = useState(false);
 
-  const entrar = () => {
+  const entrar = async () => {
     const novosErros = {};
-    if (!emailValido(email)) novosErros.email = "Informe um e-mail válido.";
-    if (!senha) novosErros.senha = "Informe sua senha.";
-    setErros(novosErros);
-    if (Object.keys(novosErros).length > 0) return;
 
-    // Modo de demonstração: procura o paciente cadastrado neste aparelho pelo e-mail.
-    // TODO: integrar com a API (login do paciente). A senha ainda NÃO é conferida,
-    // porque a API não tem rota de login do paciente (tabela usuario_paciente).
-    const paciente = pacientes.find(
-      (item) => (item.email || "").toLowerCase() === email.trim().toLowerCase(),
-    );
-    if (!paciente) {
-      Alert.alert(
-        "Paciente não encontrado",
-        "Não há paciente cadastrado com este e-mail. Peça ao seu nutricionista para fazer o seu cadastro.",
-      );
+    if (!emailValido(email)) {
+      novosErros.email = 'Informe um e-mail válido.';
+    }
+
+    if (!senha) {
+      novosErros.senha = 'Informe sua senha.';
+    }
+
+    setErros(novosErros);
+
+    if (Object.keys(novosErros).length > 0) {
       return;
     }
 
-    entrarComoPaciente(paciente.id);
-    navigation.reset({ index: 0, routes: [{ name: "HomePaciente" }] });
-    // TODO: integrar com a API (login do paciente) e abrir a tela inicial do paciente.
-    avisar({
-      titulo: "Modo de demonstração",
-      mensagem: "A área do paciente será conectada ao sistema em breve.",
-    });
+    if (carregando) return;
+
+    try {
+      setCarregando(true);
+
+      // Consulta a API, que valida as credenciais no banco MySQL.
+      const resultado = await loginPaciente(email, senha);
+
+      if (!resultado?.paciente || !resultado?.token) {
+        throw new Error('A API não retornou os dados necessários para o acesso.');
+      }
+
+      const paciente = resultado.paciente;
+
+      // Contas pendentes precisam concluir a ativação primeiro.
+      if (resultado.primeiroAcesso) {
+        navigation.navigate('PrimeiroAcesso', {
+          token: resultado.token,
+          paciente,
+        });
+
+        return;
+      }
+
+      // Registra o paciente no contexto atual do aplicativo.
+      entrarComoPaciente(paciente, resultado.token);
+
+      // Abre a área do paciente e repassa os dados da sessão.
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'HomePaciente',
+            params: {
+              paciente,
+              token: resultado.token,
+            },
+          },
+        ],
+      });
+    } catch (erro) {
+      Alert.alert(
+        'Não foi possível entrar',
+        erro.message ||
+          'Verifique seu e-mail e sua senha e tente novamente.'
+      );
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
@@ -69,6 +110,7 @@ const Paciente = ({ navigation }) => {
           teclado="email-address"
           erro={erros.email}
         />
+
         <CampoTexto
           rotulo="Senha"
           valor={senha}
@@ -81,14 +123,17 @@ const Paciente = ({ navigation }) => {
         <View style={estilos.linhaLinks}>
           <Text
             style={estilos.link}
-            onPress={() => navigation.navigate("PrimeiroAcesso")}
+            onPress={() => navigation.navigate('PrimeiroAcesso')}
           >
             Primeiro acesso
           </Text>
+
           <Text
             style={estilos.link}
             onPress={() =>
-              navigation.navigate("EsqueciSenha", { perfil: "paciente" })
+              navigation.navigate('EsqueciSenha', {
+                perfil: 'paciente',
+              })
             }
           >
             Esqueci minha senha
@@ -96,9 +141,10 @@ const Paciente = ({ navigation }) => {
         </View>
 
         <Botao
-          titulo="Entrar"
+          titulo={carregando ? 'Entrando...' : 'Entrar'}
           aoPressionar={entrar}
           estilo={estilos.botaoPrincipal}
+          desabilitado={carregando}
         />
 
         <CaixaAviso

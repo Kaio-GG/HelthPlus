@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
@@ -117,9 +118,21 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Retornar dados do profissional sem a senha
+        
+        // Gerar token de autenticação JWT
+        const token = jwt.sign(
+            {
+                tipo: 'profissional',
+                id_profissional: profissional.id_profissional
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '8h' }
+        );
+
+        // Retornar token e dados do profissional, sem a senha
         return res.status(200).json({
             mensagem: 'Login realizado com sucesso!',
+            token,
             profissional: {
                 id_profissional: profissional.id_profissional,
                 nm_profissional: profissional.nm_profissional,
@@ -129,6 +142,7 @@ router.post('/login', async (req, res) => {
                 nr_telefone: profissional.nr_telefone
             }
         });
+
 
     } catch (error) {
         console.error('Erro ao realizar login:', error);

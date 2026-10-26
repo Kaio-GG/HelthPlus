@@ -53,8 +53,10 @@ const Nutricionista = ({ navigation, route }) => {
 
       // Guarda o nutricionista logado (id_profissional, nm_profissional, ...)
       // Quando a API devolver JWT: entrarSessao({ profissional: dados.profissional, token: dados.token })
-      await entrarSessao({ profissional: dados.profissional });
-
+      await entrarSessao({
+    profissional: dados.profissional,
+    token: dados.token
+});
       navigation.reset({ index: 0, routes: [{ name: "HomeNutricionista" }] });
     } catch (erro) {
       avisar({ titulo: "Erro ao entrar", mensagem: erro.message, tom: "erro" });
