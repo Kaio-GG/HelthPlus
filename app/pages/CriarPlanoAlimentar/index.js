@@ -14,6 +14,8 @@ import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
 import { useDados } from '../../contexto/DadosContexto';
 import { useDialogo } from '../../contexto/DialogoContexto';
+import { useAuth } from '../../contexto/AuthContext';
+import { cadastrarPlano, atualizarPlano } from '../../Api/PlanoAlimentar.js';
 import { alimentosTaco, nomesDasRefeicoes } from '../../dados/alimentosTaco';
 import { cores } from '../../tema';
 import { aplicarMascaraData, aplicarMascaraDecimal, decimalParaNumero, apenasDigitos } from '../../utilitarios/mascaras';
@@ -36,8 +38,15 @@ const somarAlimentos = (alimentos) =>
     { kcal: 0, proteina: 0, carboidrato: 0, gordura: 0 }
   );
 
+// "25/10/2026" -> "2026-10-25" (formato que o banco espera)
+const dataParaISO = (dataBR) => {
+  const [dia, mes, ano] = dataBR.split('/');
+  return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+};
+
 const CriarPlanoAlimentar = ({ navigation, route }) => {
   const { avisar } = useDialogo();
+  const { profissional } = useAuth();
   const { pacientes, planosAlimentares, salvarPlanoAlimentar } = useDados();
 
   const planoEmEdicao = planosAlimentares.find((plano) => plano.id === route.params?.planoId) || null;
@@ -47,6 +56,7 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
 
   const [etapa, setEtapa] = useState(1);
   const [erros, setErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
 
   // Etapa 1
   const [nomePacienteEscolhido, setNomePacienteEscolhido] = useState(pacienteInicial ? pacienteInicial.nome : '');
@@ -125,31 +135,88 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
   };
 
   const salvarPlano = async () => {
-    const paciente = pacientes.find((item) => item.nome === nomePacienteEscolhido);
+    if (salvando) return;
 
-    // TODO: integrar com a API (salvar o plano alimentar).
-    salvarPlanoAlimentar({
-      id: planoEmEdicao ? planoEmEdicao.id : 'novo',
+    const paciente = pacientes.find((item) => item.nome === nomePacienteEscolhido);
+    if (!paciente) {
+      avisar({ titulo: 'Paciente não encontrado', mensagem: 'Volte à etapa 1 e selecione o paciente novamente.' });
+      return;
+    }
+
+    if (!profissional?.id_profissional) {
+      avisar({ titulo: 'Sessão expirada', mensagem: 'Entre novamente na sua conta para salvar o plano.' });
+      return;
+    }
+
+    // Só as refeições que têm alimentos, na ordem de nomesDasRefeicoes.
+    const refeicoesParaEnviar = nomesDasRefeicoes
+      .map((nome, indice) => ({
+        nome,
+        ordem: indice,
+        alimentos: refeicoes[nome].map((alimento) => ({
+          idAlimento: alimento.id,
+          nome: alimento.nome,
+          porcao: alimento.porcao,
+          kcal: alimento.kcal,
+          proteina: alimento.proteina,
+          carboidrato: alimento.carboidrato,
+          gordura: alimento.gordura,
+        })),
+      }))
+      .filter((refeicao) => refeicao.alimentos.length > 0);
+
+    const dadosDoPlano = {
+      idProfissional: profissional.id_profissional,
+      // idBanco existe nos pacientes cadastrados pela API; id é o da lista local.
+      idPaciente: paciente.idBanco ?? paciente.id,
       nome: nomeDoPlano.trim(),
-      pacienteId: paciente.id,
-      pacienteNome: paciente.nome,
-      inicio,
-      fim,
+      inicio: dataParaISO(inicio),
+      fim: dataParaISO(fim),
       metaKcal: metaKcalNumero,
       metaAguaLitros: decimalParaNumero(metaAgua) || 0,
-      observacoes,
-      status: planoEmEdicao ? planoEmEdicao.status : 'ativo',
-      refeicoes: nomesDasRefeicoes
-        .filter((nome) => refeicoes[nome].length > 0)
-        .map((nome) => ({ nome, alimentos: refeicoes[nome] })),
-    });
+      observacoes: observacoes.trim(),
+      refeicoes: refeicoesParaEnviar,
+    };
 
-    await avisar({
-      titulo: 'Plano salvo!',
-      mensagem: 'O plano alimentar foi salvo com sucesso.',
-      tom: 'sucesso',
-    });
-    navigation.replace('PlanosAlimentares');
+    try {
+      setSalvando(true);
+
+      // Plano que já está no banco -> atualiza. Senão -> cria.
+      const resposta = planoEmEdicao?.idBanco
+        ? await atualizarPlano(planoEmEdicao.idBanco, dadosDoPlano)
+        : await cadastrarPlano(dadosDoPlano);
+
+      // Mantém a lista local atualizada (provisório, até a tela de planos ler do banco).
+      salvarPlanoAlimentar({
+        id: planoEmEdicao ? planoEmEdicao.id : 'novo',
+        idBanco: planoEmEdicao?.idBanco ?? resposta.idPlano,
+        nome: nomeDoPlano.trim(),
+        pacienteId: paciente.id,
+        pacienteNome: paciente.nome,
+        inicio,
+        fim,
+        metaKcal: metaKcalNumero,
+        metaAguaLitros: decimalParaNumero(metaAgua) || 0,
+        observacoes,
+        status: planoEmEdicao ? planoEmEdicao.status : 'ativo',
+        refeicoes: refeicoesParaEnviar.map((refeicao) => ({
+          nome: refeicao.nome,
+          alimentos: refeicoes[refeicao.nome],
+        })),
+      });
+
+      await avisar({
+        titulo: 'Plano salvo!',
+        mensagem: 'O plano alimentar foi salvo com sucesso.',
+        tom: 'sucesso',
+      });
+      navigation.replace('PlanosAlimentares');
+    } catch (erro) {
+      console.log('[CriarPlano] ERRO:', erro);
+      avisar({ titulo: 'Erro ao salvar plano', mensagem: erro.message });
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const continuar = () => {
@@ -179,8 +246,9 @@ const CriarPlanoAlimentar = ({ navigation, route }) => {
         <View style={estilos.linhaBotoes}>
           <Botao titulo="Voltar" variante="contorno" aoPressionar={voltarEtapa} estilo={estilos.botaoVoltar} />
           <Botao
-            titulo={etapa === TOTAL_ETAPAS ? 'Salvar plano' : 'Continuar'}
+            titulo={etapa === TOTAL_ETAPAS ? (salvando ? 'Salvando...' : 'Salvar plano') : 'Continuar'}
             aoPressionar={continuar}
+            desabilitado={salvando}
             estilo={estilos.botaoContinuar}
           />
         </View>
