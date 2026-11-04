@@ -114,57 +114,11 @@ function enviarEmailRedefinicaoSenha(para, nome, token) {
     });
 }
 
-// ---------------------------------------------------------------
-// Convite de acesso do paciente
-//
-// A senha provisória do paciente é a data de nascimento dele (quem a
-// grava é pacienteRepository.inserirPaciente). O e-mail diz o FORMATO,
-// não o valor: assim a mensagem não carrega uma senha, e o paciente, que
-// sabe a própria data, não precisa dela escrita.
-// ---------------------------------------------------------------
-function enviarEmailConvitePaciente(para, nome) {
-    const texto = [
-        saudacao(nome),
-        '',
-        'Seu nutricionista criou um acesso para você no Health Plus, o',
-        'aplicativo onde você acompanha o seu plano alimentar.',
-        '',
-        'Para entrar:',
-        '',
-        '1. Abra o Health Plus e escolha "Sou paciente".',
-        `2. E-mail: ${para}`,
-        '3. Senha: a sua data de nascimento, só os números, no formato',
-        '   DDMMAAAA (quem nasceu em 7 de março de 1990 digita 07031990).',
-        '',
-        'No primeiro acesso o aplicativo pede uma senha nova, sua, e a',
-        'confirmação dos Termos de Uso e da Política de Privacidade.',
-        '',
-        'Se você não esperava este convite, fale com o seu nutricionista.',
-        '',
-        'Equipe Health Plus'
-    ].join('\n');
-
-    const html = moldura('Seu acesso ao Health Plus', `
-        <p>${saudacao(nome)}</p>
-        <p>Seu nutricionista criou um acesso para você no <strong>Health Plus</strong>,
-           o aplicativo onde você acompanha o seu plano alimentar.</p>
-        <p>Para entrar, abra o aplicativo, escolha <strong>Sou paciente</strong> e use:</p>
-        <p><strong>E-mail:</strong> ${para}<br>
-           <strong>Senha:</strong> a sua data de nascimento, só os números, no
-           formato DDMMAAAA — quem nasceu em 7 de março de 1990 digita
-           <strong>07031990</strong>.</p>
-        <p>No primeiro acesso o aplicativo pede uma senha nova, sua, e a confirmação
-           dos Termos de Uso e da Política de Privacidade.</p>
-        ${rodape('Se você não esperava este convite, fale com o seu nutricionista.')}
-    `);
-
-    return enviarEmail({
-        para,
-        assunto: 'Seu acesso ao Health Plus',
-        texto,
-        html
-    });
-}
+// O convite de acesso do paciente NÃO mora aqui: ele está em
+// servicos/conviteEmail.js, que manda a senha provisória aleatória gerada
+// por servicos/senhaTemporaria.js. Juntar os dois módulos num só é uma
+// arrumação que vale a pena, mas que mexe em código de outra pessoa —
+// fica para quando a equipe decidir.
 
 // ---------------------------------------------------------------
 // Boas-vindas do nutricionista
@@ -283,7 +237,6 @@ function enviarEmailNotificacao(para, nome, { titulo, mensagem }) {
 module.exports = {
     MINUTOS_DE_VALIDADE,
     enviarEmailRedefinicaoSenha,
-    enviarEmailConvitePaciente,
     enviarEmailBoasVindasProfissional,
     enviarEmailSenhaAlterada,
     enviarEmailNotificacao

@@ -47,12 +47,12 @@ const opcoesDeRestricao = ['Vegetariano', 'Vegano', 'Sem lactose', 'Sem glúten'
 // O caso do meio é o que importa: o acesso do paciente foi criado, mas a
 // API está sem SMTP e o convite não saiu. Dizer "convite enviado" aí
 // deixaria o nutricionista esperando que o paciente recebesse algo.
-const avisoDoConvite = (enviarConvite, emailEnviado, email) => {
+const avisoDoConvite = (enviarConvite, conviteEnviado, email) => {
   if (!enviarConvite) {
     return 'Você pode enviar o convite depois, pela ficha do paciente.';
   }
 
-  if (emailEnviado) {
+  if (conviteEnviado) {
     return `O convite foi enviado para ${email}. O paciente cria a própria senha no primeiro acesso.`;
   }
 
@@ -216,7 +216,7 @@ const CadastroPaciente = ({ navigation }) => {
 
       mostrarAviso(
         'Paciente cadastrado!',
-        avisoDoConvite(dados.enviarConvite, resposta.emailEnviado, dados.email.trim())
+        avisoDoConvite(dados.enviarConvite, resposta.conviteEnviado, dados.email.trim())
       );
 
       // Sai da tela de cadastro e vai para a lista de pacientes
