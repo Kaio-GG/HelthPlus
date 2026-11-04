@@ -1,4 +1,3 @@
-
 const express = require('express');
 const jwt = require('jsonwebtoken');
 
@@ -10,6 +9,9 @@ const {
   ativarContaPaciente,
   obterEvolucaoPaciente,
 } = require('../repository/pacienteRepository');
+
+// Modelo do e-mail de convite (usa o serviço de e-mail do projeto).
+const { enviarConvitePaciente } = require('../servicos/conviteEmail');
 
 const autenticar = require('../middleware/autenticar');
 const router = express.Router();
@@ -187,9 +189,25 @@ router.post('/cadastro', async (req, res) => {
   try {
     const resultado = await inserirPaciente(p);
 
+    // Envia o e-mail com a senha provisória.
+    // Se o envio falhar, o cadastro continua valendo.
+    let conviteEnviado = false;
+    if (resultado.conviteCriado) {
+      const envio = await enviarConvitePaciente({
+        para: p.emailAcesso,
+        nomePaciente: p.nome,
+        nomeProfissional: resultado.nomeProfissional,
+        senhaTemporaria: resultado.senhaTemporaria,
+      });
+      conviteEnviado = envio.enviado;
+    }
+
+    // Não devolva o resultado inteiro: ele contém a senha provisória.
     return res.status(201).json({
       mensagem: 'Paciente cadastrado com sucesso.',
-      ...resultado,
+      idPaciente: resultado.idPaciente,
+      conviteCriado: resultado.conviteCriado,
+      conviteEnviado,
     });
   } catch (erro) {
     console.error('Erro ao cadastrar paciente:', erro);

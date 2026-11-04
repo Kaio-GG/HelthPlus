@@ -1,6 +1,6 @@
-
 const connection = require('../connection');
 const bcrypt = require('bcryptjs');
+const { gerarSenhaTemporaria } = require('../servicos/senhaTemporaria');
 
 // --------------------------------------------------
 // Cadastro do paciente e criação do acesso
@@ -55,11 +55,13 @@ async function inserirPaciente(p) {
 
     const idPaciente = resultado.insertId;
     let conviteCriado = false;
+    let senhaTemporaria = null;
+    let nomeProfissional = null;
 
     if (p.enviarConvite) {
-      const [ano, mes, dia] = p.dataNascimento.split('-');
-      const senhaInicial = `${dia}${mes}${ano}`;
-      const senhaHash = await bcrypt.hash(senhaInicial, 10);
+      // Senha provisória aleatória: ela só existe aqui e no e-mail do paciente.
+      senhaTemporaria = gerarSenhaTemporaria();
+      const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
 
       await conn.query(
         `INSERT INTO usuario_paciente
@@ -68,11 +70,18 @@ async function inserirPaciente(p) {
         [idPaciente, p.emailAcesso, senhaHash]
       );
 
+      // Nome do nutricionista, para aparecer no e-mail de convite.
+      const [prof] = await conn.query(
+        'SELECT nm_profissional FROM profissional WHERE id_profissional = ?',
+        [p.idProfissional]
+      );
+      nomeProfissional = prof[0]?.nm_profissional || null;
+
       conviteCriado = true;
     }
 
     await conn.commit();
-    return { idPaciente, conviteCriado };
+    return { idPaciente, conviteCriado, senhaTemporaria, nomeProfissional };
   } catch (erro) {
     await conn.rollback();
     throw erro;
