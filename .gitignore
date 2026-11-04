@@ -18,3 +18,13 @@ web-build/
 # A estrutura versionada fica em Api/database/schema.sql.
 Dump*/
 __MACOSX/
+
+# Ferramentas de quem desenvolve, não do projeto.
+# O .impeccable guarda regras locais de lint de design E um cache de
+# execução (hook.cache.json), que muda a cada rodada: versionado, daria
+# conflito em todo push de quem tivesse o plugin instalado.
+.impeccable/
+
+# Sai de um "npm" rodado na raiz por engano: o projeto tem os seus
+# lockfiles em app/ e Api/, e este nasce vazio.
+/package-lock.json
