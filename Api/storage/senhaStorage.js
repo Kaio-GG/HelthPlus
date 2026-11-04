@@ -24,6 +24,7 @@ const {
     enviarEmailSenhaAlterada,
     MINUTOS_DE_VALIDADE
 } = require('../servicos/mensagensEmail');
+const { smtpConfigurado } = require('../servicos/email');
 
 // As mesmas regras do checklist da tela "Nova senha"
 // (app/utilitarios/validacoes.js). Se mudar lá, mude aqui: a tela ajuda o
@@ -84,8 +85,18 @@ router.post('/esqueci', async (req, res) => {
 
         const emailNormalizado = email.trim().toLowerCase();
 
+        // Uma resposta só, usada nos dois caminhos — com conta e sem
+        // conta. Não basta a MENSAGEM ser igual: a presença de um campo
+        // já entrega a resposta. Enquanto "emailEnviado" só aparecia
+        // quando a conta existia, bastava testar endereços e olhar se o
+        // campo vinha para descobrir quem tem cadastro aqui.
+        //
+        // Por isso ele diz se a API TEM SMTP, e não se este envio saiu: a
+        // tela só precisa saber se vale esperar a mensagem chegar, e esse
+        // dado não depende de a conta existir.
         const respostaPadrao = {
-            mensagem: 'Se o e-mail estiver cadastrado, enviamos as instruções para ele.'
+            mensagem: 'Se o e-mail estiver cadastrado, enviamos as instruções para ele.',
+            emailEnviado: smtpConfigurado
         };
 
         const profissional = await buscarProfissionalPorEmailLogin(emailNormalizado);
@@ -124,19 +135,16 @@ router.post('/esqueci', async (req, res) => {
             );
         }
 
-        const envio = await enviarEmailRedefinicaoSenha(
+        // O resultado do envio não entra na resposta de propósito (ver o
+        // respostaPadrao acima). Uma falha de SMTP aqui já fica registrada
+        // no terminal pelo módulo de e-mail.
+        await enviarEmailRedefinicaoSenha(
             profissionalAtivo ? profissional.ds_email : paciente.ds_email,
             profissionalAtivo ? profissional.nm_profissional : paciente.nm_paciente,
             token
         );
 
-        // Sem SMTP configurado o e-mail foi só para o terminal da API. O app
-        // mostra esse aviso para ninguém ficar esperando uma mensagem que
-        // não vai chegar.
-        return res.status(200).json({
-            ...respostaPadrao,
-            emailEnviado: envio.enviado
-        });
+        return res.status(200).json(respostaPadrao);
 
     } catch (error) {
         console.error('Erro ao pedir redefinição de senha:', error);
