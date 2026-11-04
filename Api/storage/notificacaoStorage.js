@@ -10,8 +10,11 @@ const {
     marcarTodasComoLidas,
     buscarPreferencias,
     salvarPreferencias,
-    inserirNotificacao
+    inserirNotificacao,
+    buscarContatoDoProfissional
 } = require('../repository/notificacaoRepository');
+
+const { enviarEmailNotificacao } = require('../servicos/mensagensEmail');
 
 // ATENÇÃO: a API ainda não usa token de sessão. Enquanto não usar, estas
 // rotas confiam no id que vem da URL — quem souber um id vê as notificações
@@ -210,6 +213,35 @@ router.post('/', async (req, res) => {
                 mensagem: 'O profissional desativou esse tipo de notificação.',
                 criada: false
             });
+        }
+
+        // "Avisos por e-mail" ligado nas preferências: o mesmo aviso do
+        // sino vai também para o e-mail. Sem este trecho o botão da tela
+        // de preferências gravava a escolha e nada acontecia.
+        //
+        // Um aviso por e-mail, na hora. Virar resumo de verdade (um
+        // e-mail por dia juntando o que aconteceu) pede alguma coisa
+        // rodando sozinha num horário, que a API ainda não tem.
+        //
+        // Sem await: a notificação já está gravada e aparece no sino de
+        // qualquer forma; esperar o SMTP só atrasaria a resposta.
+        if (criada.avisarPorEmail) {
+            buscarContatoDoProfissional(id)
+                .then((contato) => {
+                    if (!contato || !contato.ds_email) return;
+
+                    return enviarEmailNotificacao(
+                        contato.ds_email,
+                        contato.nm_profissional,
+                        {
+                            titulo: titulo.trim(),
+                            mensagem: mensagem ? mensagem.trim() : null
+                        }
+                    );
+                })
+                .catch((problema) =>
+                    console.error('Erro ao enviar o aviso por e-mail:', problema.message)
+                );
         }
 
         return res.status(201).json({

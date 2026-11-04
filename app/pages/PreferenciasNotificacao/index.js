@@ -40,8 +40,11 @@ const OPCOES = [
   {
     chave: 'email',
     coluna: 'st_email',
-    titulo: 'Resumo por e-mail',
-    descricao: 'Um resumo do que aconteceu, no e-mail cadastrado.',
+    titulo: 'Avisos por e-mail',
+    // Não é um resumo diário: a API manda um e-mail por aviso, na hora em
+    // que ele aparece no sino. O texto diz isso para a tela não prometer
+    // um resumo que ninguém monta.
+    descricao: 'Cada aviso acima também chega no e-mail cadastrado.',
   },
 ];
 

@@ -173,7 +173,26 @@ async function inserirNotificacao({
         idReferencia
     ]);
 
-    return { id_notificacao: resultado.insertId };
+    // "avisarPorEmail" sai junto para quem chamou não ter de ler as
+    // preferências de novo só para descobrir se manda o e-mail também.
+    return {
+        id_notificacao: resultado.insertId,
+        avisarPorEmail: Boolean(preferencias.st_email)
+    };
+}
+
+// Nome e e-mail do profissional, para o aviso por e-mail do sino. Só isso:
+// o hash da senha não tem por que passar por perto de quem manda e-mail.
+async function buscarContatoDoProfissional(idProfissional) {
+    const sql = `
+        SELECT ds_email, nm_profissional
+        FROM profissional
+        WHERE id_profissional = ?
+    `;
+
+    const [resultado] = await pool.execute(sql, [idProfissional]);
+
+    return resultado[0];
 }
 
 module.exports = {
@@ -184,5 +203,6 @@ module.exports = {
     marcarTodasComoLidas,
     buscarPreferencias,
     salvarPreferencias,
-    inserirNotificacao
+    inserirNotificacao,
+    buscarContatoDoProfissional
 };

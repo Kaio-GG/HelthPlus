@@ -317,6 +317,29 @@ CREATE TABLE IF NOT EXISTS `token_senha` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------
+-- token_senha_paciente
+-- O mesmo que token_senha, para a conta do PACIENTE (usuario_paciente).
+--
+-- É uma tabela separada, e não uma coluna a mais em token_senha, porque
+-- as duas contas vivem em tabelas diferentes: uma chave estrangeira não
+-- aponta para duas tabelas. Separado, o banco continua garantindo que
+-- todo token pertence a uma conta que existe.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `token_senha_paciente` (
+  `id_token` int NOT NULL AUTO_INCREMENT,
+  `id_paciente` int NOT NULL,
+  `ds_token_hash` char(64) NOT NULL,
+  `dt_expiracao` datetime NOT NULL,
+  `dt_uso` datetime DEFAULT NULL,
+  `dt_criacao` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_token`),
+  UNIQUE KEY `ds_token_hash` (`ds_token_hash`),
+  KEY `id_paciente` (`id_paciente`),
+  CONSTRAINT `token_senha_paciente_ibfk_1` FOREIGN KEY (`id_paciente`)
+    REFERENCES `paciente` (`id_paciente`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
 -- notificacao
 -- Avisos para o nutricionista dentro do aplicativo: consulta chegando,
 -- paciente novo, plano vencendo. dt_leitura nulo = ainda não lida (é o que
@@ -373,6 +396,91 @@ CREATE TABLE IF NOT EXISTS consentimento_paciente (
   CONSTRAINT fk_consentimento_paciente
     FOREIGN KEY (id_paciente)
     REFERENCES paciente (id_paciente)
+);
+
+-- ---------------------------------------------------------------
+-- plano_alimentar
+-- O plano de um paciente: o período, as metas e o estado.
+--
+-- Um plano pertence ao paciente E ao profissional que o escreveu. O
+-- id_profissional é repetido aqui de propósito: toda query do plano
+-- filtra por ele para que um nutricionista não alcance o plano de
+-- outro, e assim a checagem não depende de um JOIN com paciente.
+--
+-- ds_status guarda 'ativo' ou 'arquivado' (planoStorage.js recusa o
+-- resto). Arquivar não apaga: o histórico do paciente continua.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS plano_alimentar (
+  id_plano INT NOT NULL AUTO_INCREMENT,
+  id_paciente INT NOT NULL,
+  id_profissional INT NOT NULL,
+  nm_plano VARCHAR(100) NOT NULL,
+  dt_inicio DATE NOT NULL,
+  dt_fim DATE NOT NULL,
+  vl_meta_kcal INT NOT NULL,
+  vl_meta_agua_litros DECIMAL(4,2) NOT NULL DEFAULT 0,
+  ds_observacoes TEXT,
+  ds_status VARCHAR(20) NOT NULL DEFAULT 'ativo',
+  PRIMARY KEY (id_plano),
+  INDEX idx_plano_profissional (id_profissional),
+  INDEX idx_plano_paciente (id_paciente),
+  CONSTRAINT fk_plano_paciente
+    FOREIGN KEY (id_paciente)
+    REFERENCES paciente (id_paciente),
+  CONSTRAINT fk_plano_profissional
+    FOREIGN KEY (id_profissional)
+    REFERENCES profissional (id_profissional)
+);
+
+-- ---------------------------------------------------------------
+-- plano_refeicao
+-- As refeições de um plano (café, almoço, jantar...), na ordem em
+-- que aparecem na tela — nr_ordem, porque o id não serve: ao editar
+-- um plano as refeições são apagadas e regravadas.
+--
+-- O CASCADE é usado pelo código: atualizarPlano() apaga as refeições
+-- do plano e as grava de novo, contando que os alimentos saiam junto.
+-- Sem ele, cada edição deixaria alimentos órfãos no banco.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS plano_refeicao (
+  id_refeicao INT NOT NULL AUTO_INCREMENT,
+  id_plano INT NOT NULL,
+  nm_refeicao VARCHAR(100) NOT NULL,
+  nr_ordem INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (id_refeicao),
+  INDEX idx_refeicao_plano (id_plano),
+  CONSTRAINT fk_refeicao_plano
+    FOREIGN KEY (id_plano)
+    REFERENCES plano_alimentar (id_plano)
+    ON DELETE CASCADE
+);
+
+-- ---------------------------------------------------------------
+-- plano_alimento
+-- Os alimentos de cada refeição, com a porção e os valores.
+--
+-- Os valores são copiados da tabela TACO no momento em que o plano é
+-- montado, não consultados depois: ds_codigo_taco serve para saber de
+-- onde o alimento veio, mas o plano do paciente não deve mudar sozinho
+-- se a base da TACO for atualizada. Alimento digitado à mão não tem
+-- código — por isso a coluna aceita nulo.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS plano_alimento (
+  id_plano_alimento INT NOT NULL AUTO_INCREMENT,
+  id_refeicao INT NOT NULL,
+  ds_codigo_taco VARCHAR(30) DEFAULT NULL,
+  nm_alimento VARCHAR(150) NOT NULL,
+  ds_porcao VARCHAR(50) DEFAULT NULL,
+  vl_kcal DECIMAL(8,2) NOT NULL DEFAULT 0,
+  vl_proteina DECIMAL(8,2) NOT NULL DEFAULT 0,
+  vl_carboidrato DECIMAL(8,2) NOT NULL DEFAULT 0,
+  vl_gordura DECIMAL(8,2) NOT NULL DEFAULT 0,
+  PRIMARY KEY (id_plano_alimento),
+  INDEX idx_alimento_refeicao (id_refeicao),
+  CONSTRAINT fk_alimento_refeicao
+    FOREIGN KEY (id_refeicao)
+    REFERENCES plano_refeicao (id_refeicao)
+    ON DELETE CASCADE
 );
 
 -- ---------------------------------------------------------------

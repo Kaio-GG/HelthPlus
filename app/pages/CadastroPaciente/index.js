@@ -42,6 +42,27 @@ const objetivosDaConsulta = [
 ];
 const opcoesDeRestricao = ['Vegetariano', 'Vegano', 'Sem lactose', 'Sem glúten', 'Low carb'];
 
+// O que dizer ao nutricionista depois de cadastrar.
+//
+// O caso do meio é o que importa: o acesso do paciente foi criado, mas a
+// API está sem SMTP e o convite não saiu. Dizer "convite enviado" aí
+// deixaria o nutricionista esperando que o paciente recebesse algo.
+const avisoDoConvite = (enviarConvite, emailEnviado, email) => {
+  if (!enviarConvite) {
+    return 'Você pode enviar o convite depois, pela ficha do paciente.';
+  }
+
+  if (emailEnviado) {
+    return `O convite foi enviado para ${email}. O paciente cria a própria senha no primeiro acesso.`;
+  }
+
+  return (
+    'O acesso foi criado, mas a API está sem SMTP configurado: o convite não ' +
+    'chegou a sair (ele aparece no terminal da API). Preencha as variáveis ' +
+    'SMTP_ do Api/.env ou passe os dados de acesso ao paciente.'
+  );
+};
+
 const dadosIniciais = {
   nome: '',
   nascimento: '',
@@ -195,9 +216,7 @@ const CadastroPaciente = ({ navigation }) => {
 
       mostrarAviso(
         'Paciente cadastrado!',
-        dados.enviarConvite
-          ? 'O convite foi registrado. O paciente cria a própria senha no primeiro acesso.'
-          : 'Você pode enviar o convite depois, pela ficha do paciente.'
+        avisoDoConvite(dados.enviarConvite, resposta.emailEnviado, dados.email.trim())
       );
 
       // Sai da tela de cadastro e vai para a lista de pacientes

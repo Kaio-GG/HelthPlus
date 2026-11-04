@@ -11,12 +11,19 @@ const {
     buscarTokenValido,
     marcarTokenComoUsado,
     atualizarSenha,
-    buscarSenhaHash
+    buscarContaDoProfissional,
+    buscarContaDoPacientePorEmail,
+    inserirTokenSenhaDoPaciente,
+    marcarTokensAnterioresDoPacienteComoUsados,
+    buscarTokenValidoDoPaciente,
+    marcarTokenDoPacienteComoUsado,
+    atualizarSenhaDoPaciente
 } = require('../repository/senhaRepository');
 const {
     enviarEmailRedefinicaoSenha,
+    enviarEmailSenhaAlterada,
     MINUTOS_DE_VALIDADE
-} = require('../servicos/emailRedefinicaoSenha');
+} = require('../servicos/mensagensEmail');
 
 // As mesmas regras do checklist da tela "Nova senha"
 // (app/utilitarios/validacoes.js). Se mudar lá, mude aqui: a tela ajuda o
@@ -56,6 +63,11 @@ function hashDoToken(token) {
 // POST /api/senha/esqueci
 // Pede o link de redefinição.
 //
+// Atende os dois perfis: a tela "Esqueci minha senha" é a mesma para o
+// nutricionista e para o paciente, e ela não diz qual é qual — o e-mail
+// é procurado nas duas contas. Quem só olhasse "profissional" deixaria o
+// pedido do paciente morrer em silêncio, escondido pela resposta padrão.
+//
 // A resposta é sempre a mesma, exista ou não a conta. Se dissesse
 // "e-mail não cadastrado", qualquer um poderia descobrir quem tem conta
 // aqui só testando endereços.
@@ -70,32 +82,51 @@ router.post('/esqueci', async (req, res) => {
             });
         }
 
+        const emailNormalizado = email.trim().toLowerCase();
+
         const respostaPadrao = {
             mensagem: 'Se o e-mail estiver cadastrado, enviamos as instruções para ele.'
         };
 
-        const profissional = await buscarProfissionalPorEmailLogin(
-            email.trim().toLowerCase()
-        );
+        const profissional = await buscarProfissionalPorEmailLogin(emailNormalizado);
+        const profissionalAtivo = profissional && profissional.st_ativo;
 
-        if (!profissional || !profissional.st_ativo) {
+        // O mesmo endereço nas duas tabelas é caso degenerado (o
+        // nutricionista cadastrado como paciente de si mesmo). Nele vale a
+        // conta de profissional, para não disparar dois e-mails com dois
+        // códigos e deixar a pessoa sem saber qual digitar.
+        const paciente = profissionalAtivo
+            ? null
+            : await buscarContaDoPacientePorEmail(emailNormalizado);
+
+        if (!profissionalAtivo && !paciente) {
             return res.status(200).json(respostaPadrao);
         }
 
-        // Um pedido novo cancela os anteriores: só o último e-mail vale.
-        await marcarTokensAnterioresComoUsados(profissional.id_profissional);
-
         const token = gerarToken();
 
-        await inserirTokenSenha(
-            profissional.id_profissional,
-            hashDoToken(token),
-            MINUTOS_DE_VALIDADE
-        );
+        if (profissionalAtivo) {
+            // Um pedido novo cancela os anteriores: só o último e-mail vale.
+            await marcarTokensAnterioresComoUsados(profissional.id_profissional);
+
+            await inserirTokenSenha(
+                profissional.id_profissional,
+                hashDoToken(token),
+                MINUTOS_DE_VALIDADE
+            );
+        } else {
+            await marcarTokensAnterioresDoPacienteComoUsados(paciente.id_paciente);
+
+            await inserirTokenSenhaDoPaciente(
+                paciente.id_paciente,
+                hashDoToken(token),
+                MINUTOS_DE_VALIDADE
+            );
+        }
 
         const envio = await enviarEmailRedefinicaoSenha(
-            profissional.ds_email,
-            profissional.nm_profissional,
+            profissionalAtivo ? profissional.ds_email : paciente.ds_email,
+            profissionalAtivo ? profissional.nm_profissional : paciente.nm_paciente,
             token
         );
 
@@ -119,6 +150,11 @@ router.post('/esqueci', async (req, res) => {
 // ---------------------------------------------------------------
 // POST /api/senha/redefinir
 // Troca a senha usando o token do e-mail.
+//
+// O app manda só o código, sem dizer o perfil (a tela "Nova senha" é a
+// mesma para os dois, e o link do e-mail também). Por isso o código é
+// procurado nas duas tabelas de token. Um código não existe nas duas: são
+// 32^8 combinações, e cada tabela tem índice único no hash.
 // ---------------------------------------------------------------
 router.post('/redefinir', async (req, res) => {
     try {
@@ -138,9 +174,14 @@ router.post('/redefinir', async (req, res) => {
             });
         }
 
-        const pedido = await buscarTokenValido(hashDoToken(token));
+        const tokenHash = hashDoToken(token);
 
-        if (!pedido) {
+        const pedido = await buscarTokenValido(tokenHash);
+        const pedidoDoPaciente = pedido
+            ? null
+            : await buscarTokenValidoDoPaciente(tokenHash);
+
+        if (!pedido && !pedidoDoPaciente) {
             return res.status(400).json({
                 mensagem: 'Código inválido ou expirado. Peça um novo link.'
             });
@@ -148,10 +189,15 @@ router.post('/redefinir', async (req, res) => {
 
         const senhaHash = await bcrypt.hash(senha, 12);
 
-        await atualizarSenha(pedido.id_profissional, senhaHash);
+        if (pedido) {
+            await atualizarSenha(pedido.id_profissional, senhaHash);
 
-        // Queima o token: o mesmo link não serve duas vezes.
-        await marcarTokenComoUsado(pedido.id_token);
+            // Queima o token: o mesmo link não serve duas vezes.
+            await marcarTokenComoUsado(pedido.id_token);
+        } else {
+            await atualizarSenhaDoPaciente(pedidoDoPaciente.id_paciente, senhaHash);
+            await marcarTokenDoPacienteComoUsado(pedidoDoPaciente.id_token);
+        }
 
         return res.status(200).json({
             mensagem: 'Senha alterada com sucesso!'
@@ -200,15 +246,15 @@ router.put('/:id', async (req, res) => {
             });
         }
 
-        const registro = await buscarSenhaHash(idProfissional);
+        const conta = await buscarContaDoProfissional(idProfissional);
 
-        if (!registro) {
+        if (!conta) {
             return res.status(404).json({
                 mensagem: 'Profissional não encontrado.'
             });
         }
 
-        const confere = await bcrypt.compare(senhaAtual, registro.ds_senha_hash);
+        const confere = await bcrypt.compare(senhaAtual, conta.ds_senha_hash);
 
         if (!confere) {
             return res.status(401).json({
@@ -228,6 +274,14 @@ router.put('/:id', async (req, res) => {
         // acabou de trocar a senha sabendo a atual não deveria ter um link
         // antigo funcionando.
         await marcarTokensAnterioresComoUsados(idProfissional);
+
+        // O aviso vai DEPOIS de a senha já estar trocada, e sem await: a
+        // troca deu certo, e um SMTP lento ou fora do ar só pode atrasar
+        // ou perder o aviso, nunca segurar a resposta nem desfazer a
+        // troca. O módulo de e-mail já registra a falha no terminal.
+        enviarEmailSenhaAlterada(conta.ds_email, conta.nm_profissional).catch(
+            (problema) => console.error('Erro ao avisar da troca de senha:', problema.message)
+        );
 
         return res.status(200).json({
             mensagem: 'Senha alterada com sucesso!'

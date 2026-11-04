@@ -10,8 +10,14 @@ const {
   obterEvolucaoPaciente,
 } = require('../repository/pacienteRepository');
 
+<<<<<<< HEAD
 // Modelo do e-mail de convite (usa o serviço de e-mail do projeto).
 const { enviarConvitePaciente } = require('../servicos/conviteEmail');
+=======
+const {
+  enviarEmailConvitePaciente,
+} = require('../servicos/mensagensEmail');
+>>>>>>> 66e0593 (Envio de e-mail: convite do paciente, redefinicao de senha do paciente, boas-vindas e avisos)
 
 const autenticar = require('../middleware/autenticar');
 const router = express.Router();
@@ -189,6 +195,7 @@ router.post('/cadastro', async (req, res) => {
   try {
     const resultado = await inserirPaciente(p);
 
+<<<<<<< HEAD
     // Envia o e-mail com a senha provisória.
     // Se o envio falhar, o cadastro continua valendo.
     let conviteEnviado = false;
@@ -208,6 +215,41 @@ router.post('/cadastro', async (req, res) => {
       idPaciente: resultado.idPaciente,
       conviteCriado: resultado.conviteCriado,
       conviteEnviado,
+=======
+    // O convite é o único jeito de o paciente descobrir que tem acesso:
+    // quem cria a conta é o nutricionista, e o paciente não escolheu nem
+    // o e-mail nem a senha. Sem este envio a conta nasce inalcançável.
+    //
+    // O envio vem DEPOIS do cadastro, e a falha dele não desfaz nada: o
+    // paciente já está na lista do nutricionista, e o acesso continua
+    // válido para ser reenviado depois. O "emailEnviado" diz à tela se a
+    // mensagem saiu de verdade ou só foi para o terminal da API.
+    // O try é só do envio, de propósito: dentro do try de baixo, um erro
+    // aqui cairia no catch do cadastro e devolveria 500 para um paciente
+    // que já foi gravado.
+    let emailEnviado = false;
+
+    if (resultado.conviteCriado) {
+      try {
+        const envio = await enviarEmailConvitePaciente(
+          String(p.emailAcesso).trim(),
+          p.nome
+        );
+
+        emailEnviado = envio.enviado;
+      } catch (problema) {
+        console.error(
+          'Erro ao enviar o convite do paciente:',
+          problema.message
+        );
+      }
+    }
+
+    return res.status(201).json({
+      mensagem: 'Paciente cadastrado com sucesso.',
+      ...resultado,
+      emailEnviado,
+>>>>>>> 66e0593 (Envio de e-mail: convite do paciente, redefinicao de senha do paciente, boas-vindas e avisos)
     });
   } catch (erro) {
     console.error('Erro ao cadastrar paciente:', erro);

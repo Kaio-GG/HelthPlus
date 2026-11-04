@@ -14,6 +14,12 @@ const {
     buscarProfissionalPorEmailLogin
 } = require('../repository/profissionalRepository');
 
+const { crnValido, normalizarCrn } = require('../utilitarios/crn');
+
+const { enviarEmailBoasVindasProfissional } = require('../servicos/mensagensEmail');
+
+const AVISO_DE_CRN = 'Registro profissional inválido. Informe a regional e o número, como em CRN-3 12345.';
+
 router.post('/cadastro', async (req, res) => {
     try {
         const { nome, registro, email, senha } = req.body;
@@ -32,8 +38,23 @@ router.post('/cadastro', async (req, res) => {
             });
         }
 
+        if (!crnValido(registro)) {
+            return res.status(400).json({
+                mensagem: AVISO_DE_CRN
+            });
+        }
+
+        // Guardado sempre na mesma forma, para a checagem de duplicado
+        // abaixo não deixar passar o mesmo registro escrito de outro jeito.
+        const registroNormalizado = normalizarCrn(registro);
+
+        // O e-mail é gravado em minúsculas; a busca precisa usar a mesma
+        // forma, senão "Maria@x.com" passa pela checagem e estoura na chave
+        // única da tabela, virando um 500 em vez do aviso de duplicado.
+        const emailNormalizado = email.trim().toLowerCase();
+
         // Verificar e-mail existente
-        const profissionalEmail = await buscarProfissionalPorEmail(email);
+        const profissionalEmail = await buscarProfissionalPorEmail(emailNormalizado);
 
         if (profissionalEmail) {
             return res.status(409).json({
@@ -42,7 +63,7 @@ router.post('/cadastro', async (req, res) => {
         }
 
         // Verificar registro profissional existente
-        const profissionalCRN = await buscarProfissionalPorCRN(registro);
+        const profissionalCRN = await buscarProfissionalPorCRN(registroNormalizado);
 
         if (profissionalCRN) {
             return res.status(409).json({
@@ -56,9 +77,23 @@ router.post('/cadastro', async (req, res) => {
         // Inserir profissional
         const profissional = await inserirProfissional(
             nome.trim(),
-            registro.trim(),
-            email.trim().toLowerCase(),
+            registroNormalizado,
+            emailNormalizado,
             senhaHash
+        );
+
+        // Boas-vindas, não verificação: a conta já entra liberada para
+        // entrar. Serve para a pessoa ter guardado com qual e-mail se
+        // cadastrou — é por ele que ela pede a redefinição de senha
+        // depois, e um endereço errado no cadastro só aparece nesse dia.
+        //
+        // Sem await e com catch próprio: o cadastro já deu certo, e um
+        // SMTP fora do ar não pode transformá-lo num erro.
+        enviarEmailBoasVindasProfissional(
+            profissional.ds_email,
+            profissional.nm_profissional
+        ).catch((problema) =>
+            console.error('Erro ao enviar as boas-vindas:', problema.message)
         );
 
         return res.status(201).json({
@@ -184,9 +219,17 @@ router.put('/:id', async (req, res) => {
             });
         }
 
+        if (!crnValido(registro)) {
+            return res.status(400).json({
+                mensagem: AVISO_DE_CRN
+            });
+        }
+
+        const registroNormalizado = normalizarCrn(registro);
+
         // O mesmo CRN não pode pertencer a dois profissionais.
         const outro = await buscarProfissionalPorCRNDeOutro(
-            registro.trim(),
+            registroNormalizado,
             idProfissional
         );
 
@@ -199,7 +242,7 @@ router.put('/:id', async (req, res) => {
         const atualizou = await atualizarProfissional(
             idProfissional,
             nome.trim(),
-            registro.trim(),
+            registroNormalizado,
             telefone ? telefone.trim() : null
         );
 
@@ -215,7 +258,7 @@ router.put('/:id', async (req, res) => {
             profissional: {
                 id_profissional: idProfissional,
                 nm_profissional: nome.trim(),
-                nr_registro_conselho: registro.trim(),
+                nr_registro_conselho: registroNormalizado,
                 nr_telefone: telefone ? telefone.trim() : null
             }
         });
