@@ -19,6 +19,15 @@
 //                    enchem, o teclado para de inserir e sem o "x" o
 //                    usuário não descobre que precisa apagar primeiro.
 //   preenchimento    o que o celular deve sugerir neste campo (veja abaixo)
+//   somenteDigitos   joga fora tudo que não for número. Use junto com
+//                    teclado='number-pad': o teclado numérico resolve o que o
+//                    usuário DIGITA, mas colar, ditar ou um teclado de outro
+//                    fabricante ainda trazem letra para dentro do campo
+//   contador         mostra "3/7" embaixo, à direita, quando há maxCaracteres.
+//                    Em campo de tamanho limitado é o que conta ao usuário
+//                    quanto falta, em vez de o teclado simplesmente parar
+//   valido           true pinta o contador de verde e põe um "check" no
+//                    campo: o aviso de que o que está ali já serve
 //   teclado, capitalizar, maxCaracteres, estilo
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
@@ -32,8 +41,13 @@ import { estilos } from './style';
 // Sem isso o Android chuta: ao tocar num campo de senha ele procura o
 // "usuário" e acaba jogando o e-mail no primeiro campo de texto da tela.
 // Por isso o padrão é 'nenhum' — um campo só recebe sugestão quando pede.
+//
+// O autoComplete 'off' não basta no Android: o serviço de preenchimento
+// (o gerenciador de senhas do Google) ignora essa dica e continua chutando
+// — era o que jogava a senha salva no campo do CRN. Quem tira o campo da
+// jogada é o importantForAutofill 'no'.
 const PREENCHIMENTOS = {
-  nenhum: { autoComplete: 'off', textContentType: 'none' },
+  nenhum: { autoComplete: 'off', textContentType: 'none', importantForAutofill: 'no' },
   nome: { autoComplete: 'name', textContentType: 'name' },
   email: { autoComplete: 'email', textContentType: 'emailAddress' },
   telefone: { autoComplete: 'tel', textContentType: 'telephoneNumber' },
@@ -62,6 +76,9 @@ const CampoTexto = ({
   linhasDoRotulo,
   aoLimpar,
   preenchimento = 'nenhum',
+  somenteDigitos = false,
+  contador = false,
+  valido = false,
   teclado = 'default',
   capitalizar = 'sentences',
   maxCaracteres,
@@ -84,7 +101,7 @@ const CampoTexto = ({
 
   const digitou = (texto) => {
     if (selecao) setSelecao(undefined);
-    if (aoMudar) aoMudar(texto);
+    if (aoMudar) aoMudar(somenteDigitos ? texto.replace(/\D/g, '') : texto);
   };
 
   const dicas = PREENCHIMENTOS[preenchimento] ?? PREENCHIMENTOS.nenhum;
@@ -124,6 +141,7 @@ const CampoTexto = ({
           autoCorrect={false}
           autoComplete={dicas.autoComplete}
           textContentType={dicas.textContentType}
+          importantForAutofill={dicas.importantForAutofill ?? 'auto'}
           onFocus={aoFocar}
           onBlur={() => setSelecao(undefined)}
           selection={selecao}
@@ -142,7 +160,9 @@ const CampoTexto = ({
           </TouchableOpacity>
         ) : null}
 
-        {senha ? (
+        {valido ? (
+          <Icone nome="check" tamanho={18} cor={cores.verdeBotao} />
+        ) : senha ? (
           <TouchableOpacity
             onPress={() => setSenhaVisivel((visivel) => !visivel)}
             hitSlop={10}
@@ -166,7 +186,18 @@ const CampoTexto = ({
         ) : null}
       </View>
 
-      {erro ? <Text style={estilos.erro}>{erro}</Text> : null}
+      {/* Erro à esquerda, contador à direita: os dois dividem a mesma linha
+          para a mensagem não empurrar o "3/7" para fora do campo. */}
+      {erro || (contador && maxCaracteres) ? (
+        <View style={estilos.rodape}>
+          {erro ? <Text style={estilos.erro}>{erro}</Text> : <View style={estilos.espacador} />}
+          {contador && maxCaracteres ? (
+            <Text style={[estilos.contador, valido && estilos.contadorValido]}>
+              {String(valor ?? '').length}/{maxCaracteres}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 };

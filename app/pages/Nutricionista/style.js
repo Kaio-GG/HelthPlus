@@ -2,15 +2,27 @@ import { StyleSheet } from 'react-native';
 import { cores } from '../../tema';
 
 export const estilos = StyleSheet.create({
-  // Emblema do cabeçalho (mesmo da Home): médico dentro de um anel amarelo
-  emblema: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 3,
-    borderColor: '#FFF59D',
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Um rótulo só para os dois campos do CRN, que juntos formam um dado só.
+  rotuloGrupo: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+    color: cores.verdeEscuro,
+    marginBottom: 6,
+  },
+  // Regional e número lado a lado. Os rótulos saíram para o grupo acima, e
+  // é isso que faz as duas caixas começarem na mesma altura: sem o truque,
+  // "Regional" numa linha e "Número do registro" em duas desalinhavam tudo.
+  linhaCrn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  campoRegional: {
+    flex: 1,
+  },
+  campoNumeroCrn: {
+    flex: 1.3,
   },
 
   linhaLinks: {

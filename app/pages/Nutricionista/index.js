@@ -1,15 +1,25 @@
 // Área do nutricionista: login e criação de conta na mesma tela (duas abas).
 import React, { useState } from "react";
 import { View, Text } from "react-native";
-import Medico from "../../assets/Medico.svg";
+import Logo from "../../componentes/Logo";
 import Tela from "../../componentes/Tela";
 import Cartao from "../../componentes/Cartao";
 import Alternador from "../../componentes/Alternador";
 import CampoTexto from "../../componentes/CampoTexto";
+import CampoSelecao from "../../componentes/CampoSelecao";
 import CaixaSelecao from "../../componentes/CaixaSelecao";
 import RequisitosSenha from "../../componentes/RequisitosSenha";
 import Botao from "../../componentes/Botao";
-import { emailValido, senhaForte } from "../../utilitarios/validacoes";
+import {
+  emailValido,
+  senhaForte,
+  normalizarCrn,
+  montarCrn,
+  numeroDoCrnValido,
+  REGIONAIS_DO_CRN,
+  DIGITOS_MINIMOS_DO_CRN,
+  DIGITOS_MAXIMOS_DO_CRN,
+} from "../../utilitarios/validacoes";
 import {
   loginNutricionista,
   cadastrarNutricionista,
@@ -30,7 +40,10 @@ const Nutricionista = ({ navigation, route }) => {
 
   // Campos do cadastro
   const [nome, setNome] = useState("");
-  const [crn, setCrn] = useState("");
+  // O CRN é pedido em duas partes: a regional sai de uma lista e só o
+  // número é digitado, num campo que abre o teclado numérico.
+  const [crnRegional, setCrnRegional] = useState("");
+  const [crnNumero, setCrnNumero] = useState("");
   const [emailCadastro, setEmailCadastro] = useState("");
   const [senhaCadastro, setSenhaCadastro] = useState("");
   const [aceitouTermos, setAceitouTermos] = useState(false);
@@ -72,8 +85,10 @@ const Nutricionista = ({ navigation, route }) => {
     if (nome.trim().length < 3) novosErros.nome = "Informe seu nome completo.";
     else if (nome.includes("@"))
       novosErros.nome = "Aqui vai seu nome, não o e-mail.";
-    if (crn.trim().length < 5)
-      novosErros.crn = "Informe seu registro profissional (CRN).";
+    if (!crnRegional) novosErros.crnRegional = "Escolha a regional do seu CRN.";
+    if (!crnNumero) novosErros.crn = "Informe o número do seu registro.";
+    else if (!numeroDoCrnValido(crnNumero))
+      novosErros.crn = `O número tem de ${DIGITOS_MINIMOS_DO_CRN} a ${DIGITOS_MAXIMOS_DO_CRN} dígitos.`;
     if (!emailValido(emailCadastro))
       novosErros.email = "Informe um e-mail válido.";
     if (!senhaForte(senhaCadastro)) {
@@ -88,7 +103,7 @@ const Nutricionista = ({ navigation, route }) => {
       setCarregando(true);
       await cadastrarNutricionista(
         nome.trim(),
-        crn.trim(),
+        normalizarCrn(montarCrn(crnRegional, crnNumero)),
         emailCadastro.trim(),
         senhaCadastro
       );
@@ -117,11 +132,7 @@ const Nutricionista = ({ navigation, route }) => {
     <Tela
       titulo="Área do nutricionista"
       subtitulo="Entre ou crie sua conta"
-      direita={
-        <View style={estilos.emblema}>
-          <Medico width={44} height={44} />
-        </View>
-      }
+      direita={<Logo />}
       cabecalhoRolavel
     >
       <Cartao>
@@ -198,15 +209,34 @@ const Nutricionista = ({ navigation, route }) => {
               capitalizar="words"
               erro={erros.nome}
             />
-            <CampoTexto
-              rotulo="Registro profissional (CRN)"
-              valor={crn}
-              aoMudar={setCrn}
-              placeholder="Ex.: CRN-3 12345"
-              preenchimento="nenhum"
-              capitalizar="characters"
-              erro={erros.crn}
-            />
+            {/* Registro profissional em dois campos. O número usa teclado
+                numérico, e um campo de dígitos é também o que fecha a porta
+                para o preenchimento automático do celular jogar a senha
+                salva aqui dentro quando ele reconhece o e-mail. */}
+            <Text style={estilos.rotuloGrupo}>Registro profissional (CRN)</Text>
+            <View style={estilos.linhaCrn}>
+              <CampoSelecao
+                valor={crnRegional}
+                opcoes={REGIONAIS_DO_CRN}
+                aoMudar={setCrnRegional}
+                placeholder="Regional"
+                erro={erros.crnRegional}
+                estilo={estilos.campoRegional}
+              />
+              <CampoTexto
+                valor={crnNumero}
+                aoMudar={setCrnNumero}
+                placeholder="Número"
+                preenchimento="nenhum"
+                teclado="number-pad"
+                somenteDigitos
+                maxCaracteres={DIGITOS_MAXIMOS_DO_CRN}
+                contador
+                valido={numeroDoCrnValido(crnNumero)}
+                erro={erros.crn}
+                estilo={estilos.campoNumeroCrn}
+              />
+            </View>
             <CampoTexto
               rotulo="E-mail"
               valor={emailCadastro}

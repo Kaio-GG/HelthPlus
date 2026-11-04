@@ -2,6 +2,28 @@ import { StyleSheet } from 'react-native';
 import { cores, espacamento, raios } from '../../tema';
 
 export const estilos = StyleSheet.create({
+  // Um rótulo só para os dois campos do CRN, que juntos formam um dado só.
+  // Os campos vão sem rótulo próprio: é isso que faz as duas caixas
+  // começarem na mesma altura, lado a lado.
+  rotuloGrupo: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+    color: cores.verdeEscuro,
+    marginBottom: 6,
+  },
+  linhaCrn: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  campoRegional: {
+    flex: 1,
+  },
+  campoNumeroCrn: {
+    flex: 1.3,
+  },
+
   semCobrancas: {
     fontSize: 13,
     lineHeight: 19,

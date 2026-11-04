@@ -3,7 +3,11 @@
 //   titulo, subtitulo        textos do cabeçalho
 //   aoVoltar                 função do botão de voltar (padrão: navigation.goBack)
 //   mostrarVoltar            exibe a seta de voltar (padrão: true)
-//   direita                  elemento exibido no canto direito (avatar, botão +)
+//   esquerda                 elemento do canto esquerdo nas telas SEM voltar
+//                            (ex.: o sino na Home). Onde há seta de voltar
+//                            ela vence: o canto é dela, e sair da tela não
+//                            pode depender de achar outro botão
+//   direita                  elemento exibido no canto direito (logo, avatar, botão +)
 //   filhos                   conteúdo extra embaixo do subtítulo (ex.: barra de etapas)
 //   grande                   usa fontes maiores no título e no subtítulo (padrão: false)
 
@@ -20,6 +24,7 @@ const Cabecalho = ({
   subtitulo,
   aoVoltar,
   mostrarVoltar = true,
+  esquerda,
   direita,
   filhos,
   grande = false,
@@ -53,6 +58,8 @@ const Cabecalho = ({
           >
             <Icone nome="seta-esquerda" tamanho={24} cor={cores.verdeEscuro} />
           </TouchableOpacity>
+        ) : esquerda ? (
+          <View>{esquerda}</View>
         ) : (
           <View />
         )}

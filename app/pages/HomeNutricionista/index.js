@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
 } from "react-native";
-import Medico from "../../assets/Medico.svg";
+import Logo from "../../componentes/Logo";
 import Tela from "../../componentes/Tela";
 import Cartao from "../../componentes/Cartao";
 import Icone from "../../componentes/Icone";
@@ -154,14 +154,8 @@ const HomeNutricionista = ({ navigation }) => {
       subtitulo="Ferramentas e informações essenciais para apoiar suas avaliações nutricionais."
       mostrarVoltar={false}
       cabecalhoRolavel
-      direita={
-        <View style={estilos.acoesCabecalho}>
-          <SinoNotificacoes />
-          <View style={estilos.emblema}>
-            <Medico width={44} height={44} />
-          </View>
-        </View>
-      }
+      esquerda={<SinoNotificacoes />}
+      direita={<Logo />}
       abaAtiva="inicio"
     >
       {/* Banner com rolagem horizontal */}

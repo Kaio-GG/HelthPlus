@@ -2,7 +2,9 @@
 // sobe um pouco sobre a curva do cabeçalho, rodapé fixo opcional (botões) e
 // barra inferior opcional.
 // Props:
-//   titulo, subtitulo, aoVoltar, mostrarVoltar, direita, cabecalhoFilhos
+//   titulo, subtitulo, aoVoltar, mostrarVoltar, esquerda, direita, cabecalhoFilhos
+//   esquerda          canto esquerdo do cabeçalho nas telas sem botão de
+//                     voltar (ex.: o sino de notificações da Home)
 //   rodape            elemento fixo no fim da tela (ex.: botões Voltar/Continuar)
 //   abaAtiva          se informado, mostra a BarraInferior com essa aba marcada
 //   perfilBarra       'nutricionista' (padrão) ou 'paciente': define quais abas a barra mostra
@@ -39,6 +41,7 @@ const Tela = ({
   subtitulo,
   aoVoltar,
   mostrarVoltar = true,
+  esquerda,
   direita,
   cabecalhoFilhos,
   rodape,
@@ -67,6 +70,7 @@ const Tela = ({
       subtitulo={subtitulo}
       aoVoltar={aoVoltar}
       mostrarVoltar={mostrarVoltar}
+      esquerda={esquerda}
       direita={direita}
       filhos={cabecalhoFilhos}
       grande={cabecalhoNaRolagem || cabecalhoAlto}

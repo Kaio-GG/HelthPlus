@@ -5,6 +5,7 @@ import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Avatar from '../../componentes/Avatar';
 import CampoTexto from '../../componentes/CampoTexto';
+import CampoSelecao from '../../componentes/CampoSelecao';
 import Selo from '../../componentes/Selo';
 import Botao from '../../componentes/Botao';
 import Icone from '../../componentes/Icone';
@@ -15,6 +16,15 @@ import { useDialogo } from '../../contexto/DialogoContexto';
 import { atualizarNutricionista } from '../../Api/loginCadastro';
 import { cores } from '../../tema';
 import { aplicarMascaraTelefone } from '../../utilitarios/mascaras';
+import {
+  normalizarCrn,
+  montarCrn,
+  separarCrn,
+  numeroDoCrnValido,
+  REGIONAIS_DO_CRN,
+  DIGITOS_MINIMOS_DO_CRN,
+  DIGITOS_MAXIMOS_DO_CRN,
+} from '../../utilitarios/validacoes';
 import { formatarMoeda } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
@@ -27,17 +37,38 @@ const Perfil = ({ navigation }) => {
 // Os nomes dos campos são os da tabela profissional, que é o que o login
 // devolve: nm_profissional, nr_registro_conselho, ds_email e nr_telefone.
 const [nome, setNome] = useState(nutricionista?.nm_profissional ?? '');
-const [crn, setCrn] = useState(nutricionista?.nr_registro_conselho ?? '');
 const [telefone, setTelefone] = useState(nutricionista?.nr_telefone ?? '');
 const [mostrarCobrancas, setMostrarCobrancas] = useState(false);
+
+// O CRN é editado em duas partes, como na tela de criar conta: a regional
+// sai de uma lista e só o número é digitado, com teclado numérico. O banco
+// continua guardando as duas juntas numa string ("CRN-3 12345").
+const partesDoCrn = separarCrn(nutricionista?.nr_registro_conselho ?? '');
+const [crnRegional, setCrnRegional] = useState(partesDoCrn?.regional ?? '');
+const [crnNumero, setCrnNumero] = useState(partesDoCrn?.numero ?? '');
+// Não há onde marcar "provisório" na tela; ele só é guardado para voltar
+// ao texto na hora de salvar, em vez de sumir numa edição de telefone.
+const [crnProvisorio, setCrnProvisorio] = useState(partesDoCrn?.provisorio ?? false);
 
 // O nutricionista chega depois de o app ler a sessão salva no celular,
 // então os campos precisam ser preenchidos quando ele aparecer.
 useEffect(() => {
   setNome(nutricionista?.nm_profissional ?? '');
-  setCrn(nutricionista?.nr_registro_conselho ?? '');
   setTelefone(nutricionista?.nr_telefone ?? '');
+
+  const partes = separarCrn(nutricionista?.nr_registro_conselho ?? '');
+  setCrnRegional(partes?.regional ?? '');
+  setCrnNumero(partes?.numero ?? '');
+  setCrnProvisorio(partes?.provisorio ?? false);
 }, [nutricionista]);
+
+// O que aparece no modo leitura. Quando o registro gravado não está no
+// formato (conta antiga), as partes ficam vazias e mostramos o texto cru,
+// para o perfil não dizer "Não informado" sobre um CRN que existe.
+const crnTexto =
+  crnRegional && crnNumero
+    ? montarCrn(crnRegional, crnNumero, crnProvisorio)
+    : (nutricionista?.nr_registro_conselho ?? '');
 
   const [salvando, setSalvando] = useState(false);
 
@@ -48,10 +79,18 @@ useEffect(() => {
       avisar({ titulo: 'Nome inválido', mensagem: 'Informe seu nome completo.', tom: 'alerta' });
       return;
     }
-    if (crn.trim().length < 5) {
+    if (!crnRegional) {
       avisar({
         titulo: 'Registro inválido',
-        mensagem: 'Informe seu registro profissional (CRN).',
+        mensagem: 'Escolha a regional do seu CRN.',
+        tom: 'alerta',
+      });
+      return;
+    }
+    if (!numeroDoCrnValido(crnNumero)) {
+      avisar({
+        titulo: 'Registro inválido',
+        mensagem: `O número do CRN tem de ${DIGITOS_MINIMOS_DO_CRN} a ${DIGITOS_MAXIMOS_DO_CRN} dígitos.`,
         tom: 'alerta',
       });
       return;
@@ -62,7 +101,7 @@ useEffect(() => {
 
       const resposta = await atualizarNutricionista(nutricionista.id_profissional, {
         nome: nome.trim(),
-        crn: crn.trim(),
+        crn: normalizarCrn(montarCrn(crnRegional, crnNumero, crnProvisorio)),
         telefone,
       });
 
@@ -158,7 +197,28 @@ useEffect(() => {
         {editando ? (
           <View>
             <CampoTexto rotulo="Nome" valor={nome} aoMudar={setNome} capitalizar="words" />
-            <CampoTexto rotulo="CRN" valor={crn} aoMudar={setCrn} capitalizar="characters" />
+            <Text style={estilos.rotuloGrupo}>CRN</Text>
+            <View style={estilos.linhaCrn}>
+              <CampoSelecao
+                valor={crnRegional}
+                opcoes={REGIONAIS_DO_CRN}
+                aoMudar={setCrnRegional}
+                placeholder="Regional"
+                estilo={estilos.campoRegional}
+              />
+              <CampoTexto
+                valor={crnNumero}
+                aoMudar={setCrnNumero}
+                placeholder="Número"
+                preenchimento="nenhum"
+                teclado="number-pad"
+                somenteDigitos
+                maxCaracteres={DIGITOS_MAXIMOS_DO_CRN}
+                contador
+                valido={numeroDoCrnValido(crnNumero)}
+                estilo={estilos.campoNumeroCrn}
+              />
+            </View>
             <CampoTexto rotulo="E-mail" valor={nutricionista?.ds_email ?? ''} somenteLeitura />
             <CampoTexto
               rotulo="Telefone"
@@ -175,7 +235,7 @@ useEffect(() => {
             </View>
             <View style={estilos.colunaDado}>
               <Text style={estilos.rotuloDado}>CRN</Text>
-              <Text style={estilos.valorDado}>{crn || 'Não informado'}</Text>
+              <Text style={estilos.valorDado}>{crnTexto || 'Não informado'}</Text>
             </View>
             <View style={estilos.colunaDado}>
               <Text style={estilos.rotuloDado}>E-mail</Text>
