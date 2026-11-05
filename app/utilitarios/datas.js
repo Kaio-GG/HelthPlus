@@ -175,6 +175,24 @@ export const formatarIdade = (totalMeses) => {
   return `${textoAnos} e ${textoMeses}`;
 };
 
+// 7 -> "0,6 anos"  |  79 -> "6,6 anos"  |  12 -> "1 ano"
+//
+// Idade em anos decimais, que é como a OMS trabalha (a própria tabela
+// avaliacao guarda nr_idade_anos com duas casas). Serve onde o número
+// importa mais que a leitura: "6,6 anos" se compara de cabeça com o eixo
+// de um gráfico, "6 anos e 7 meses" não.
+//
+// A vírgula é o separador decimal do resto do aplicativo (peso, altura,
+// escore-z); um ponto aqui destoaria na mesma tela.
+export const formatarIdadeEmAnos = (totalMeses) => {
+  const mesesValidos = Math.max(0, Number(totalMeses) || 0);
+  const anos = mesesValidos / 12;
+
+  if (anos === 1) return '1 ano';
+
+  return `${anos.toFixed(1).replace('.', ',')} anos`;
+};
+
 // 40 -> "3 anos"
 export const formatarIdadeCurta = (totalMeses) => {
   const mesesValidos = Math.max(0, Number(totalMeses) || 0);

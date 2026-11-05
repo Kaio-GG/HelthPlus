@@ -1,8 +1,9 @@
 // Calculadora OMS: com a faixa de referência já escolhida na tela anterior,
 // escolhe o paciente (ou faz um cálculo avulso), recebe as medidas e segue
 // para a tela de resultados.
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import CampoBusca from '../../componentes/CampoBusca';
@@ -13,7 +14,8 @@ import CaixaAviso from '../../componentes/CaixaAviso';
 import Avatar from '../../componentes/Avatar';
 import Icone from '../../componentes/Icone';
 import Botao from '../../componentes/Botao';
-import { useDados } from '../../contexto/DadosContexto';
+import { useAuth } from '../../contexto/AuthContext';
+import { listarPacientes } from '../../Api/Pacientes';
 import { cores } from '../../tema';
 import { calcularImc } from '../../utilitarios/oms/avaliacaoOms';
 import { FAIXAS, faixaDaIdade, obterFaixa } from '../../utilitarios/oms/faixasOms';
@@ -24,6 +26,8 @@ import {
   calcularIdadeEmDias,
   calcularIdadeEmMeses,
   formatarIdade,
+  formatarIdadeEmAnos,
+  normalizarData,
 } from '../../utilitarios/datas';
 import { formatarNumero, normalizarTexto } from '../../utilitarios/formatos';
 import { estilos } from './style';
@@ -35,7 +39,49 @@ const IDADE_MINIMA_BRACO_PREGAS_MESES = 3;
 const DIAS_LIMITE_DEITADO = 731;
 
 const Calculadora = ({ navigation, route }) => {
-  const { pacientes } = useDados();
+  // A lista vem da API, e não do DadosContexto: o contexto guarda só o que
+  // foi cadastrado durante esta execução do aplicativo e nasce vazio a cada
+  // abertura. Era por isso que a busca não achava ninguém — o paciente
+  // estava no banco, não na memória do app.
+  const { token } = useAuth();
+  const [pacientes, setPacientes] = useState([]);
+  const [erroPacientes, setErroPacientes] = useState('');
+
+  // Recarrega ao ganhar foco, como a tela de Pacientes: um paciente
+  // cadastrado agora tem de aparecer aqui sem reabrir o aplicativo.
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+
+      const carregar = async () => {
+        if (!token) {
+          setErroPacientes('Sua sessão não foi encontrada. Entre novamente.');
+          return;
+        }
+
+        try {
+          const dados = await listarPacientes(token);
+
+          if (!ativo) return;
+
+          // O id vai como texto porque é assim que ele chega pela rota,
+          // vindo da ficha do paciente — number !== string no find().
+          setPacientes(dados.map((item) => ({ ...item, id: String(item.id) })));
+          setErroPacientes('');
+        } catch (problema) {
+          if (ativo) {
+            setErroPacientes(problema.message || 'Não foi possível carregar os pacientes.');
+          }
+        }
+      };
+
+      carregar();
+
+      return () => {
+        ativo = false;
+      };
+    }, [token])
+  );
 
   // A faixa vem da tela anterior. Se alguém chegar aqui sem ela (um link
   // antigo, por exemplo), a primeira infância é o padrão mais seguro: é a
@@ -43,6 +89,12 @@ const Calculadora = ({ navigation, route }) => {
   const faixa = obterFaixa(route.params?.faixa) ?? FAIXAS.primeira_infancia;
 
   // ----- Paciente -----
+  // Chegando da ficha de um paciente, ele já está definido: a tela não
+  // pergunta "cadastrado ou avulso" nem mostra a busca, porque a resposta
+  // veio no caminho. Escolher o paciente só faz sentido em quem entrou
+  // pela calculadora solta, pelo atalho da home.
+  const pacienteTravado = Boolean(route.params?.pacienteId);
+
   const [busca, setBusca] = useState('');
   const [pacienteId, setPacienteId] = useState(route.params?.pacienteId || null);
   const [modoAvulso, setModoAvulso] = useState(false);
@@ -65,11 +117,12 @@ const Calculadora = ({ navigation, route }) => {
 
   const paciente = pacientes.find((item) => item.id === pacienteId) || null;
   const sexo = modoAvulso ? sexoAvulso : paciente ? paciente.sexo : null;
+  // normalizarData porque a API entrega a data como texto ISO, e daqui para
+  // baixo ela é tratada como Date (comparada com a data da visita e lida com
+  // getTime()). Sem isso, um paciente vindo do banco quebrava o cálculo.
   const nascimento = modoAvulso
     ? converterDataBR(nascimentoAvulso)
-    : paciente
-      ? paciente.nascimento
-      : null;
+    : normalizarData(paciente?.nascimento);
   const dataDaVisita = converterDataBR(dataVisita);
 
   const temIdade = Boolean(nascimento && dataDaVisita && dataDaVisita >= nascimento);
@@ -181,8 +234,14 @@ const Calculadora = ({ navigation, route }) => {
           <Text style={estilos.rotuloFaixa}>Faixa de referência</Text>
           <Text style={estilos.valorFaixa}>{faixa.titulo}</Text>
         </View>
+        {/*
+          Navega em vez de voltar: quem entrou pela ficha do paciente não
+          passou pela escolha de faixa, e um goBack() levaria de volta à
+          ficha. O navigate volta à tela de escolha quando ela está na
+          pilha e a abre quando não está.
+        */}
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('FaixaCalculadora', { pacienteId })}
           accessibilityRole="button"
           accessibilityLabel="Trocar a faixa de referência"
         >
@@ -194,30 +253,37 @@ const Calculadora = ({ navigation, route }) => {
       <Cartao>
         <Text style={estilos.tituloCartao}>Paciente</Text>
 
-        <Alternador
-          opcoes={[
-            { valor: 'cadastrado', rotulo: 'Paciente cadastrado' },
-            { valor: 'avulso', rotulo: 'Cálculo avulso' },
-          ]}
-          valor={modoAvulso ? 'avulso' : 'cadastrado'}
-          aoMudar={trocarModo}
-          estilo={estilos.alternadorModo}
-        />
+        {!pacienteTravado ? (
+          <Alternador
+            opcoes={[
+              { valor: 'cadastrado', rotulo: 'Paciente cadastrado' },
+              { valor: 'avulso', rotulo: 'Cálculo avulso' },
+            ]}
+            valor={modoAvulso ? 'avulso' : 'cadastrado'}
+            aoMudar={trocarModo}
+            estilo={estilos.alternadorModo}
+          />
+        ) : null}
 
         {!modoAvulso ? (
           <View>
-            <CampoBusca valor={busca} aoMudar={setBusca} placeholder="Nome ou CPF" />
+            {!pacienteTravado ? (
+              <View>
+                {/* Sem CPF: o cadastro do paciente não guarda esse dado. */}
+                <CampoBusca valor={busca} aoMudar={setBusca} placeholder="Nome do paciente" />
 
-            {resultadosDaBusca.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={estilos.itemBusca}
-                onPress={() => selecionarPaciente(item.id)}
-              >
-                <Avatar nome={item.nome} tamanho={34} />
-                <Text style={estilos.nomeBusca}>{item.nome}</Text>
-              </TouchableOpacity>
-            ))}
+                {resultadosDaBusca.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={estilos.itemBusca}
+                    onPress={() => selecionarPaciente(item.id)}
+                  >
+                    <Avatar nome={item.nome} tamanho={34} />
+                    <Text style={estilos.nomeBusca}>{item.nome}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
 
             {paciente ? (
               <View style={estilos.pacienteSelecionado}>
@@ -232,6 +298,12 @@ const Calculadora = ({ navigation, route }) => {
                 <Icone nome="check" tamanho={20} cor={cores.verdeBotao} espessura={3} />
               </View>
             ) : null}
+            {/*
+              O erro de carregamento aparece aqui porque, com o paciente
+              travado, não há busca para contornar: sem este aviso a tela
+              ficaria só com um cartão vazio e nenhuma explicação.
+            */}
+            {erroPacientes ? <Text style={estilos.erro}>{erroPacientes}</Text> : null}
             {erros.paciente ? <Text style={estilos.erro}>{erros.paciente}</Text> : null}
           </View>
         ) : (
@@ -270,7 +342,7 @@ const Calculadora = ({ navigation, route }) => {
           />
           <CampoTexto
             rotulo="Idade na visita"
-            valor={idadeEmMeses === null ? '—' : formatarIdade(idadeEmMeses)}
+            valor={idadeEmMeses === null ? '—' : formatarIdadeEmAnos(idadeEmMeses)}
             somenteLeitura
             // Sem o cadeado: "10 anos e 5 meses" não cabia ao lado dele.
             mostrarCadeado={false}

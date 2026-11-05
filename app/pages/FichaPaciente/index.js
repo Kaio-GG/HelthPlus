@@ -32,6 +32,7 @@ import {
 } from '../../utilitarios/datas';
 
 import { formatarNumero } from '../../utilitarios/formatos';
+import { faixaDaIdade } from '../../utilitarios/oms/faixasOms';
 import { estilos } from './style';
 
 const abasDaFicha = [
@@ -229,10 +230,25 @@ const FichaPaciente = ({ navigation, route }) => {
     ? historicoPeso[historicoPeso.length - 1].valor
     : null;
 
-  const novaAvaliacao = () =>
-    navigation.navigate('FaixaCalculadora', {
+  // Daqui a calculadora abre direto, sem passar pela escolha da faixa: a
+  // data de nascimento do paciente já diz qual referência da OMS vale, e
+  // perguntar seria pedir ao nutricionista um dado que a ficha tem.
+  //
+  // Sem data de nascimento não há como saber a faixa — aí sim a tela de
+  // escolha aparece, em vez de a calculadora abrir na referência errada.
+  const novaAvaliacao = () => {
+    const faixa = faixaDaIdade(calcularIdadeEmMeses(paciente.nascimento));
+
+    if (!faixa) {
+      navigation.navigate('FaixaCalculadora', { pacienteId: paciente.id });
+      return;
+    }
+
+    navigation.navigate('Calculadora', {
+      faixa: faixa.chave,
       pacienteId: paciente.id,
     });
+  };
 
   const criarPlano = () =>
     navigation.navigate('CriarPlanoAlimentar', {
