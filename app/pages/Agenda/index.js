@@ -5,6 +5,7 @@ import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Calendario from '../../componentes/Calendario';
 import Selo from '../../componentes/Selo';
+import Botao from '../../componentes/Botao';
 import BotaoCircular from '../../componentes/BotaoCircular';
 import { useDados } from '../../contexto/DadosContexto';
 import { useDialogo } from '../../contexto/DialogoContexto';
@@ -31,6 +32,10 @@ const Agenda = ({ navigation }) => {
   const consultasDoDia = consultas
     .filter((item) => mesmoDia(item.inicio, diaSelecionado))
     .sort((a, b) => a.inicio - b.inicio);
+
+  // Abre o agendamento já com o dia que está selecionado no calendário.
+  const marcarConsulta = () =>
+    navigation.navigate('NovaConsulta', { dataMs: diaSelecionado.getTime() });
 
   // Abre as ações possíveis para a consulta tocada.
   const abrirAcoes = async (consulta) => {
@@ -67,7 +72,7 @@ const Agenda = ({ navigation }) => {
           icone="mais"
           tamanho={46}
           acessibilidade="Nova consulta"
-          aoPressionar={() => navigation.navigate('NovaConsulta', { dataMs: diaSelecionado.getTime() })}
+          aoPressionar={marcarConsulta}
         />
       }
     >
@@ -109,6 +114,11 @@ const Agenda = ({ navigation }) => {
           </TouchableOpacity>
         );
       })}
+
+      {/* Sempre visível, com ou sem consultas no dia. */}
+      <View style={{ marginTop: 16 }}>
+        <Botao titulo="Marcar consulta neste dia" variante="contorno" aoPressionar={marcarConsulta} />
+      </View>
     </Tela>
   );
 };

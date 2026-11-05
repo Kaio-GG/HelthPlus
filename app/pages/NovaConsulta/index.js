@@ -15,6 +15,7 @@ import { useDados } from '../../contexto/DadosContexto';
 import { useDialogo } from '../../contexto/DialogoContexto';
 import { useAuth } from '../../contexto/AuthContext';
 import { criarNotificacao } from '../../Api/notificacoes';
+import { criarConsulta } from '../../Api/consultas';
 import { duracoesDisponiveis, tiposDeConsulta, horariosDisponiveis } from '../../dados/consultas';
 import { cores } from '../../tema';
 import { aplicarMascaraData, aplicarMascaraTelefone } from '../../utilitarios/mascaras';
@@ -22,10 +23,14 @@ import { converterDataBR, formatarDataBR, criarData } from '../../utilitarios/da
 import { normalizarTexto } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
+// Date -> "2026-11-04" (formato que o banco espera, no horário local)
+const dataParaISO = (data) =>
+  `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
+
 const NovaConsulta = ({ navigation, route }) => {
   const { avisar } = useDialogo();
   const { pacientes, adicionarConsulta } = useDados();
-  const { profissional } = useAuth();
+  const { profissional, token } = useAuth();
 
   const dataInicial = route.params?.dataMs ? new Date(route.params.dataMs) : new Date();
 
@@ -41,6 +46,7 @@ const NovaConsulta = ({ navigation, route }) => {
   const [observacoes, setObservacoes] = useState('');
   const [notificar, setNotificar] = useState(true);
   const [erros, setErros] = useState({});
+  const [salvando, setSalvando] = useState(false);
 
   const pacienteEscolhido = pacientes.find((item) => item.id === pacienteId) || null;
 
@@ -49,6 +55,8 @@ const NovaConsulta = ({ navigation, route }) => {
     : [];
 
   const agendar = async () => {
+    if (salvando) return;
+
     const novosErros = {};
     const ehAvulso = tipoPaciente === 'avulso';
 
@@ -60,6 +68,14 @@ const NovaConsulta = ({ navigation, route }) => {
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0) return;
 
+    if (!token) {
+      avisar({
+        titulo: 'Sessão expirada',
+        mensagem: 'Entre novamente na sua conta para agendar consultas.',
+      });
+      return;
+    }
+
     const [hora, minuto] = horario.split(':').map(Number);
     const inicio = criarData(
       dataDaConsulta.getFullYear(),
@@ -68,42 +84,69 @@ const NovaConsulta = ({ navigation, route }) => {
       hora,
       minuto
     );
+    const duracaoEmMinutos = parseInt(duracao, 10);
 
-    // TODO: integrar com a API (criar consulta e enviar notificação ao paciente).
-    adicionarConsulta({
-      pacienteId: ehAvulso ? null : pacienteEscolhido.id,
-      nome: ehAvulso ? nomeAvulso.trim() : pacienteEscolhido.nome,
-      inicio,
-      duracao: parseInt(duracao, 10),
-      tipo: tipoConsulta,
-      observacoes,
-      status: 'pendente',
-      avulso: ehAvulso,
-    });
+    try {
+      setSalvando(true);
 
-    // Aviso na central de notificações. A consulta em si ainda não vai para
-    // o banco (veja o TODO acima); a notificação já vai.
-    if (profissional?.id_profissional) {
-      criarNotificacao({
-        idProfissional: profissional.id_profissional,
-        tipo: 'consulta',
-        titulo: 'Consulta agendada',
-        mensagem:
-          (ehAvulso ? nomeAvulso.trim() : pacienteEscolhido.nome) +
-          ' em ' +
-          formatarDataBR(inicio) +
-          ' às ' +
-          horario,
-        rota: 'Agenda',
-      }).catch(() => {});
+      const resposta = await criarConsulta(
+        {
+          // idBanco existe nos pacientes que vieram do banco.
+          idPaciente: ehAvulso ? null : pacienteEscolhido.idBanco ?? pacienteEscolhido.id,
+          nomeAvulso: ehAvulso ? nomeAvulso.trim() : null,
+          telefoneAvulso: ehAvulso ? telefoneAvulso : null,
+          data: dataParaISO(dataDaConsulta),
+          horario, // "09:30"
+          duracao: duracaoEmMinutos,
+          tipo: tipoConsulta,
+          observacoes: observacoes.trim(),
+          notificar: ehAvulso ? false : notificar,
+        },
+        token
+      );
+
+      // Mantém a agenda local atualizada (provisório, até a Agenda ler do banco).
+      adicionarConsulta({
+        idBanco: resposta.idConsulta,
+        pacienteId: ehAvulso ? null : pacienteEscolhido.id,
+        nome: ehAvulso ? nomeAvulso.trim() : pacienteEscolhido.nome,
+        inicio,
+        duracao: duracaoEmMinutos,
+        tipo: tipoConsulta,
+        observacoes,
+        status: 'pendente',
+        avulso: ehAvulso,
+      });
+
+      // Aviso na central de notificações. Um aviso que falha não pode
+      // atrapalhar uma consulta que já foi agendada, por isso o catch vazio.
+      if (profissional?.id_profissional) {
+        criarNotificacao({
+          idProfissional: profissional.id_profissional,
+          tipo: 'consulta',
+          titulo: 'Consulta agendada',
+          mensagem:
+            (ehAvulso ? nomeAvulso.trim() : pacienteEscolhido.nome) +
+            ' em ' +
+            formatarDataBR(inicio) +
+            ' às ' +
+            horario,
+          rota: 'Agenda',
+        }).catch(() => {});
+      }
+
+      await avisar({
+        titulo: 'Consulta agendada!',
+        mensagem: 'A consulta foi adicionada à sua agenda.',
+        tom: 'sucesso',
+      });
+      navigation.replace('Agenda');
+    } catch (erro) {
+      console.log('[NovaConsulta] ERRO:', erro);
+      avisar({ titulo: 'Não foi possível agendar', mensagem: erro.message });
+    } finally {
+      setSalvando(false);
     }
-
-    await avisar({
-      titulo: 'Consulta agendada!',
-      mensagem: 'A consulta foi adicionada à sua agenda.',
-      tom: 'sucesso',
-    });
-    navigation.replace('Agenda');
   };
 
   return (
@@ -113,7 +156,12 @@ const NovaConsulta = ({ navigation, route }) => {
       rodape={
         <View style={estilos.linhaBotoes}>
           <Botao titulo="Cancelar" variante="contorno" aoPressionar={() => navigation.goBack()} estilo={estilos.botaoCancelar} />
-          <Botao titulo="Agendar consulta" aoPressionar={agendar} estilo={estilos.botaoAgendar} />
+          <Botao
+            titulo={salvando ? 'Agendando...' : 'Agendar consulta'}
+            aoPressionar={agendar}
+            desabilitado={salvando}
+            estilo={estilos.botaoAgendar}
+          />
         </View>
       }
     >

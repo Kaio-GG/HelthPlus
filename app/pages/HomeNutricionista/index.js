@@ -131,6 +131,10 @@ const HomeNutricionista = ({ navigation }) => {
     if (novo >= 0 && novo <= 6) setDeslocamentoDia(novo);
   };
 
+  // Abre o agendamento já com o dia que está sendo visto nesta tela.
+  const marcarConsulta = () =>
+    navigation.navigate("NovaConsulta", { dataMs: diaSelecionado.getTime() });
+
   // Ao trocar de dia, a lista de consultas volta para o início
   useEffect(() => {
     posicaoLista.current = 0;
@@ -259,7 +263,7 @@ const HomeNutricionista = ({ navigation }) => {
         {consultasDoDia.length === 0 ? (
           <TouchableOpacity
             style={estilos.caixaVazia}
-            onPress={() => navigation.navigate("NovaConsulta")}
+            onPress={marcarConsulta}
             activeOpacity={0.8}
           >
             <View style={estilos.circuloVazio}>
@@ -269,77 +273,87 @@ const HomeNutricionista = ({ navigation }) => {
             <Text style={estilos.vazioAcao}>Marcar uma consulta</Text>
           </TouchableOpacity>
         ) : (
-          <View style={estilos.linhaConsultas}>
-            {mostrarSetasLista && (
-              <TouchableOpacity
-                onPress={() => rolarConsultas(-1)}
-                style={estilos.setaLista}
-                hitSlop={8}
-              >
-                <Icone
-                  nome="chevron-esquerda"
-                  tamanho={14}
-                  cor={cores.verdeEscuro}
-                />
-              </TouchableOpacity>
-            )}
+          <>
+            <View style={estilos.linhaConsultas}>
+              {mostrarSetasLista && (
+                <TouchableOpacity
+                  onPress={() => rolarConsultas(-1)}
+                  style={estilos.setaLista}
+                  hitSlop={8}
+                >
+                  <Icone
+                    nome="chevron-esquerda"
+                    tamanho={14}
+                    cor={cores.verdeEscuro}
+                  />
+                </TouchableOpacity>
+              )}
 
-            <ScrollView
-              key={deslocamentoDia}
-              ref={listaConsultasRef}
-              style={estilos.listaConsultas}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              scrollEventThrottle={16}
-              onScroll={(evento) => {
-                posicaoLista.current = evento.nativeEvent.contentOffset.x;
-              }}
-            >
-              {consultasDoDia.map((consulta) => {
-                const fim = new Date(
-                  consulta.inicio.getTime() + consulta.duracao * 60000,
-                );
-                return (
-                  <View key={consulta.id} style={estilos.cartaoConsulta}>
-                    <View style={estilos.topoConsulta}>
-                      <View style={estilos.avatarConsulta}>
-                        <Icone
-                          nome="usuario"
-                          tamanho={26}
-                          cor={cores.verdeEscuro}
-                        />
+              <ScrollView
+                key={deslocamentoDia}
+                ref={listaConsultasRef}
+                style={estilos.listaConsultas}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                scrollEventThrottle={16}
+                onScroll={(evento) => {
+                  posicaoLista.current = evento.nativeEvent.contentOffset.x;
+                }}
+              >
+                {consultasDoDia.map((consulta) => {
+                  const fim = new Date(
+                    consulta.inicio.getTime() + consulta.duracao * 60000,
+                  );
+                  return (
+                    <View key={consulta.id} style={estilos.cartaoConsulta}>
+                      <View style={estilos.topoConsulta}>
+                        <View style={estilos.avatarConsulta}>
+                          <Icone
+                            nome="usuario"
+                            tamanho={26}
+                            cor={cores.verdeEscuro}
+                          />
+                        </View>
+                      </View>
+                      <View style={estilos.baseConsulta}>
+                        <Text style={estilos.nomeConsulta} numberOfLines={1}>
+                          {consulta.nome}
+                        </Text>
+                        <Text style={estilos.horaConsulta}>
+                          {formatarHora(consulta.inicio)} - {formatarHora(fim)}
+                        </Text>
+                        <Text style={estilos.acessoConsulta}>
+                          Acesso: {consulta.avulso ? "Sem app" : "App"}
+                        </Text>
                       </View>
                     </View>
-                    <View style={estilos.baseConsulta}>
-                      <Text style={estilos.nomeConsulta} numberOfLines={1}>
-                        {consulta.nome}
-                      </Text>
-                      <Text style={estilos.horaConsulta}>
-                        {formatarHora(consulta.inicio)} - {formatarHora(fim)}
-                      </Text>
-                      <Text style={estilos.acessoConsulta}>
-                        Acesso: {consulta.avulso ? "Sem app" : "App"}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </ScrollView>
+                  );
+                })}
+              </ScrollView>
 
-            {mostrarSetasLista && (
-              <TouchableOpacity
-                onPress={() => rolarConsultas(1)}
-                style={estilos.setaLista}
-                hitSlop={8}
-              >
-                <Icone
-                  nome="chevron-direita"
-                  tamanho={14}
-                  cor={cores.verdeEscuro}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
+              {mostrarSetasLista && (
+                <TouchableOpacity
+                  onPress={() => rolarConsultas(1)}
+                  style={estilos.setaLista}
+                  hitSlop={8}
+                >
+                  <Icone
+                    nome="chevron-direita"
+                    tamanho={14}
+                    cor={cores.verdeEscuro}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Com consultas no dia, o botão continua visível para marcar outra. */}
+            <Botao
+              titulo="Marcar uma consulta"
+              variante="contorno"
+              aoPressionar={marcarConsulta}
+              estilo={estilos.botaoPlano}
+            />
+          </>
         )}
       </Cartao>
 

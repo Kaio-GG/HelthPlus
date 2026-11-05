@@ -43,7 +43,7 @@ export const listarPacientes = async (token) => {
       erro.response?.status,
       erro.response?.data || erro.message
     );
-
+a
     throw new Error(
       erro.response?.data?.mensagem ||
       erro.response?.data?.message ||

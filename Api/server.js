@@ -12,12 +12,16 @@ app.use(express.json());
 const profissionalStorage = require('./storage/profissionalStorage');
 const pacienteStorage = require("./storage/pacienteStorage");
 const planoStorage = require("./storage/planoStorage");
+const consultaStorage = require("./storage/consultaStorage");
+const conviteStorage = require("./storage/conviteStorage");
 const senhaStorage = require("./storage/senhaStorage");
 const notificacaoStorage = require("./storage/notificacaoStorage");
- 
+
 app.use('/api/profissional', profissionalStorage);
 app.use('/api/paciente', pacienteStorage);
 app.use('/api/plano', planoStorage);
+app.use('/api/consulta', consultaStorage);
+app.use('/api/convite', conviteStorage);
 // As rotas de senha ficam fora de /api/profissional de proposito: o
 // PUT /api/profissional/:id, que ja existe, capturaria /api/profissional/senha.
 app.use("/api/senha", senhaStorage);
