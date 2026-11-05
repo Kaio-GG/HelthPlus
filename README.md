@@ -28,12 +28,12 @@ mysql -u root -p -e "source Api/database/schema.sql"
 ```
 
 Isso cria o banco `helthplus` (sem o "a", foi assim que ele nasceu) com as
-17 tabelas do projeto.
+24 tabelas do projeto.
 
-> **Já tem o banco de antes?** Rode o script de novo. Ele é idempotente, e
-> as três tabelas mais novas (`token_senha`, `notificacao` e
-> `preferencia_notificacao`) só aparecem depois disso — sem elas, a troca de
-> senha e as notificações respondem erro 500.
+> **Já tem o banco de antes? Rode o script de novo.** Ele é idempotente:
+> só `CREATE TABLE IF NOT EXISTS`, não apaga nem altera o que já está lá.
+> As tabelas criadas depois do dump original (logo abaixo) só aparecem no
+> seu banco depois disso.
 
 > **No Windows**, o `mysql` normalmente não está no PATH, e o PowerShell
 > não aceita o operador `<` — por isso o `-e "source ..."` acima, no lugar
@@ -50,6 +50,52 @@ Isso cria o banco `helthplus` (sem o "a", foi assim que ele nasceu) com as
 > `Api/database/schema.sql` é a fonte da verdade do banco. Se uma query nova
 > precisar de uma coluna ou tabela, acrescente no arquivo **no mesmo commit** —
 > senão o banco de quem baixar o código não vai bater com o código.
+
+### Tabelas criadas depois do dump original
+
+O banco que nasceu do `Dump20261021/` tem 14 tabelas. As 10 de baixo vieram
+depois, uma a cada funcionalidade nova, e **só existem no seu banco depois
+que você roda o `schema.sql` de novo**. Sem elas a tela abre normalmente e a
+API responde erro 500 (`ER_NO_SUCH_TABLE`) na hora de usar.
+
+| Tabela | Para que serve | O que não funciona sem ela |
+|---|---|---|
+| `token_senha` | Códigos de redefinição de senha do nutricionista | "Esqueci minha senha" |
+| `token_senha_paciente` | O mesmo, para a conta do paciente | "Esqueci minha senha" do paciente |
+| `notificacao` | Avisos do sino | O sino e a tela de notificações |
+| `preferencia_notificacao` | Quais avisos a pessoa quer receber, inclusive por e-mail | As preferências e o aviso por e-mail |
+| `consentimento_paciente` | Aceite dos termos, gravado no primeiro acesso | **O primeiro acesso do paciente** |
+| `plano_alimentar` | O plano do paciente: período, metas e estado | Criar e salvar plano alimentar |
+| `plano_refeicao` | As refeições de cada plano | O mesmo |
+| `plano_alimento` | Os alimentos de cada refeição | O mesmo |
+| `assinatura` | O plano pago do nutricionista | Assinar, trocar e cancelar plano — e o plano some ao sair da conta |
+| `cobranca` | Histórico de cobranças da assinatura | "Ver histórico de cobranças", no Perfil |
+
+Para saber o que falta no **seu** banco sem conferir na mão, rode isto no
+Workbench (ou em qualquer cliente MySQL):
+
+```sql
+SELECT esperadas.nome AS tabela_que_falta
+  FROM (
+    SELECT 'token_senha' AS nome
+    UNION ALL SELECT 'token_senha_paciente'
+    UNION ALL SELECT 'notificacao'
+    UNION ALL SELECT 'preferencia_notificacao'
+    UNION ALL SELECT 'consentimento_paciente'
+    UNION ALL SELECT 'plano_alimentar'
+    UNION ALL SELECT 'plano_refeicao'
+    UNION ALL SELECT 'plano_alimento'
+    UNION ALL SELECT 'assinatura'
+    UNION ALL SELECT 'cobranca'
+  ) esperadas
+  LEFT JOIN information_schema.tables t
+    ON t.table_schema = 'helthplus'
+   AND t.table_name = esperadas.nome
+ WHERE t.table_name IS NULL;
+```
+
+Nenhuma linha = está tudo lá. Qualquer linha que aparecer = rode o
+`schema.sql` de novo; ele cria só o que falta.
 
 ### Usuário do banco (recomendado)
 
@@ -81,16 +127,56 @@ npm run dev
 A API sobe em `http://localhost:3000`. Para conferir, abra esse endereço no
 navegador: deve aparecer `{"mensagem":"API HelthPlus funcionando!"}`.
 
-### E-mail (opcional)
+### E-mail
 
-O "esqueci minha senha" funciona **sem configurar nada**: sem SMTP no `.env`,
-a API não envia o e-mail — ela imprime a mensagem no próprio terminal, com o
-código de redefinição. É só copiar o código de lá e colar no aplicativo, na
-tela *Verifique seu e-mail*.
+Os e-mails do projeto (convite do paciente, redefinição de senha, convite
+para testar o app — a lista completa está em
+[E-mails que a API envia](#e-mails-que-a-api-envia)) saem todos pelas
+mesmas variáveis do `Api/.env`.
 
-Para enviar de verdade, preencha as variáveis `SMTP_*` do `Api/.env`
-(o `.env.example` traz os dados de Gmail, Brevo e Mailtrap). Nada no código
-muda: a mesma rota passa a enviar.
+**Sem configurar nada, tudo continua testável.** Com o `SMTP_PASSWORD` em
+branco a API **não envia**: ela imprime a mensagem inteira no próprio
+terminal — com o código de redefinição e com a senha provisória do
+paciente — e o aplicativo avisa na tela que o e-mail só foi para o
+terminal. É só copiar de lá.
+
+Para enviar **de verdade**, o `Api/.env` fica assim:
+
+```ini
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=health.plus.brazil@gmail.com
+SMTP_PASSWORD=                 # <- a senha de app, 16 letras, sem espaços
+SMTP_REMETENTE=Health Plus <health.plus.brazil@gmail.com>
+
+LINK_TESTE_APP=                # <- link de instalação do convite de teste
+```
+
+A conta de envio do projeto é a **health.plus.brazil@gmail.com**. O que
+falta é só o `SMTP_PASSWORD`, e **a senha normal da conta não serve**: o
+Gmail recusa senha de conta em programas desde 2022. É preciso uma *senha
+de app*. Logado nessa conta:
+
+1. **myaccount.google.com/security** → ligue a **Verificação em duas
+   etapas** (sem ela o Google nem mostra a opção de senha de app);
+2. **myaccount.google.com/apppasswords** → nome `Health Plus API` → **Criar**;
+3. copie as **16 letras**, cole em `SMTP_PASSWORD=` tudo junto, sem espaços,
+   e reinicie a API (`Ctrl+C` e `npm run dev`).
+
+Para conferir que pegou: peça um "esqueci minha senha" no aplicativo. Se o
+e-mail chegar na caixa, está valendo; se aparecer no terminal da API, a
+senha ainda não foi aceita.
+
+O `LINK_TESTE_APP` é o endereço de instalação que vai no convite enviado em
+**Perfil → Convidar alguém para testar**. Enquanto o app não estiver na Play
+Store é o link do Expo ou do APK — ele muda a cada rodada de teste, por isso
+fica no `.env` e não no código. Em branco, essa rota recusa o envio e diz o
+motivo na tela.
+
+> A senha de app vale para a conta inteira: quem a tiver no `.env` envia
+> e-mail em nome do projeto. Ela fica **só** no `Api/.env`, que não vai para
+> o Git. Não cole a senha em commit, print ou mensagem.
+
 
 ## 3. Aplicativo
 
@@ -186,6 +272,80 @@ Nomes de variáveis, funções, textos e comentários **em português**.
 Detalhes das telas: [app/TELAS.md](app/TELAS.md).
 Regras para quem usa assistente de código: [app/AGENTS.md](app/AGENTS.md).
 
+## O que é da sua máquina (e por isso quebra na do colega)
+
+Boa parte do projeto **não está no Git**, de propósito: ou é segredo, ou é
+diferente em cada computador. Quando algo "funciona aqui e não lá", é quase
+sempre um item desta lista. Ela vale nos dois sentidos — ao clonar o
+projeto, e ao mandar uma funcionalidade nova para a equipe.
+
+### 1. O banco é de cada um
+
+Cada pessoa cria o `helthplus` na própria máquina, e o Git **não** carrega
+banco nenhum. Então:
+
+- **Tabela nova = ninguém mais tem.** Toda funcionalidade que precisa de
+  tabela ou coluna nova só funciona no computador de quem rodou o
+  `schema.sql` depois da mudança. É o erro mais comum aqui: a tela abre, o
+  botão responde, e a API devolve 500 com `ER_NO_SUCH_TABLE`. A lista das
+  tabelas que vieram depois do dump, e a consulta que mostra o que falta
+  no seu banco, estão em
+  [Tabelas criadas depois do dump original](#tabelas-criadas-depois-do-dump-original).
+- **Quem muda uma query, atualiza o `Api/database/schema.sql` no mesmo
+  commit.** Esse arquivo é a única fonte da verdade do banco; quem baixa o
+  código roda ele de novo e fica em dia.
+- **O `schema.sql` cria tabela, mas não acrescenta coluna.** Ele é todo
+  `CREATE TABLE IF NOT EXISTS`: se a tabela já existe com o formato antigo,
+  rodar de novo não muda nada. Coluna nova em tabela que já existe precisa
+  de um `ALTER TABLE` avisado para a equipe.
+- **Os ids não batem entre as máquinas.** O paciente 3 aqui não é o
+  paciente 3 lá. Nunca escreva um id fixo no código nem em teste.
+- **Os dados são seus.** Contas, pacientes e planos que você cadastrou não
+  existem para ninguém mais. O dump em `Dump20261021/` não entra no Git
+  (tem hash de senha e dado de paciente).
+- **MySQL 8.** O schema usa `utf8mb4_0900_ai_ci`, que o 5.7 não conhece.
+- **O banco chama `helthplus`**, sem o "a". Com outro nome no `DB_NAME`, a
+  API sobe e só falha nas consultas (`ER_BAD_DB_ERROR`).
+
+### 2. Os dois arquivos `.env`
+
+Nenhum dos dois vai para o Git (estão no `.gitignore`). Cada um copia o
+`.env.example` do lado e preenche:
+
+| Arquivo | Variável | Por que é de cada máquina | Sem ela |
+|---|---|---|---|
+| `Api/.env` | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | A senha do MySQL é de cada instalação | `ER_ACCESS_DENIED_ERROR` ao subir a API |
+| `Api/.env` | `PORT` | Só muda se a 3000 estiver ocupada | — |
+| `Api/.env` | `JWT_SECRET` | É um segredo, gerado por quem instala | Login responde "Erro interno ao realizar login" |
+| `Api/.env` | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_REMETENTE` | A senha de app do Gmail é segredo | A API não envia e-mail: imprime no terminal dela |
+| `Api/.env` | `LINK_TESTE_APP` | Muda a cada rodada de teste | O convite para testar recusa o envio |
+| `app/.env` | `EXPO_PUBLIC_API_URL` | É o IP da **sua** máquina na rede Wi-Fi | "Network Error" em toda tela do aplicativo |
+
+Dois detalhes que pegam gente desprevenida:
+
+- O `EXPO_PUBLIC_API_URL` **muda sozinho**: o roteador entrega o IP por
+  DHCP e ele troca depois de um reinício. O sintoma ("não consigo criar
+  conta") não aponta para o `.env`. Rode `ipconfig`, confira, e recarregue
+  o aplicativo no celular.
+- Quem **não** tiver a senha de app no `SMTP_PASSWORD` continua
+  desenvolvendo normalmente: o e-mail aparece no terminal da API, com o
+  código e a senha provisória. Não é bug.
+
+### 3. O resto
+
+- **`npm install` em duas pastas**, `Api/` e `app/`. Cada uma tem o seu
+  `package-lock.json`; o `node_modules` não vai para o Git.
+- **Maiúsculas e minúsculas nos nomes de arquivo.** O Windows não
+  diferencia `conviteStorage.js` de `ConviteStorage.js`; o Linux e o macOS
+  diferenciam. Um `require` com a letra trocada funciona aqui e quebra lá
+  (e no servidor). Se renomear um arquivo só na caixa, use
+  `git mv -f nome.js Nome.js`, senão o Git não enxerga a troca.
+- **A pasta sincronizada.** O projeto está dentro do OneDrive, e o
+  sincronizador tranca arquivos de `node_modules` enquanto o Metro lê —
+  daí os erros estranhos do Expo. Veja *Problemas comuns*.
+- **O Firewall do Windows** bloqueia a porta 3000 na primeira vez. O
+  celular só alcança a API depois de liberar.
+
 ## Problemas comuns
 
 **"Network Error" ao fazer login no celular**
@@ -224,22 +384,41 @@ npx expo start
 Usuário ou senha do MySQL errados no `Api/.env`.
 
 **`ER_NO_SUCH_TABLE`** ou **`ER_BAD_DB_ERROR`**
-Você ainda não rodou o `schema.sql` do passo 1, ou o `DB_NAME` do
-`Api/.env` não é `helthplus`.
+Você ainda não rodou o `schema.sql` do passo 1 **depois da última
+funcionalidade nova**, ou o `DB_NAME` do `Api/.env` não é `helthplus`.
+A consulta em [Tabelas criadas depois do dump
+original](#tabelas-criadas-depois-do-dump-original) mostra o que falta no
+seu banco.
+
+**O e-mail não chega, mas aparece no terminal da API**
+Não é bug: o `SMTP_PASSWORD` do `Api/.env` está vazio. Veja
+[E-mail](#e-mail).
 
 ## Estado atual
 
 Funcionando de ponta a ponta, gravando no banco: cadastro e login do
-nutricionista, sessão que sobrevive a fechar o app, cadastro de paciente,
-edição dos dados do perfil, troca de senha (pelo perfil e por e-mail) e a
-central de notificações com as preferências.
+nutricionista, sessão que sobrevive a fechar o app, cadastro, listagem e
+exclusão de paciente, convite de primeiro acesso do paciente, edição dos
+dados do perfil, troca de senha (pelo perfil e por e-mail), a central de
+notificações com as preferências e a assinatura do plano pago, com o
+histórico de cobranças.
+
+A contagem de pacientes do plano ("2 de 10") sai da mesma lista que a tela
+de pacientes, lida do banco.
 
 A calculadora da OMS funciona inteira, mas em memória: o resultado só vai
 para a ficha do paciente enquanto o app está aberto.
 
-Ainda em dados de exemplo: agenda, planos alimentares, avaliações salvas,
-área do paciente e assinatura. As telas existem e navegam, mas ainda não
-gravam no banco — procure por `TODO: integrar com a API`.
+Pela metade: o plano alimentar **grava** no banco quando é criado, mas a
+tela que lista os planos ainda lê a lista da memória — fechou o app, a
+lista volta vazia.
+
+Ainda em dados de exemplo: agenda, avaliações salvas e a área do paciente.
+As telas existem e navegam, mas ainda não gravam no banco — procure por
+`TODO: integrar com a API`.
+
+A assinatura grava o plano e a cobrança, mas **não há cobrança de verdade**:
+não existe gateway de pagamento ligado.
 
 ### Tabelas da OMS
 
