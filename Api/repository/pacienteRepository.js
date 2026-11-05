@@ -539,6 +539,92 @@ async function obterEvolucaoPaciente(idPaciente) {
   };
 }
 
+// --------------------------------------------------
+// Exclusão do paciente
+//
+// Apaga de verdade, e leva junto tudo o que pendurado nele: o acesso ao
+// aplicativo, as avaliações (com as medidas e os resultados), os planos
+// alimentares, os consentimentos e a participação em inquéritos.
+//
+// É em transação porque são oito DELETEs: se o quinto falhasse, o
+// paciente ficaria pela metade — sem avaliações e ainda na lista.
+//
+// A ordem importa: o banco recusa apagar uma linha que outra ainda
+// aponta. Só token_senha_paciente sai sozinho, por ON DELETE CASCADE.
+//
+// O id_profissional entra na checagem para um nutricionista não apagar o
+// paciente de outro.
+// --------------------------------------------------
+
+async function excluirPaciente(idPaciente, idProfissional) {
+  const conn = await connection.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const [dono] = await conn.query(
+      'SELECT nm_paciente FROM paciente WHERE id_paciente = ? AND id_profissional = ?',
+      [idPaciente, idProfissional]
+    );
+
+    if (dono.length === 0) {
+      const erro = new Error(
+        'Paciente não encontrado na sua lista.'
+      );
+      erro.codigo = 'PACIENTE_NAO_ENCONTRADO';
+      throw erro;
+    }
+
+    // Resultados e medidas penduram nas avaliações, não no paciente.
+    await conn.query(
+      `DELETE r FROM resultado_avaliacao r
+         JOIN avaliacao a ON a.id_avaliacao = r.id_avaliacao
+        WHERE a.id_paciente = ?`,
+      [idPaciente]
+    );
+
+    await conn.query(
+      `DELETE m FROM medida_antropometrica m
+         JOIN avaliacao a ON a.id_avaliacao = m.id_avaliacao
+        WHERE a.id_paciente = ?`,
+      [idPaciente]
+    );
+
+    await conn.query('DELETE FROM avaliacao WHERE id_paciente = ?', [idPaciente]);
+
+    // As refeições e os alimentos do plano saem por CASCADE.
+    await conn.query('DELETE FROM plano_alimentar WHERE id_paciente = ?', [idPaciente]);
+
+    await conn.query('DELETE FROM consentimento_paciente WHERE id_paciente = ?', [
+      idPaciente,
+    ]);
+
+    await conn.query('DELETE FROM inquerito_paciente WHERE id_paciente = ?', [
+      idPaciente,
+    ]);
+
+    // O acesso ao aplicativo. Os pedidos de redefinição de senha dele
+    // (token_senha_paciente) saem com o paciente, por CASCADE.
+    await conn.query('DELETE FROM usuario_paciente WHERE id_paciente = ?', [
+      idPaciente,
+    ]);
+
+    await conn.query(
+      'DELETE FROM paciente WHERE id_paciente = ? AND id_profissional = ?',
+      [idPaciente, idProfissional]
+    );
+
+    await conn.commit();
+
+    return { nome: dono[0].nm_paciente };
+  } catch (erro) {
+    await conn.rollback();
+    throw erro;
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   inserirPaciente,
   listarPacientesPorProfissional,
@@ -546,4 +632,5 @@ module.exports = {
   autenticarPaciente,
   ativarContaPaciente,
   obterEvolucaoPaciente,
+  excluirPaciente,
 };

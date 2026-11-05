@@ -8,6 +8,7 @@ const {
   autenticarPaciente,
   ativarContaPaciente,
   obterEvolucaoPaciente,
+  excluirPaciente,
 } = require('../repository/pacienteRepository');
 
 // Modelo do e-mail de convite (usa o serviço de e-mail do projeto).
@@ -141,6 +142,54 @@ router.get('/:id', autenticar, async (req, res) => {
 
     return res.status(500).json({
       mensagem: 'Erro ao buscar a ficha do paciente.',
+    });
+  }
+});
+
+// Apaga o paciente e tudo o que está pendurado nele.
+//
+// Apaga de verdade, e não marca como inativo: quem pede para excluir um
+// paciente costuma estar exercendo o direito de eliminação dos dados
+// (LGPD), e nesse caso guardar uma cópia "inativa" seria justamente o
+// que não se quer. Quem só quer tirar da lista do dia a dia deveria
+// arquivar — isso ainda não existe, e está dito na tela.
+//
+// O id do nutricionista sai do token: ninguém apaga o paciente de outro.
+router.delete('/:id', autenticar, async (req, res) => {
+  const idPaciente = Number(req.params.id);
+  const idProfissional = Number(req.usuario.id_profissional);
+
+  if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+    return res.status(400).json({
+      mensagem: 'Identificador de paciente inválido.',
+    });
+  }
+
+  try {
+    const apagado = await excluirPaciente(idPaciente, idProfissional);
+
+    return res.status(200).json({
+      mensagem: `${apagado.nome} foi apagado, com as avaliações e os planos.`,
+    });
+  } catch (erro) {
+    if (erro.codigo === 'PACIENTE_NAO_ENCONTRADO') {
+      return res.status(404).json({ mensagem: erro.message });
+    }
+
+    // Sobrou alguma linha apontando para o paciente numa tabela que
+    // esta rota não conhece. O rollback já desfez o resto.
+    if (erro.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(409).json({
+        mensagem:
+          'Não foi possível apagar: ainda há registros ligados a este ' +
+          'paciente. Avise a equipe.',
+      });
+    }
+
+    console.error('Erro ao apagar paciente:', erro);
+
+    return res.status(500).json({
+      mensagem: 'Erro ao apagar o paciente.',
     });
   }
 });

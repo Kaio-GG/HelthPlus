@@ -18,7 +18,7 @@ import { useDados } from '../../contexto/DadosContexto';
 import { useDialogo } from '../../contexto/DialogoContexto';
 import { useAuth } from '../../contexto/AuthContext';
 
-import { obterPaciente } from '../../Api/Pacientes';
+import { obterPaciente, excluirPaciente } from '../../Api/Pacientes';
 import { reenviarConviteDoPaciente } from '../../Api/convite';
 import { cores } from '../../tema';
 
@@ -47,12 +47,13 @@ const FichaPaciente = ({ navigation, route }) => {
   const {
     avaliacoes,
     planosAlimentares,
+    recarregarPacientes,
     duplicarPlanoAlimentar,
     alternarArquivamentoPlano,
     obterRegistrosDoDia,
   } = useDados();
 
-  const { avisar } = useDialogo();
+  const { avisar, confirmar } = useDialogo();
   const { token } = useAuth();
 
   const [aba, setAba] = useState(route.params?.aba || 'resumo');
@@ -64,6 +65,8 @@ const FichaPaciente = ({ navigation, route }) => {
 
   // Envio do e-mail de primeiro acesso do paciente.
   const [enviandoConvite, setEnviandoConvite] = useState(false);
+
+  const [apagando, setApagando] = useState(false);
 
   // Atualiza a aba quando a tela recebe uma nova aba pela navegação.
   useEffect(() => {
@@ -206,6 +209,51 @@ const FichaPaciente = ({ navigation, route }) => {
       });
     } finally {
       setEnviandoConvite(false);
+    }
+  };
+
+  // Apaga o paciente. Não tem volta, então o aviso diz exatamente o
+  // que vai embora antes de perguntar.
+  const apagarPaciente = async () => {
+    if (apagando || !paciente) return;
+
+    const confirmou = await confirmar({
+      titulo: `Apagar ${paciente.nome}?`,
+      mensagem:
+        'Isto apaga a ficha, as avaliações, os planos alimentares e o ' +
+        'acesso do paciente ao aplicativo. Não é possível desfazer, e ' +
+        'libera uma vaga no seu plano.',
+      rotuloConfirmar: 'Apagar paciente',
+      rotuloCancelar: 'Manter',
+      perigo: true,
+    });
+
+    if (!confirmou) return;
+
+    try {
+      setApagando(true);
+
+      const resposta = await excluirPaciente(paciente.id, token);
+
+      // A lista do contexto é a que conta os pacientes do plano.
+      await recarregarPacientes();
+
+      await avisar({
+        titulo: 'Paciente apagado',
+        mensagem: resposta.mensagem,
+        tom: 'sucesso',
+      });
+
+      // A ficha que estava aberta não existe mais: volta para a lista.
+      navigation.replace('Pacientes');
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível apagar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setApagando(false);
     }
   };
 
@@ -467,6 +515,15 @@ const FichaPaciente = ({ navigation, route }) => {
           estilo={estilos.botaoMetade}
         />
       </View>
+
+      {/* Fica por último, e sozinho, para ninguém tocar sem querer. */}
+      <Botao
+        titulo={apagando ? 'Apagando...' : 'Apagar paciente'}
+        variante="perigo"
+        desabilitado={apagando}
+        aoPressionar={apagarPaciente}
+        estilo={estilos.botaoApagar}
+      />
     </View>
   );
 

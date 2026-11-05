@@ -91,6 +91,46 @@ export const obterPaciente = async (pacienteId, token) => {
   }
 };
 
+// EXCLUSÃO DO PACIENTE
+//
+// Apaga o paciente e tudo o que está pendurado nele (acesso ao
+// aplicativo, avaliações, planos). Não tem volta.
+export const excluirPaciente = async (pacienteId, token) => {
+  try {
+    if (!pacienteId) {
+      throw new Error('O identificador do paciente não foi informado.');
+    }
+
+    if (!token) {
+      throw new Error('Sua sessão expirou. Entre novamente como nutricionista.');
+    }
+
+    const resposta = await api.delete(
+      `/api/paciente/${encodeURIComponent(pacienteId)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return resposta.data;
+  } catch (erro) {
+    console.log(
+      'ERRO AO APAGAR PACIENTE:',
+      erro.response?.status,
+      erro.response?.data || erro.message
+    );
+
+    throw new Error(
+      erro.response?.data?.mensagem ||
+      erro.response?.data?.message ||
+      erro.message ||
+      'Não foi possível apagar o paciente.'
+    );
+  }
+};
+
 // LOGIN DO PACIENTE
 export const loginPaciente = async (email, senha) => {
   try {

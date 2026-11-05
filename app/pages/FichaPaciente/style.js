@@ -61,6 +61,11 @@ export const estilos = StyleSheet.create({
     marginTop: espacamento.md,
   },
 
+  // Apagar paciente: separado dos outros, no fim da aba Resumo.
+  botaoApagar: {
+    marginTop: espacamento.xl,
+  },
+
   botaoMetade: {
     width: '48.5%',
   },
