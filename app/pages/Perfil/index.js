@@ -14,9 +14,11 @@ import { useDados } from '../../contexto/DadosContexto';
 import { useAuth } from '../../contexto/AuthContext';
 import { useDialogo } from '../../contexto/DialogoContexto';
 import { atualizarNutricionista } from '../../Api/loginCadastro';
+import { convidarTestador } from '../../Api/convite';
 import { cores } from '../../tema';
 import { aplicarMascaraTelefone } from '../../utilitarios/mascaras';
 import {
+  emailValido,
   normalizarCrn,
   montarCrn,
   separarCrn,
@@ -29,8 +31,15 @@ import { formatarMoeda } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
 const Perfil = ({ navigation }) => {
-  const { nutricionista, pacientes, planoAtual, limitePacientes, cobrancas } = useDados();
-  const { sairSessao, atualizarProfissional } = useAuth();
+  const {
+    nutricionista,
+    pacientes,
+    planoAtual,
+    limitePacientes,
+    cobrancas,
+    carregandoAssinatura,
+  } = useDados();
+  const { token, sairSessao, atualizarProfissional } = useAuth();
   const { avisar, confirmar } = useDialogo();
 
   const [editando, setEditando] = useState(false);
@@ -39,6 +48,12 @@ const Perfil = ({ navigation }) => {
 const [nome, setNome] = useState(nutricionista?.nm_profissional ?? '');
 const [telefone, setTelefone] = useState(nutricionista?.nr_telefone ?? '');
 const [mostrarCobrancas, setMostrarCobrancas] = useState(false);
+
+// Convite para testar o aplicativo (ele ainda não está nas lojas).
+const [mostrarConvite, setMostrarConvite] = useState(false);
+const [emailConvite, setEmailConvite] = useState('');
+const [recadoConvite, setRecadoConvite] = useState('');
+const [enviandoConvite, setEnviandoConvite] = useState(false);
 
 // O CRN é editado em duas partes, como na tela de criar conta: a regional
 // sai de uma lista e só o número é digitado, com teclado numérico. O banco
@@ -121,6 +136,44 @@ const crnTexto =
     }
   };
 
+  // Manda o link de instalação para quem vai testar. O link fica no
+  // servidor (LINK_TESTE_APP), porque muda a cada rodada de teste.
+  const enviarConvite = async () => {
+    if (enviandoConvite) return;
+
+    if (!emailValido(emailConvite)) {
+      avisar({
+        titulo: 'E-mail inválido',
+        mensagem: 'Informe o e-mail de quem vai testar o aplicativo.',
+        tom: 'alerta',
+      });
+      return;
+    }
+
+    try {
+      setEnviandoConvite(true);
+
+      const resposta = await convidarTestador(token, {
+        email: emailConvite.trim(),
+        recado: recadoConvite.trim(),
+      });
+
+      setMostrarConvite(false);
+      setEmailConvite('');
+      setRecadoConvite('');
+
+      avisar({
+        titulo: resposta.enviado ? 'Convite enviado' : 'Convite não enviado',
+        mensagem: resposta.mensagem,
+        tom: resposta.enviado ? 'sucesso' : 'alerta',
+      });
+    } catch (erro) {
+      avisar({ titulo: 'Erro ao convidar', mensagem: erro.message, tom: 'erro' });
+    } finally {
+      setEnviandoConvite(false);
+    }
+  };
+
   const sair = async () => {
     const confirmou = await confirmar({
       titulo: 'Sair da conta',
@@ -150,6 +203,12 @@ const crnTexto =
       rotulo: 'Notificações',
       icone: 'sino',
       aoPressionar: () => navigation.navigate('PreferenciasNotificacao'),
+    },
+    {
+      chave: 'convidar',
+      rotulo: 'Convidar alguém para testar',
+      icone: 'enviar',
+      aoPressionar: () => setMostrarConvite(true),
     },
     {
       chave: 'termos',
@@ -256,7 +315,9 @@ const crnTexto =
           {planoAtual ? <Selo texto="Pagamento em dia" tom="sucesso" /> : null}
         </View>
 
-        {planoAtual ? (
+        {carregandoAssinatura ? (
+          <Text style={estilos.semPlano}>Carregando o seu plano...</Text>
+        ) : planoAtual ? (
           <>
             <Text style={estilos.nomePlano}>Plano {planoAtual.nome}</Text>
             <Text style={estilos.detalhePlano}>Próxima cobrança em 20 dias</Text>
@@ -306,6 +367,56 @@ const crnTexto =
           <Text style={[estilos.textoItemConta, estilos.textoSair]}>Sair da conta</Text>
         </TouchableOpacity>
       </Cartao>
+
+      {/* ---------- Convidar alguém para testar ---------- */}
+      <Modal
+        visible={mostrarConvite}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMostrarConvite(false)}
+      >
+        <Pressable style={estilos.fundoModal} onPress={() => setMostrarConvite(false)} />
+        <View style={estilos.painelModal}>
+          <View style={estilos.alcaModal} />
+          <Text style={estilos.tituloModal}>Convidar para testar</Text>
+          <ScrollView style={estilos.listaModal}>
+            <Text style={estilos.semCobrancas}>
+              O Health Plus ainda não está nas lojas. Quem você convidar
+              recebe por e-mail o link para instalar e testar.
+            </Text>
+
+            <CampoTexto
+              rotulo="E-mail de quem vai testar"
+              valor={emailConvite}
+              aoMudar={setEmailConvite}
+              teclado="email-address"
+              preenchimento="email"
+              capitalizar="none"
+              placeholder="nome@exemplo.com"
+            />
+
+            <CampoTexto
+              rotulo="Recado (opcional)"
+              valor={recadoConvite}
+              aoMudar={setRecadoConvite}
+              placeholder="Oi! Dá uma olhada no app que estou usando."
+              maxCaracteres={300}
+              multilinha
+            />
+          </ScrollView>
+
+          <Botao
+            titulo={enviandoConvite ? 'Enviando...' : 'Enviar convite'}
+            desabilitado={enviandoConvite}
+            aoPressionar={enviarConvite}
+          />
+          <Botao
+            titulo="Fechar"
+            variante="contorno"
+            aoPressionar={() => setMostrarConvite(false)}
+          />
+        </View>
+      </Modal>
 
       {/* ---------- Histórico de cobranças ---------- */}
       <Modal visible={mostrarCobrancas} transparent animationType="slide" onRequestClose={() => setMostrarCobrancas(false)}>

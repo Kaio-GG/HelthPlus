@@ -484,6 +484,57 @@ CREATE TABLE IF NOT EXISTS plano_alimento (
 );
 
 -- ---------------------------------------------------------------
+-- assinatura
+-- O plano pago do nutricionista. Uma linha por profissional: a
+-- assinatura atual, não o histórico (quem troca de plano reescreve a
+-- mesma linha).
+--
+-- ds_plano guarda o id do plano do catálogo ('basico', 'profissional',
+-- 'avancado', 'clinica_start'...). É texto, e não chave estrangeira para
+-- uma tabela de planos, porque o catálogo (nome, preço, benefícios) vive
+-- no código: Api/dados/planosAssinatura.js, igual ao arquivo do
+-- aplicativo. Reajustar um preço não deve mexer no banco.
+--
+-- Cancelar não apaga a linha: ds_status vira 'cancelada' e
+-- dt_cancelamento é preenchida, para a conta lembrar que já assinou.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `assinatura` (
+  `id_assinatura` int NOT NULL AUTO_INCREMENT,
+  `id_profissional` int NOT NULL,
+  `ds_plano` varchar(40) NOT NULL,
+  `ds_status` varchar(20) NOT NULL DEFAULT 'ativa',
+  `dt_inicio` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `dt_cancelamento` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_assinatura`),
+  UNIQUE KEY `uk_assinatura_profissional` (`id_profissional`),
+  CONSTRAINT `assinatura_ibfk_1` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- cobranca
+-- Histórico de cobranças da assinatura, mostrado no Perfil.
+--
+-- O valor é gravado aqui, e não lido do catálogo na hora de mostrar: uma
+-- cobrança de setembro tem que continuar mostrando o preço de setembro
+-- depois de um reajuste.
+--
+-- Enquanto não houver gateway de pagamento, a linha nasce no momento em
+-- que o plano é contratado pelo aplicativo.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `cobranca` (
+  `id_cobranca` int NOT NULL AUTO_INCREMENT,
+  `id_profissional` int NOT NULL,
+  `ds_referencia` varchar(100) NOT NULL,
+  `vl_cobranca` decimal(10,2) NOT NULL,
+  `dt_cobranca` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_cobranca`),
+  KEY `idx_cobranca_profissional` (`id_profissional`,`dt_cobranca`),
+  CONSTRAINT `cobranca_ibfk_1` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
 -- Pendências conhecidas da modelagem
 --
 -- 1. "paciente" não tem chave estrangeira para "profissional", embora

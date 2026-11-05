@@ -92,7 +92,7 @@ const dataParaISO = (dataBR) => {
 
 
 const CadastroPaciente = ({ navigation }) => {
-  const { pacientes, limitePacientes, adicionarPaciente } = useDados();
+  const { pacientes, limitePacientes, recarregarPacientes } = useDados();
   const { profissional } = useAuth();
   const { avisar } = useDialogo();
 
@@ -192,17 +192,10 @@ const CadastroPaciente = ({ navigation }) => {
         emailAcesso: dados.email.trim(),
       });
 
-      // Mantém a lista local atualizada (provisório, até a tela Pacientes ler do banco).
-      adicionarPaciente({
-        nome: dados.nome.trim(),
-        nascimento: converterDataBR(dados.nascimento),
-        sexo: dados.sexo,
-        telefone: dados.telefone,
-        email: dados.email.trim(),
-        responsavel: dados.responsavel.trim(),
-        statusAcesso: dados.enviarConvite ? 'convite_pendente' : 'sem_convite',
-        idBanco: resposta.idPaciente,
-      });
+      // Relê a lista do banco: é ela que a tela inicial usa para dizer
+      // quantos pacientes do plano já foram usados. Um erro aqui não
+      // desfaz o cadastro, que já está gravado.
+      await recarregarPacientes();
 
       // Fica na central de notificações. Um aviso que falha não pode
       // atrapalhar um cadastro que já deu certo, por isso o catch vazio.

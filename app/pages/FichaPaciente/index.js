@@ -18,7 +18,8 @@ import { useDados } from '../../contexto/DadosContexto';
 import { useDialogo } from '../../contexto/DialogoContexto';
 import { useAuth } from '../../contexto/AuthContext';
 
-import { obterPaciente } from '../../Api/Pacientes';
+import { obterPaciente, excluirPaciente } from '../../Api/Pacientes';
+import { reenviarConviteDoPaciente } from '../../Api/convite';
 import { cores } from '../../tema';
 
 import {
@@ -46,12 +47,13 @@ const FichaPaciente = ({ navigation, route }) => {
   const {
     avaliacoes,
     planosAlimentares,
+    recarregarPacientes,
     duplicarPlanoAlimentar,
     alternarArquivamentoPlano,
     obterRegistrosDoDia,
   } = useDados();
 
-  const { avisar } = useDialogo();
+  const { avisar, confirmar } = useDialogo();
   const { token } = useAuth();
 
   const [aba, setAba] = useState(route.params?.aba || 'resumo');
@@ -60,6 +62,11 @@ const FichaPaciente = ({ navigation, route }) => {
   const [paciente, setPaciente] = useState(null);
   const [carregandoPaciente, setCarregandoPaciente] = useState(true);
   const [erroPaciente, setErroPaciente] = useState('');
+
+  // Envio do e-mail de primeiro acesso do paciente.
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
+
+  const [apagando, setApagando] = useState(false);
 
   // Atualiza a aba quando a tela recebe uma nova aba pela navegação.
   useEffect(() => {
@@ -168,6 +175,87 @@ const FichaPaciente = ({ navigation, route }) => {
       ativo = false;
     };
   }, [route.params?.pacienteId, token]);
+
+  // Manda (ou remanda) o e-mail de primeiro acesso do paciente.
+  //
+  // A senha provisória antiga está em hash no banco, então não dá para
+  // reenviar a mesma: a API gera uma nova e manda no e-mail. Quando o
+  // paciente foi cadastrado sem convite, ela também cria o acesso.
+  const enviarPrimeiroAcesso = async () => {
+    if (enviandoConvite || !paciente) return;
+
+    try {
+      setEnviandoConvite(true);
+
+      const resposta = await reenviarConviteDoPaciente(token, paciente.id);
+
+      // O acesso passa a existir e fica pendente até o paciente entrar.
+      if (resposta.conviteEnviado) {
+        setPaciente((atual) =>
+          atual ? { ...atual, statusAcesso: 'convite_pendente' } : atual
+        );
+      }
+
+      avisar({
+        titulo: resposta.conviteEnviado ? 'Convite enviado' : 'Convite não enviado',
+        mensagem: resposta.mensagem,
+        tom: resposta.conviteEnviado ? 'sucesso' : 'alerta',
+      });
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível enviar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setEnviandoConvite(false);
+    }
+  };
+
+  // Apaga o paciente. Não tem volta, então o aviso diz exatamente o
+  // que vai embora antes de perguntar.
+  const apagarPaciente = async () => {
+    if (apagando || !paciente) return;
+
+    const confirmou = await confirmar({
+      titulo: `Apagar ${paciente.nome}?`,
+      mensagem:
+        'Isto apaga a ficha, as avaliações, os planos alimentares e o ' +
+        'acesso do paciente ao aplicativo. Não é possível desfazer, e ' +
+        'libera uma vaga no seu plano.',
+      rotuloConfirmar: 'Apagar paciente',
+      rotuloCancelar: 'Manter',
+      perigo: true,
+    });
+
+    if (!confirmou) return;
+
+    try {
+      setApagando(true);
+
+      const resposta = await excluirPaciente(paciente.id, token);
+
+      // A lista do contexto é a que conta os pacientes do plano.
+      await recarregarPacientes();
+
+      await avisar({
+        titulo: 'Paciente apagado',
+        mensagem: resposta.mensagem,
+        tom: 'sucesso',
+      });
+
+      // A ficha que estava aberta não existe mais: volta para a lista.
+      navigation.replace('Pacientes');
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível apagar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setApagando(false);
+    }
+  };
 
   // Mostra o carregamento enquanto a API responde.
   if (carregandoPaciente) {
@@ -368,6 +456,27 @@ const FichaPaciente = ({ navigation, route }) => {
         <Text style={estilos.valorDado}>
           {paciente.email || '—'}
         </Text>
+
+        {/* Primeiro acesso do paciente: ele não escolheu e-mail nem
+            senha, então é por este e-mail que ele descobre que tem
+            acesso ao aplicativo. */}
+        {paciente.statusAcesso !== 'ativo' ? (
+          <Botao
+            titulo={
+              enviandoConvite
+                ? 'Enviando...'
+                : paciente.statusAcesso === 'convite_pendente' ||
+                    paciente.statusAcesso === 'pendente'
+                  ? 'Reenviar e-mail de primeiro acesso'
+                  : 'Enviar e-mail de primeiro acesso'
+            }
+            variante="contorno"
+            icone="email"
+            desabilitado={enviandoConvite}
+            aoPressionar={enviarPrimeiroAcesso}
+            estilo={estilos.botaoConvite}
+          />
+        ) : null}
       </Cartao>
 
       <Cartao>
@@ -406,6 +515,15 @@ const FichaPaciente = ({ navigation, route }) => {
           estilo={estilos.botaoMetade}
         />
       </View>
+
+      {/* Fica por último, e sozinho, para ninguém tocar sem querer. */}
+      <Botao
+        titulo={apagando ? 'Apagando...' : 'Apagar paciente'}
+        variante="perigo"
+        desabilitado={apagando}
+        aoPressionar={apagarPaciente}
+        estilo={estilos.botaoApagar}
+      />
     </View>
   );
 
