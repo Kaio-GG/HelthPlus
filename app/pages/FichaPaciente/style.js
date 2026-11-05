@@ -56,6 +56,11 @@ export const estilos = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  // Botão de enviar o e-mail de primeiro acesso, no fim do cartão.
+  botaoConvite: {
+    marginTop: espacamento.md,
+  },
+
   botaoMetade: {
     width: '48.5%',
   },

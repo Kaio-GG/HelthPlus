@@ -58,9 +58,19 @@ function rodape(texto) {
     return `<p style="color: ${TEXTO_FRACO};">${texto}</p>`;
 }
 
+// Texto escrito por uma pessoa (um nome, um recado) não entra cru no
+// HTML do e-mail: um "<" solto quebraria a mensagem.
+function escaparHtml(texto) {
+    return String(texto ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 // "Olá, Maria?" soa errado; "Olá, tudo bem?" resolve o caso sem nome.
 function saudacao(nome) {
-    return nome ? `Olá, ${nome}?` : 'Olá, tudo bem?';
+    return nome ? `Olá, ${nome}!` : 'Olá, tudo bem?';
 }
 
 // ---------------------------------------------------------------
@@ -234,10 +244,64 @@ function enviarEmailNotificacao(para, nome, { titulo, mensagem }) {
     });
 }
 
+// ---------------------------------------------------------------
+// Convite para testar o aplicativo
+//
+// O Health Plus ainda não está na Play Store: quem vai testar precisa do
+// endereço de instalação (o link do Expo Go, ou o APK). Esse endereço
+// muda a cada rodada de teste, então vem do .env (LINK_TESTE_APP) — não
+// escrito aqui.
+//
+// Quem convida escreve o próprio recado, que entra no e-mail como texto
+// simples (escapado): é conteúdo de usuário dentro do nosso HTML.
+// ---------------------------------------------------------------
+function enviarEmailConviteTeste(para, { nomeQuemConvida, link, recado }) {
+    const convidadoPor = nomeQuemConvida
+        ? `${nomeQuemConvida} está te convidando`
+        : 'Você está sendo convidado';
+
+    const texto = [
+        'Olá, tudo bem?',
+        '',
+        `${convidadoPor} para testar o Health Plus, um aplicativo de`,
+        'acompanhamento nutricional.',
+        '',
+        recado ? `Recado de quem convidou: "${recado}"` : '',
+        recado ? '' : '',
+        'Para instalar, abra este link no celular:',
+        link,
+        '',
+        'O aplicativo está em fase de testes e ainda não está nas lojas.',
+        'Qualquer problema que você encontrar é exatamente o que queremos',
+        'saber: responda este e-mail contando.',
+        '',
+        'Equipe Health Plus'
+    ].filter((linha, indice, todas) => !(linha === '' && todas[indice - 1] === '')).join('\n');
+
+    const html = moldura('Teste o Health Plus', `
+        <p>Olá, tudo bem?</p>
+        <p>${escaparHtml(convidadoPor)} para testar o <strong>Health Plus</strong>,
+           um aplicativo de acompanhamento nutricional.</p>
+        ${recado ? `<p style="border-left: 3px solid ${VERDE_BOTAO}; padding-left: 12px;">${escaparHtml(recado)}</p>` : ''}
+        ${botao(link, 'Instalar o aplicativo')}
+        <p>Se o botão não abrir, copie este endereço no navegador do celular:<br />
+           <span style="font-family: monospace;">${escaparHtml(link)}</span></p>
+        ${rodape('O aplicativo está em fase de testes e ainda não está nas lojas. Qualquer problema que você encontrar é o que queremos saber: responda este e-mail contando.')}
+    `);
+
+    return enviarEmail({
+        para,
+        assunto: 'Convite para testar o Health Plus',
+        texto,
+        html
+    });
+}
+
 module.exports = {
     MINUTOS_DE_VALIDADE,
     enviarEmailRedefinicaoSenha,
     enviarEmailBoasVindasProfissional,
     enviarEmailSenhaAlterada,
-    enviarEmailNotificacao
+    enviarEmailNotificacao,
+    enviarEmailConviteTeste
 };

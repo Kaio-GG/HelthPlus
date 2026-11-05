@@ -14,8 +14,6 @@ import Icone from '../../componentes/Icone';
 import BotaoCircular from '../../componentes/BotaoCircular';
 
 import { useDados } from '../../contexto/DadosContexto';
-import { useAuth } from '../../contexto/AuthContext';
-import { listarPacientes } from '../../Api/Pacientes';
 
 import { cores } from '../../tema';
 import {
@@ -32,76 +30,27 @@ const filtros = [
   { chave: 'convite_pendente', rotulo: 'Convite pendente' },
 ];
 
-// Converte DD/MM/AAAA para AAAA-MM-DD, se necessário.
-const normalizarNascimento = (data) => {
-  if (!data || typeof data !== 'string') return data;
-
-  const partes = data.split('/');
-
-  if (partes.length === 3 && partes[2].length === 4) {
-    return `${partes[2]}-${partes[1]}-${partes[0]}`;
-  }
-
-  return data;
-};
-
 const Pacientes = ({ navigation }) => {
-  const { limitePacientes } = useDados();
-  const { token } = useAuth();
+  // A lista é a do contexto, a mesma que diz quantos pacientes o plano
+  // já gastou. Antes esta tela buscava a sua própria cópia na API, e a
+  // tela inicial continuava mostrando "0 de 10".
+  const {
+    pacientes,
+    limitePacientes,
+    carregandoPacientes: carregando,
+    erroPacientes: erro,
+    recarregarPacientes,
+  } = useDados();
 
-  const [pacientes, setPacientes] = useState([]);
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('todos');
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState('');
 
-  // Busca novamente quando a tela recebe foco.
+  // Busca de novo quando a tela recebe foco: um paciente cadastrado
+  // agora, ou um convite que virou acesso ativo, aparecem aqui.
   useFocusEffect(
     useCallback(() => {
-      let ativo = true;
-
-      const carregarPacientes = async () => {
-        if (!token) {
-          setErro('Sua sessão não foi encontrada. Entre novamente.');
-          setCarregando(false);
-          return;
-        }
-
-        setCarregando(true);
-        setErro('');
-
-        try {
-          const dados = await listarPacientes(token);
-
-          if (!ativo) return;
-
-          const pacientesFormatados = dados.map((paciente) => ({
-            ...paciente,
-            id: String(paciente.id),
-            nascimento: normalizarNascimento(paciente.nascimento),
-          }));
-
-          setPacientes(pacientesFormatados);
-        } catch (erroApi) {
-          if (ativo) {
-            setErro(
-              erroApi.message ||
-                'Não foi possível carregar os pacientes.'
-            );
-          }
-        } finally {
-          if (ativo) {
-            setCarregando(false);
-          }
-        }
-      };
-
-      carregarPacientes();
-
-      return () => {
-        ativo = false;
-      };
-    }, [token])
+      recarregarPacientes();
+    }, [recarregarPacientes])
   );
 
   const lista = pacientes.filter((paciente) => {

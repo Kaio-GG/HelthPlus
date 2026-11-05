@@ -69,8 +69,14 @@ const atalhos = [
 ];
 
 const HomeNutricionista = ({ navigation }) => {
-  const { nutricionista, pacientes, consultas, planoAtual, limitePacientes } =
-    useDados();
+  const {
+    nutricionista,
+    pacientes,
+    consultas,
+    planoAtual,
+    limitePacientes,
+    carregandoAssinatura,
+  } = useDados();
   const { width: larguraTela } = useWindowDimensions();
 
   const [slideAtual, setSlideAtual] = useState(0);
@@ -350,7 +356,11 @@ const HomeNutricionista = ({ navigation }) => {
           {planoAtual ? <Selo texto="Pagamento em Dia" tom="sucesso" /> : null}
         </View>
 
-        {planoAtual ? (
+        {carregandoAssinatura ? (
+          // Até a API responder não se sabe se existe plano. Dizer
+          // "você não tem plano" aqui assustaria quem tem.
+          <Text style={estilos.semPlano}>Carregando o seu plano...</Text>
+        ) : planoAtual ? (
           <>
             <Text style={estilos.textoPlano}>Plano {planoAtual.nome}</Text>
 
@@ -372,6 +382,7 @@ const HomeNutricionista = ({ navigation }) => {
 
         <Botao
           titulo={planoAtual ? "Ver meu plano" : "Escolher um plano"}
+          desabilitado={carregandoAssinatura}
           aoPressionar={() => navigation.navigate("Pacotes")}
           estilo={estilos.botaoPlano}
         />

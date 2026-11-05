@@ -19,6 +19,7 @@ import { useDialogo } from '../../contexto/DialogoContexto';
 import { useAuth } from '../../contexto/AuthContext';
 
 import { obterPaciente } from '../../Api/Pacientes';
+import { reenviarConviteDoPaciente } from '../../Api/convite';
 import { cores } from '../../tema';
 
 import {
@@ -60,6 +61,9 @@ const FichaPaciente = ({ navigation, route }) => {
   const [paciente, setPaciente] = useState(null);
   const [carregandoPaciente, setCarregandoPaciente] = useState(true);
   const [erroPaciente, setErroPaciente] = useState('');
+
+  // Envio do e-mail de primeiro acesso do paciente.
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
 
   // Atualiza a aba quando a tela recebe uma nova aba pela navegação.
   useEffect(() => {
@@ -168,6 +172,42 @@ const FichaPaciente = ({ navigation, route }) => {
       ativo = false;
     };
   }, [route.params?.pacienteId, token]);
+
+  // Manda (ou remanda) o e-mail de primeiro acesso do paciente.
+  //
+  // A senha provisória antiga está em hash no banco, então não dá para
+  // reenviar a mesma: a API gera uma nova e manda no e-mail. Quando o
+  // paciente foi cadastrado sem convite, ela também cria o acesso.
+  const enviarPrimeiroAcesso = async () => {
+    if (enviandoConvite || !paciente) return;
+
+    try {
+      setEnviandoConvite(true);
+
+      const resposta = await reenviarConviteDoPaciente(token, paciente.id);
+
+      // O acesso passa a existir e fica pendente até o paciente entrar.
+      if (resposta.conviteEnviado) {
+        setPaciente((atual) =>
+          atual ? { ...atual, statusAcesso: 'convite_pendente' } : atual
+        );
+      }
+
+      avisar({
+        titulo: resposta.conviteEnviado ? 'Convite enviado' : 'Convite não enviado',
+        mensagem: resposta.mensagem,
+        tom: resposta.conviteEnviado ? 'sucesso' : 'alerta',
+      });
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível enviar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setEnviandoConvite(false);
+    }
+  };
 
   // Mostra o carregamento enquanto a API responde.
   if (carregandoPaciente) {
@@ -368,6 +408,27 @@ const FichaPaciente = ({ navigation, route }) => {
         <Text style={estilos.valorDado}>
           {paciente.email || '—'}
         </Text>
+
+        {/* Primeiro acesso do paciente: ele não escolheu e-mail nem
+            senha, então é por este e-mail que ele descobre que tem
+            acesso ao aplicativo. */}
+        {paciente.statusAcesso !== 'ativo' ? (
+          <Botao
+            titulo={
+              enviandoConvite
+                ? 'Enviando...'
+                : paciente.statusAcesso === 'convite_pendente' ||
+                    paciente.statusAcesso === 'pendente'
+                  ? 'Reenviar e-mail de primeiro acesso'
+                  : 'Enviar e-mail de primeiro acesso'
+            }
+            variante="contorno"
+            icone="email"
+            desabilitado={enviandoConvite}
+            aoPressionar={enviarPrimeiroAcesso}
+            estilo={estilos.botaoConvite}
+          />
+        ) : null}
       </Cartao>
 
       <Cartao>

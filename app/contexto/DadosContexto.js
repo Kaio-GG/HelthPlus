@@ -5,19 +5,31 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
 
 import { useAuth } from './AuthContext';
+import { listarPacientes } from '../Api/Pacientes';
+import {
+  buscarAssinatura,
+  assinarPlano,
+  cancelarAssinatura as cancelarAssinaturaNaApi,
+} from '../Api/assinatura';
 import {
   planosIndividuais,
   planosClinica,
 } from '../dados/planosAssinatura';
 import { META_AGUA_PADRAO_LITROS } from '../dados/registros';
 import { nomesDasRefeicoes } from '../dados/alimentosTaco';
-import { chaveDoDia, formatarHora } from '../utilitarios/datas';
+import {
+  chaveDoDia,
+  formatarHora,
+  formatarDataBR,
+} from '../utilitarios/datas';
 
 const DadosContexto = createContext(null);
 
@@ -25,6 +37,42 @@ const todosOsPlanos = [
   ...planosIndividuais,
   ...planosClinica,
 ];
+
+// "12/03/2001" -> "2001-03-12". O banco devolve a data no formato ISO,
+// mas um cadastro recém-feito na tela pode chegar no formato brasileiro.
+const normalizarNascimento = (data) => {
+  if (!data || typeof data !== 'string') return data;
+
+  const partes = data.split('/');
+
+  if (partes.length === 3 && partes[2].length === 4) {
+    return `${partes[2]}-${partes[1]}-${partes[0]}`;
+  }
+
+  return data;
+};
+
+// O banco guarda o acesso do paciente como 'pendente', 'ativo' ou
+// 'sem_acesso'; as telas falam 'convite_pendente' e 'sem_convite'. A
+// tradução fica aqui para os dois nomes não se espalharem pelas telas.
+const normalizarStatusAcesso = (status) => {
+  if (status === 'pendente') return 'convite_pendente';
+  if (status === 'sem_acesso' || !status) return 'sem_convite';
+
+  return status;
+};
+
+// Deixa o paciente vindo da API no formato que as telas esperam.
+const normalizarPaciente = (paciente) => ({
+  ...paciente,
+  id: String(paciente.id ?? paciente.idBanco ?? ''),
+  nascimento: normalizarNascimento(paciente.nascimento),
+  statusAcesso: normalizarStatusAcesso(paciente.statusAcesso),
+  historicoPeso: Array.isArray(paciente.historicoPeso)
+    ? paciente.historicoPeso
+    : [],
+  ultimaConsulta: paciente.ultimaConsulta ?? null,
+});
 
 export const DadosProvider = ({ children }) => {
   const [pacientes, setPacientes] = useState([]);
@@ -34,6 +82,16 @@ export const DadosProvider = ({ children }) => {
   const [planoAssinaturaId, setPlanoAssinaturaId] = useState(null);
   const [cobrancas, setCobrancas] = useState([]);
 
+  // Enquanto a API não responde, o aplicativo não sabe se existe plano:
+  // as telas mostram "carregando" em vez de "você não tem plano".
+  const [carregandoAssinatura, setCarregandoAssinatura] =
+    useState(false);
+  const [erroAssinatura, setErroAssinatura] = useState('');
+
+  const [carregandoPacientes, setCarregandoPacientes] =
+    useState(false);
+  const [erroPacientes, setErroPacientes] = useState('');
+
   // Registros em memória: "<idPaciente>|<dia>".
   const [registros, setRegistros] = useState({});
 
@@ -42,7 +100,8 @@ export const DadosProvider = ({ children }) => {
   const [dadosPacienteAtual, setDadosPacienteAtual] = useState(null);
   const [tokenPaciente, setTokenPaciente] = useState(null);
 
-  const { profissional: nutricionista } = useAuth();
+  // O token é o que dá acesso às rotas do nutricionista na API.
+  const { profissional: nutricionista, token } = useAuth();
 
   const planoAtual =
     todosOsPlanos.find(
@@ -51,18 +110,47 @@ export const DadosProvider = ({ children }) => {
 
   // ---------- Pacientes ----------
 
-  const adicionarPaciente = (dados) => {
-    const novo = {
-      ...dados,
-      id: String(Date.now()),
-      historicoPeso: [],
-      ultimaConsulta: null,
-    };
+  // A lista vem do banco, não de uma lista montada na tela. É ela que
+  // diz quanto do plano já foi usado ("2 de 10 pacientes"): enquanto
+  // vivia só na memória, o contador voltava a zero a cada abertura do
+  // aplicativo, mesmo com pacientes cadastrados.
+  const recarregarPacientes = useCallback(async () => {
+    if (!token) {
+      setPacientes([]);
+      setErroPacientes('');
+      return [];
+    }
 
-    setPacientes((atuais) => [...atuais, novo]);
+    setCarregandoPacientes(true);
+    setErroPacientes('');
 
-    return novo;
-  };
+    try {
+      const lista = await listarPacientes(token);
+      const normalizados = (lista || []).map(normalizarPaciente);
+
+      setPacientes(normalizados);
+
+      return normalizados;
+    } catch (erro) {
+      setErroPacientes(
+        erro.message || 'Não foi possível carregar os pacientes.'
+      );
+
+      return [];
+    } finally {
+      setCarregandoPacientes(false);
+    }
+  }, [token]);
+
+  // Recarrega ao entrar e ao sair da conta (o token muda nos dois).
+  //
+  // O eslint reclama de setState dentro de efeito; aqui é o caso que a
+  // regra permite: sincronizar com um sistema externo (a API). O
+  // "carregando" acende antes da busca, de propósito.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    recarregarPacientes();
+  }, [recarregarPacientes]);
 
   // ---------- Consultas ----------
 
@@ -384,44 +472,89 @@ export const DadosProvider = ({ children }) => {
 
   // ---------- Assinatura ----------
 
-  const alterarPlanoAssinatura = (idPlano) => {
+  // Guarda o que a API devolveu sobre a assinatura. As datas das
+  // cobranças chegam em ISO e a tela mostra DD/MM/AAAA.
+  const aplicarAssinatura = useCallback((dados) => {
+    setPlanoAssinaturaId(dados?.assinatura?.planoId ?? null);
+    setCobrancas(
+      (dados?.cobrancas || []).map((cobranca) => ({
+        ...cobranca,
+        data: formatarDataBR(cobranca.data),
+      }))
+    );
+    setErroAssinatura('');
+  }, []);
+
+  const recarregarAssinatura = useCallback(async () => {
+    if (!token) {
+      setPlanoAssinaturaId(null);
+      setCobrancas([]);
+      setErroAssinatura('');
+      return;
+    }
+
+    setCarregandoAssinatura(true);
+
+    try {
+      aplicarAssinatura(await buscarAssinatura(token));
+    } catch (erro) {
+      // Sem resposta da API não há como saber se existe plano. Dizer
+      // "sem plano" seria chute; a tela mostra o erro e oferece
+      // tentar de novo.
+      setPlanoAssinaturaId(null);
+      setCobrancas([]);
+      setErroAssinatura(
+        erro.message || 'Não foi possível carregar o seu plano.'
+      );
+    } finally {
+      setCarregandoAssinatura(false);
+    }
+  }, [token, aplicarAssinatura]);
+
+  // Mesmo caso do efeito dos pacientes: a busca é o que sincroniza o
+  // aplicativo com o banco ao abrir e ao trocar de conta.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    recarregarAssinatura();
+  }, [recarregarAssinatura]);
+
+  // Grava no banco e só então muda a tela: é por isso que o plano
+  // continua ativo quando a pessoa sai da conta e entra de novo.
+  //
+  // Lança quando a API recusa (limite de pacientes, plano sob
+  // consulta, sessão expirada) para a tela poder avisar o motivo.
+  const alterarPlanoAssinatura = async (idPlano) => {
+    if (!token) {
+      throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
+    }
+
     const plano = todosOsPlanos.find(
       (item) => item.id === idPlano
     );
 
-    if (!plano) return;
+    if (!plano) throw new Error('Plano desconhecido.');
 
-    setPlanoAssinaturaId(idPlano);
+    const dados = await assinarPlano(token, idPlano);
+
+    aplicarAssinatura(dados);
+
+    return dados;
   };
 
-  const cancelarPlanoAssinatura = () => {
+  const cancelarPlanoAssinatura = async () => {
+    if (!token) {
+      throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
+    }
+
+    await cancelarAssinaturaNaApi(token);
+
+    // As cobranças de antes continuam: são histórico, não assinatura.
     setPlanoAssinaturaId(null);
   };
 
-  // ---------- Cobranças ----------
-
-  const registrarCobranca = ({
-    referencia,
-    valor,
-  }) => {
-    const hoje = new Date();
-
-    const nova = {
-      id: `cb${Date.now()}`,
-      referencia,
-      valor,
-      data: `${String(hoje.getDate()).padStart(2, '0')}/${String(
-        hoje.getMonth() + 1
-      ).padStart(2, '0')}/${hoje.getFullYear()}`,
-    };
-
-    setCobrancas((atuais) => [
-      nova,
-      ...atuais,
-    ]);
-
-    return nova;
-  };
+  // As cobranças não são criadas aqui: quem grava é a API, no mesmo
+  // pedido que assina o plano (PUT /api/assinatura). O aplicativo só
+  // mostra a lista que veio de lá.
 
   // ---------- Contexto compartilhado ----------
 
@@ -434,6 +567,11 @@ export const DadosProvider = ({ children }) => {
       avaliacoes,
       cobrancas,
 
+      carregandoPacientes,
+      erroPacientes,
+      carregandoAssinatura,
+      erroAssinatura,
+
       pacienteAtual,
       pacienteAtualId,
       tokenPaciente,
@@ -443,7 +581,7 @@ export const DadosProvider = ({ children }) => {
         ? planoAtual.limitePacientes
         : null,
 
-      adicionarPaciente,
+      recarregarPacientes,
       adicionarConsulta,
       atualizarStatusConsulta,
 
@@ -463,7 +601,7 @@ export const DadosProvider = ({ children }) => {
 
       alterarPlanoAssinatura,
       cancelarPlanoAssinatura,
-      registrarCobranca,
+      recarregarAssinatura,
     }),
     [
       nutricionista,
@@ -473,10 +611,17 @@ export const DadosProvider = ({ children }) => {
       avaliacoes,
       cobrancas,
       planoAssinaturaId,
+      carregandoPacientes,
+      erroPacientes,
+      carregandoAssinatura,
+      erroAssinatura,
+      recarregarPacientes,
+      recarregarAssinatura,
       registros,
       pacienteAtualId,
       dadosPacienteAtual,
       tokenPaciente,
+      token,
     ]
   );
 

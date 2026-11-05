@@ -20,12 +20,15 @@ const Pacotes = ({ navigation }) => {
     pacientes,
     planoAtual,
     limitePacientes,
+    carregandoAssinatura,
+    erroAssinatura,
     alterarPlanoAssinatura,
     cancelarPlanoAssinatura,
-    registrarCobranca,
   } = useDados();
   const { avisar, confirmar } = useDialogo();
   const [tipo, setTipo] = useState('individual');
+  // Trava os botões enquanto a API grava a assinatura.
+  const [salvando, setSalvando] = useState(false);
 
   const listaDePlanos = tipo === 'individual' ? planosIndividuais : planosClinica;
   const indiceDoPlanoAtual = planosIndividuais.findIndex((plano) => plano.id === planoAtual?.id);
@@ -69,13 +72,30 @@ const Pacotes = ({ navigation }) => {
     if (!confirmou) return;
 
     // TODO: integrar com a API de pagamento (cobrança da assinatura).
-    alterarPlanoAssinatura(plano.id);
-    registrarCobranca({ referencia: `Plano ${plano.nome}`, valor: plano.preco });
-    avisar({
-      titulo: 'Plano atualizado!',
-      mensagem: `Agora você está no plano ${plano.nome}.`,
-      tom: 'sucesso',
-    });
+    // Hoje a API só grava a assinatura e o registro da cobrança.
+    try {
+      setSalvando(true);
+
+      await alterarPlanoAssinatura(plano.id);
+
+      await avisar({
+        titulo: 'Plano atualizado!',
+        mensagem: `Agora você está no plano ${plano.nome}.`,
+        tom: 'sucesso',
+      });
+
+      // Assinar é o fim desta tela: quem acabou de contratar quer ver o
+      // plano valendo na tela inicial, não a lista de planos de novo.
+      navigation.navigate('HomeNutricionista');
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível assinar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const cancelarAssinatura = async () => {
@@ -91,12 +111,25 @@ const Pacotes = ({ navigation }) => {
     if (!confirmou) return;
 
     // TODO: integrar com a API de pagamento (encerrar a assinatura).
-    cancelarPlanoAssinatura();
-    avisar({
-      titulo: 'Assinatura cancelada',
-      mensagem: 'Você pode assinar de novo quando quiser, por esta mesma tela.',
-      tom: 'sucesso',
-    });
+    try {
+      setSalvando(true);
+
+      await cancelarPlanoAssinatura();
+
+      avisar({
+        titulo: 'Assinatura cancelada',
+        mensagem: 'Você pode assinar de novo quando quiser, por esta mesma tela.',
+        tom: 'sucesso',
+      });
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível cancelar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const textoDoBotao = (plano, indice) => {
@@ -125,10 +158,15 @@ const Pacotes = ({ navigation }) => {
         {tipo === 'individual' ? (
           <CaixaAviso
             estilo={estilos.avisoPlano}
+            tom={erroAssinatura ? 'alerta' : 'info'}
             texto={
-              planoAtual
-                ? `Seu plano atual: ${planoAtual.nome} • ${pacientes.length} de ${limitePacientes || 'ilimitados'} pacientes`
-                : 'Você ainda não assinou nenhum plano. Escolha um abaixo para liberar o cadastro de pacientes.'
+              carregandoAssinatura
+                ? 'Carregando o seu plano...'
+                : erroAssinatura
+                  ? erroAssinatura
+                  : planoAtual
+                    ? `Seu plano atual: ${planoAtual.nome} • ${pacientes.length} de ${limitePacientes || 'ilimitados'} pacientes`
+                    : 'Você ainda não assinou nenhum plano. Escolha um abaixo para liberar o cadastro de pacientes.'
             }
           />
         ) : (
@@ -170,9 +208,9 @@ const Pacotes = ({ navigation }) => {
             ))}
 
             <Botao
-              titulo={textoDoBotao(plano, indice)}
+              titulo={salvando ? (ehAtual ? textoDoBotao(plano, indice) : 'Aguarde...') : textoDoBotao(plano, indice)}
               aoPressionar={() => escolherPlano(plano, ehDowngrade)}
-              desabilitado={ehAtual}
+              desabilitado={ehAtual || salvando || carregandoAssinatura}
               variante={ehAtual ? 'suave' : podeDestacar(plano, indice) ? 'primario' : 'contorno'}
               estilo={estilos.botaoPlano}
             />
@@ -184,6 +222,7 @@ const Pacotes = ({ navigation }) => {
         <Botao
           titulo="Cancelar assinatura"
           variante="perigo"
+          desabilitado={salvando}
           aoPressionar={cancelarAssinatura}
           estilo={estilos.botaoCancelar}
         />

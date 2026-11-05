@@ -143,9 +143,39 @@ Leia o QR Code com o Expo Go.
 | `PUT` | `/api/notificacao/:id/todas-lidas` | Marca todas como lidas |
 | `GET` | `/api/notificacao/:id/preferencias` | Lê as preferências de notificação |
 | `PUT` | `/api/notificacao/:id/preferencias` | Salva as preferências |
+| `GET` | `/api/assinatura` | Plano pago atual, cobranças e nº de pacientes |
+| `PUT` | `/api/assinatura` | Assina ou troca de plano (`{ planoId }`) |
+| `DELETE` | `/api/assinatura` | Cancela a assinatura |
+| `POST` | `/api/convite/reenviar/:idPaciente` | Manda o e-mail de primeiro acesso do paciente |
+| `POST` | `/api/convite/testador` | Convida alguém para testar o aplicativo |
 
 > As rotas de senha ficam em `/api/senha`, e não em `/api/profissional/senha`,
 > porque o `PUT /api/profissional/:id` capturaria esse caminho antes.
+
+> A assinatura fica em `/api/assinatura` e os planos ALIMENTARES em
+> `/api/plano`: são coisas diferentes com nomes parecidos. As rotas de
+> assinatura e de convite exigem o token do nutricionista, e tiram o id
+> dele do token — nunca da URL.
+
+### E-mails que a API envia
+
+Todos usam as variáveis `SMTP_*` do `Api/.env`. Com elas em branco, a API
+**não** envia: imprime a mensagem no terminal dela (com o código de
+redefinição e a senha provisória), e o aplicativo avisa na tela que o
+e-mail só foi para o terminal — os fluxos continuam testáveis.
+
+| Quando | Para quem |
+|---|---|
+| Cadastro do paciente com convite, e o botão da ficha | Paciente (senha provisória do primeiro acesso) |
+| "Esqueci minha senha" | Nutricionista ou paciente (código de redefinição) |
+| Senha alterada | Nutricionista |
+| Cadastro do nutricionista | Nutricionista (boas-vindas) |
+| Aviso do sino, para quem ligou "Avisos por e-mail" | Nutricionista |
+| Perfil > Convidar alguém para testar | Quem vai testar (link do `LINK_TESTE_APP`) |
+
+No Gmail a senha da conta não funciona: é preciso ligar a Verificação em
+duas etapas e gerar uma **senha de app** de 16 letras em
+myaccount.google.com/apppasswords.
 
 ## Como o projeto é organizado
 
