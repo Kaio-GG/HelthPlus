@@ -65,7 +65,26 @@ CREATE TABLE IF NOT EXISTS `profissional` (
 
 -- ---------------------------------------------------------------
 -- paciente
--- Ficha cadastral do paciente, preenchida pelo nutricionista em 4 etapas.
+-- Ficha cadastral do paciente, preenchida pelo nutricionista em 3 etapas:
+-- dados pessoais, endereço e acesso ao aplicativo.
+--
+-- COLUNAS QUE NÃO SÃO MAIS PREENCHIDAS (ficam nulas em cadastro novo):
+--
+--   nr_telefone, nr_telefone_responsavel
+--     O aplicativo parou de pedir telefone. Não era usado em lugar
+--     nenhum, e guardar dado pessoal sem uso é exposição de graça pela
+--     LGPD. O contato com o paciente é pelo aplicativo e pelo e-mail.
+--
+--   ds_objetivo_consulta, ds_restricoes_alimentares, ds_alergias,
+--   ds_condicoes_saude, ds_medicamentos
+--     Era a etapa 3 do cadastro ("dados de saúde"), removida junto com os
+--     planos alimentares — o que a usava.
+--
+-- As colunas continuam aqui, e não foram derrubadas, porque quem já tem
+-- banco montado tem dado gravado nelas: um DROP COLUMN apagaria o
+-- histórico de quem cadastrou antes da mudança. Quem for mexer nisso
+-- precisa decidir o que fazer com esses dados (apagar é o mais provável,
+-- justamente pela LGPD), e aí o DROP entra num migration próprio.
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `paciente` (
   `id_paciente` int NOT NULL AUTO_INCREMENT,
@@ -241,6 +260,17 @@ CREATE TABLE IF NOT EXISTS `medida_antropometrica` (
 -- ---------------------------------------------------------------
 -- resultado_avaliacao
 -- O que o cálculo produziu: escore-z, percentil e classificação de cada indicador.
+--
+-- ds_tom guarda em qual dos três grupos a classificação caiu:
+-- 'adequado', 'atencao' ou 'risco'. É o que as telas usam para contar
+-- "3 de 4 indicadores adequados" e para colorir os gráficos.
+--
+-- Existe como coluna, e não como consulta a classificacao_referencia,
+-- porque essa tabela está vazia (ver as pendências no fim do arquivo): os
+-- pontos de corte vivem no código, em app/utilitarios/oms/faixasOms.js.
+-- Guardar o tom junto do resultado também congela a leitura feita NAQUELE
+-- dia — se a equipe mudar um ponto de corte amanhã, o histórico não muda
+-- de classificação sozinho.
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `resultado_avaliacao` (
   `id_resultado` int NOT NULL AUTO_INCREMENT,
@@ -252,6 +282,7 @@ CREATE TABLE IF NOT EXISTS `resultado_avaliacao` (
   `vl_escore_z` decimal(5,2) DEFAULT NULL,
   `vl_percentil` decimal(5,2) DEFAULT NULL,
   `ds_classificacao` varchar(50) DEFAULT NULL,
+  `ds_tom` varchar(20) DEFAULT NULL,
   `st_valor_extremo` tinyint(1) DEFAULT '0',
   `ds_interpretacao` text,
   `ds_observacoes` text,
@@ -535,6 +566,143 @@ CREATE TABLE IF NOT EXISTS `cobranca` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ---------------------------------------------------------------
+-- consulta
+-- O agendamento: quem atende, quem é atendido, quando e por quanto tempo.
+--
+-- Um paciente CADASTRADO entra por id_paciente; quem ainda não tem ficha
+-- entra como avulso, com nm_paciente_avulso. Por isso as duas colunas
+-- aceitam nulo, e nunca as duas ao mesmo tempo: quem garante isso é o
+-- código (Api/storage/consultaStorage.js exige o nome quando não vem id).
+--
+-- O telefone avulso existe porque esse paciente não tem ficha nenhuma —
+-- é o único jeito de avisá-lo. Paciente cadastrado não tem telefone
+-- guardado: o aviso vai pelo aplicativo e pelo e-mail.
+--
+-- ds_status guarda 'pendente', 'confirmada', 'cancelada' ou 'realizada'.
+-- Cancelar não apaga a linha: o horário continua no histórico, e é por
+-- isso que a checagem de conflito ignora as canceladas.
+--
+-- Os dois índices são os dois jeitos de ler a tabela: a agenda do
+-- nutricionista (por profissional e data) e o histórico de consultas que
+-- aparece na ficha do paciente (por paciente e data).
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `consulta` (
+  `id_consulta` int NOT NULL AUTO_INCREMENT,
+  `id_profissional` int NOT NULL,
+  `id_paciente` int DEFAULT NULL,
+  `nm_paciente_avulso` varchar(100) DEFAULT NULL,
+  `nr_telefone_avulso` varchar(20) DEFAULT NULL,
+  `dt_inicio` datetime NOT NULL,
+  `nr_duracao_minutos` int NOT NULL DEFAULT '45',
+  `ds_tipo` varchar(40) NOT NULL,
+  `ds_observacoes` text,
+  `ds_status` varchar(20) NOT NULL DEFAULT 'pendente',
+  `fl_notificar` tinyint(1) NOT NULL DEFAULT '0',
+  `dt_criacao` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_consulta`),
+  KEY `idx_consulta_agenda` (`id_profissional`,`dt_inicio`),
+  KEY `idx_consulta_paciente` (`id_paciente`,`dt_inicio`),
+  CONSTRAINT `consulta_ibfk_1` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`),
+  CONSTRAINT `consulta_ibfk_2` FOREIGN KEY (`id_paciente`)
+    REFERENCES `paciente` (`id_paciente`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- Catálogos de referência: tipo_medida e indicador
+--
+-- Estas duas tabelas eram as únicas de referência que o código PRECISA
+-- preenchidas, e estavam vazias — era por isso que não havia como gravar
+-- uma avaliação: medida_antropometrica e resultado_avaliacao têm chave
+-- estrangeira para elas.
+--
+-- As curvas da OMS continuam fora do banco, nos JSON de
+-- app/utilitarios/oms/dados (ver a pendência 3, no fim do arquivo). O que
+-- entra aqui é só o CATÁLOGO: o nome de cada medida e de cada indicador.
+--
+-- Os ids são fixos e escritos à mão porque o código grava por eles
+-- (Api/repository/avaliacaoRepository.js procura o indicador pela sigla,
+-- que é a mesma chave usada no aplicativo). O ON DUPLICATE KEY deixa o
+-- script rodar de novo sem erro e sem duplicar linha.
+--
+-- As siglas de "indicador" são as chaves do aplicativo
+-- (app/utilitarios/oms/faixasOms.js). Se mudar lá, mude aqui.
+-- ---------------------------------------------------------------
+INSERT INTO `tipo_medida`
+  (`id_tipo_medida`, `nm_tipo_medida`, `sg_tipo_medida`, `ds_unidade_padrao`,
+   `nr_idade_min_meses`, `nr_idade_max_meses`, `ds_descricao`)
+VALUES
+  (1, 'Peso',                        'PESO', 'kg',   0, 228, 'Peso corporal'),
+  (2, 'Estatura',                    'EST',  'cm',   0, 228, 'Estatura em pé ou comprimento deitado'),
+  (3, 'Perímetro cefálico',          'PC',   'cm',   0,  60, 'Perímetro da cabeça'),
+  (4, 'Perímetro braquial',          'PB',   'cm',   3,  60, 'Perímetro do braço'),
+  (5, 'Prega cutânea tricipital',    'PCT',  'mm',   3,  60, 'Dobra cutânea do tríceps'),
+  (6, 'Prega cutânea subescapular',  'PCS',  'mm',   3,  60, 'Dobra cutânea subescapular')
+AS novo
+ON DUPLICATE KEY UPDATE
+  `nm_tipo_medida`    = novo.`nm_tipo_medida`,
+  `sg_tipo_medida`    = novo.`sg_tipo_medida`,
+  `ds_unidade_padrao` = novo.`ds_unidade_padrao`;
+
+INSERT INTO `indicador`
+  (`id_indicador`, `nm_indicador`, `sg_indicador`,
+   `nr_idade_min_meses`, `nr_idade_max_meses`, `sg_sexo_aplicavel`, `ds_descricao`)
+VALUES
+  (1,  'Peso por idade',                  'peso_idade',       0, 120, 'MF', 'Peso comparado ao esperado para a idade'),
+  (2,  'Estatura por idade',              'estatura_idade',   0, 228, 'MF', 'Estatura comparada ao esperado para a idade'),
+  (3,  'IMC por idade',                   'imc_idade',        0, 228, 'MF', 'IMC comparado ao esperado para a idade'),
+  (4,  'Peso por comprimento',            'peso_comprimento', 0,  24, 'MF', 'Peso comparado ao esperado para o comprimento'),
+  (5,  'Peso por estatura',               'peso_estatura',   24,  60, 'MF', 'Peso comparado ao esperado para a estatura'),
+  (6,  'Perímetro cefálico por idade',    'pc_idade',         0,  60, 'MF', 'Perímetro cefálico comparado ao esperado para a idade'),
+  (7,  'Perímetro braquial por idade',    'pb_idade',         3,  60, 'MF', 'Perímetro braquial comparado ao esperado para a idade'),
+  (8,  'Prega tricipital por idade',      'pct_idade',        3,  60, 'MF', 'Dobra do tríceps comparada ao esperado para a idade'),
+  (9,  'Prega subescapular por idade',    'pcs_idade',        3,  60, 'MF', 'Dobra subescapular comparada ao esperado para a idade'),
+  (10, 'IMC de adulto',                   'imc_adulto',     228, 1440, 'MF', 'IMC classificado pelas faixas da OMS para adultos')
+AS novo
+ON DUPLICATE KEY UPDATE
+  `nm_indicador` = novo.`nm_indicador`,
+  `sg_indicador` = novo.`sg_indicador`;
+
+-- ---------------------------------------------------------------
+-- Atualizações de banco já existente
+--
+-- Os CREATE TABLE acima têm IF NOT EXISTS: eles criam o que falta e não
+-- tocam no que já existe. É o que se quer — menos num caso: COLUNA NOVA
+-- numa tabela que já existe. Nesse caso o CREATE é ignorado por inteiro,
+-- e a coluna nunca chega ao banco de quem rodou o script antes.
+--
+-- Por isso cada coluna acrescentada depois da primeira versão precisa de
+-- um ALTER aqui embaixo. O MySQL 8.0 não tem "ADD COLUMN IF NOT EXISTS",
+-- então o jeito de deixar o script re-executável é olhar o
+-- information_schema e só montar o ALTER quando a coluna faltar.
+--
+-- Ao acrescentar coluna: mude o CREATE TABLE lá em cima (para quem monta
+-- o banco do zero) E acrescente o bloco aqui (para quem já tem banco).
+-- ---------------------------------------------------------------
+
+-- resultado_avaliacao.ds_tom — o grupo da classificação ('adequado',
+-- 'atencao', 'risco'). É o que as telas usam para contar os indicadores
+-- adequados e para colorir os gráficos da evolução.
+SET @coluna_existe = (
+  SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus'
+     AND TABLE_NAME   = 'resultado_avaliacao'
+     AND COLUMN_NAME  = 'ds_tom'
+);
+
+SET @comando = IF(
+  @coluna_existe = 0,
+  'ALTER TABLE `resultado_avaliacao`
+     ADD COLUMN `ds_tom` varchar(20) DEFAULT NULL AFTER `ds_classificacao`',
+  'SELECT "resultado_avaliacao.ds_tom já existe" AS resultado'
+);
+
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- ---------------------------------------------------------------
 -- Pendências conhecidas da modelagem
 --
 -- 1. "paciente" não tem chave estrangeira para "profissional", embora
@@ -545,12 +713,16 @@ CREATE TABLE IF NOT EXISTS `cobranca` (
 --    CRN repetido pela checagem no código (profissionalStorage.js); por
 --    duas requisições ao mesmo tempo, dá para gravar duplicado.
 --
--- 3. As tabelas de referência da OMS (tipo_medida, indicador,
---    padrao_crescimento, referencia_oms, classificacao_referencia) estão
---    vazias. A calculadora lê os JSON de app/utilitarios/oms/dados, que são
---    as tabelas OFICIAIS da OMS — não é dado de demonstração, e funciona.
---    Carregar essas tabelas só passa a valer a pena se a equipe quiser
---    editar as curvas sem publicar uma versão nova do aplicativo.
+-- 3. As tabelas de CURVAS da OMS (padrao_crescimento, referencia_oms,
+--    classificacao_referencia) continuam vazias. A calculadora lê os JSON
+--    de app/utilitarios/oms/dados, que são as tabelas OFICIAIS da OMS —
+--    não é dado de demonstração, e funciona. Carregá-las no banco só
+--    passa a valer a pena se a equipe quiser editar as curvas sem
+--    publicar uma versão nova do aplicativo.
+--
+--    tipo_medida e indicador saíram dessa lista: agora vêm preenchidas
+--    pelos INSERT acima, porque medida_antropometrica e
+--    resultado_avaliacao não gravam sem elas.
 --
 -- 4. "notificacao" não tem índice por data. Com a lista crescendo, o
 --    ORDER BY dt_criacao de cada abertura da tela passa a ordenar tudo.
