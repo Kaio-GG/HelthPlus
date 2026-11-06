@@ -64,12 +64,24 @@ API responde erro 500 (`ER_NO_SUCH_TABLE`) na hora de usar.
 | `token_senha_paciente` | O mesmo, para a conta do paciente | "Esqueci minha senha" do paciente |
 | `notificacao` | Avisos do sino | O sino e a tela de notificações |
 | `preferencia_notificacao` | Quais avisos a pessoa quer receber, inclusive por e-mail | As preferências e o aviso por e-mail |
-| `consentimento_paciente` | Aceite dos termos, gravado no primeiro acesso | **O primeiro acesso do paciente** |
-| `plano_alimentar` | O plano do paciente: período, metas e estado | Criar e salvar plano alimentar |
-| `plano_refeicao` | As refeições de cada plano | O mesmo |
-| `plano_alimento` | Os alimentos de cada refeição | O mesmo |
+| `consentimento_paciente` | Aceite dos termos, gravado no primeiro login do paciente | O primeiro login do paciente |
+| `plano_alimentar` | O plano do paciente (função REMOVIDA do aplicativo) | Nada — as telas de plano alimentar saíram |
+| `plano_refeicao` | As refeições de cada plano (REMOVIDA) | Nada |
+| `plano_alimento` | Os alimentos de cada refeição (REMOVIDA) | Nada |
 | `assinatura` | O plano pago do nutricionista | Assinar, trocar e cancelar plano — e o plano some ao sair da conta |
 | `cobranca` | Histórico de cobranças da assinatura | "Ver histórico de cobranças", no Perfil |
+| `consulta` | As consultas marcadas (do paciente cadastrado ou avulso) | **Marcar consulta**, a Agenda, as consultas na ficha do paciente e na área dele |
+
+Além das tabelas, o `schema.sql` passou a PREENCHER dois catálogos que
+estavam vazios, `tipo_medida` e `indicador`. Sem eles não há como gravar
+uma avaliação: `medida_antropometrica` e `resultado_avaliacao` têm chave
+estrangeira para os dois.
+
+E `resultado_avaliacao` ganhou a coluna `ds_tom` ('adequado', 'atencao' ou
+'risco'). Coluna nova numa tabela que já existe **não** entra pelo
+`CREATE TABLE IF NOT EXISTS` — por isso há um bloco de `ALTER` no fim do
+`schema.sql`, que acrescenta a coluna só quando ela falta. Rodar o
+`schema.sql` de novo resolve; é só isso que precisa ser feito.
 
 Para saber o que falta no **seu** banco sem conferir na mão, rode isto no
 Workbench (ou em qualquer cliente MySQL):
@@ -87,6 +99,7 @@ SELECT esperadas.nome AS tabela_que_falta
     UNION ALL SELECT 'plano_alimento'
     UNION ALL SELECT 'assinatura'
     UNION ALL SELECT 'cobranca'
+    UNION ALL SELECT 'consulta'
   ) esperadas
   LEFT JOIN information_schema.tables t
     ON t.table_schema = 'helthplus'
@@ -220,6 +233,19 @@ Leia o QR Code com o Expo Go.
 | `POST` | `/api/profissional/login` | Login do nutricionista |
 | `PUT` | `/api/profissional/:id` | Atualiza nome, CRN e telefone |
 | `POST` | `/api/paciente/cadastro` | Cadastra paciente (do nutricionista logado) |
+| `GET` | `/api/paciente` | Lista os pacientes do nutricionista logado |
+| `GET` | `/api/paciente/:id` | A ficha de um paciente |
+| `DELETE` | `/api/paciente/:id` | Apaga o paciente e tudo o que está pendurado nele |
+| `GET` | `/api/paciente/:id/evolucao` | Avaliações do paciente, lidas pelo nutricionista |
+| `POST` | `/api/paciente/login` | Login do paciente (senha = data de nascimento até ele trocar) |
+| `GET` | `/api/paciente/minha-evolucao` | As avaliações do próprio paciente (token dele) |
+| `PUT` | `/api/paciente/senha` | Paciente troca a própria senha (token dele) |
+| `POST` | `/api/avaliacao` | Grava uma avaliação na ficha do paciente |
+| `POST` | `/api/consulta` | Marca uma consulta |
+| `GET` | `/api/consulta?de=&ate=` | A agenda do nutricionista |
+| `PATCH` | `/api/consulta/:id/status` | `pendente`, `confirmada`, `cancelada` ou `realizada` |
+| `GET` | `/api/consulta/minhas` | As consultas do próprio paciente (token dele) |
+| `PATCH` | `/api/consulta/:id/confirmar` | Paciente confirma a presença |
 | `POST` | `/api/senha/esqueci` | Gera o código e envia o e-mail de redefinição |
 | `POST` | `/api/senha/redefinir` | Troca a senha usando o código do e-mail |
 | `PUT` | `/api/senha/:id` | Troca a senha pedindo a senha atual |
@@ -232,7 +258,7 @@ Leia o QR Code com o Expo Go.
 | `GET` | `/api/assinatura` | Plano pago atual, cobranças e nº de pacientes |
 | `PUT` | `/api/assinatura` | Assina ou troca de plano (`{ planoId }`) |
 | `DELETE` | `/api/assinatura` | Cancela a assinatura |
-| `POST` | `/api/convite/reenviar/:idPaciente` | Manda o e-mail de primeiro acesso do paciente |
+| `POST` | `/api/convite/reenviar/:idPaciente` | Manda o e-mail que avisa o paciente do acesso |
 | `POST` | `/api/convite/testador` | Convida alguém para testar o aplicativo |
 
 > As rotas de senha ficam em `/api/senha`, e não em `/api/profissional/senha`,
@@ -240,8 +266,18 @@ Leia o QR Code com o Expo Go.
 
 > A assinatura fica em `/api/assinatura` e os planos ALIMENTARES em
 > `/api/plano`: são coisas diferentes com nomes parecidos. As rotas de
-> assinatura e de convite exigem o token do nutricionista, e tiram o id
-> dele do token — nunca da URL.
+> `/api/plano` continuam no ar, mas **nenhuma tela as usa** — os planos
+> alimentares saíram do aplicativo.
+
+> O id de quem está logado sai sempre do TOKEN, nunca da URL nem do corpo
+> da requisição. Em `/api/avaliacao`, por exemplo, o `idProfissional` do
+> corpo é ignorado: senão bastaria trocar o número para gravar na ficha do
+> paciente de outro nutricionista.
+
+> As rotas do PACIENTE (`/api/paciente/minha-evolucao`, `/api/paciente/senha`,
+> `/api/consulta/minhas`, `/api/consulta/:id/confirmar`) pedem o token da
+> sessão DELE, e não o do nutricionista. Um token não serve no lugar do
+> outro: eles carregam `tipo: 'paciente'` ou `tipo: 'profissional'`.
 
 ### E-mails que a API envia
 
@@ -252,7 +288,7 @@ e-mail só foi para o terminal — os fluxos continuam testáveis.
 
 | Quando | Para quem |
 |---|---|
-| Cadastro do paciente com convite, e o botão da ficha | Paciente (senha provisória do primeiro acesso) |
+| Cadastro do paciente com aviso, e o botão da ficha | Paciente (diz que a senha é a data de nascimento dele) |
 | "Esqueci minha senha" | Nutricionista ou paciente (código de redefinição) |
 | Senha alterada | Nutricionista |
 | Cadastro do nutricionista | Nutricionista (boas-vindas) |
@@ -396,29 +432,77 @@ Não é bug: o `SMTP_PASSWORD` do `Api/.env` está vazio. Veja
 
 ## Estado atual
 
-Funcionando de ponta a ponta, gravando no banco: cadastro e login do
-nutricionista, sessão que sobrevive a fechar o app, cadastro, listagem e
-exclusão de paciente, convite de primeiro acesso do paciente, edição dos
-dados do perfil, troca de senha (pelo perfil e por e-mail), a central de
-notificações com as preferências e a assinatura do plano pago, com o
-histórico de cobranças.
+Funcionando de ponta a ponta, gravando no banco:
+
+- cadastro e login do nutricionista, com sessão que sobrevive a fechar o app;
+- cadastro, listagem, ficha e exclusão de paciente;
+- login do paciente, e a troca de senha dele dentro do aplicativo;
+- a calculadora da OMS, com a avaliação **salva na ficha** (tabelas
+  `avaliacao`, `medida_antropometrica` e `resultado_avaliacao`);
+- a evolução do paciente, lida pelos dois lados a partir das mesmas
+  avaliações: aba Evolução na ficha e "Minha evolução" na área do paciente;
+- as consultas: marcar, listar na agenda, aparecer na ficha do paciente e na
+  área dele, o paciente confirmar a presença e o nutricionista mudar o
+  status (tabela `consulta`);
+- edição do perfil, troca de senha do nutricionista (pelo perfil e por
+  e-mail), a central de notificações com as preferências, e a assinatura do
+  plano pago com o histórico de cobranças.
 
 A contagem de pacientes do plano ("2 de 10") sai da mesma lista que a tela
 de pacientes, lida do banco.
 
-A calculadora da OMS funciona inteira, mas em memória: o resultado só vai
-para a ficha do paciente enquanto o app está aberto.
-
-Pela metade: o plano alimentar **grava** no banco quando é criado, mas a
-tela que lista os planos ainda lê a lista da memória — fechou o app, a
-lista volta vazia.
-
-Ainda em dados de exemplo: agenda, avaliações salvas e a área do paciente.
-As telas existem e navegam, mas ainda não gravam no banco — procure por
-`TODO: integrar com a API`.
+O que NÃO está ligado ao banco, de propósito: a tela "Saúde e dicas" do
+paciente e o checklist "Como foi o seu dia" dela. O conteúdo é texto fixo
+(`app/dados/conteudoSaude.js`) e o checklist não é gravado em lugar nenhum —
+a própria tela diz isso a quem usa.
 
 A assinatura grava o plano e a cobrança, mas **não há cobrança de verdade**:
 não existe gateway de pagamento ligado.
+
+### Funções removidas do produto
+
+Saíram do aplicativo e **não voltam** sem decisão da equipe:
+
+| O que saiu | Por quê |
+|---|---|
+| Planos alimentares (criar, listar, "Meu plano") | Decisão de produto |
+| Registro de água e de refeições pelo paciente | Decisão de produto |
+| Tela de "primeiro acesso" dos dois perfis | A senha do paciente passou a ser a data de nascimento; o nutricionista cria a conta dele na aba ao lado do login |
+| Etapa 3 do cadastro de paciente (objetivo, restrições, alergias, doenças, medicamentos) | Existia para alimentar os planos alimentares |
+| Telefone do paciente e do responsável | Não era usado em lugar nenhum, e dado pessoal sem uso é exposição de graça pela LGPD |
+| Registro de água e de refeições, e o checklist "Como foi o seu dia" | Decisão de produto |
+
+As rotas de `/api/plano` e as tabelas `plano_*` continuam no banco e no
+servidor, sem nenhuma tela que as use. Apagar de vez é um passo à parte,
+que mexe em dado já gravado.
+
+### A senha do paciente
+
+O paciente **não escolhe** e-mail nem senha: quem cria a conta dele é o
+nutricionista. A senha do primeiro acesso é a **data de nascimento** dele,
+em oito dígitos e nada mais: quem nasceu em 12 de março de 2001 digita
+`12032001`. Sem barras, sem traços, sem espaços — `12/03/2001` **não**
+entra.
+
+A regra é só-dígitos de propósito. Uma senha que aceita várias formas de
+escrever obriga o nutricionista a explicar qual delas vale, e era a
+pergunta que mais aparecia na consulta. Oito números é uma instrução só.
+
+Assim o nutricionista libera o acesso na própria consulta, sem depender de
+o e-mail chegar. Em troca, a senha é previsível para quem souber a data de
+nascimento, e por isso:
+
+- ela fica guardada em **hash** (bcrypt), nunca em texto, e o e-mail de
+  aviso **não** carrega senha nenhuma — ele só diz qual é;
+- a conta vira `ativo` no primeiro login que dá certo, e é nesse momento
+  que os consentimentos da LGPD são gravados em `consentimento_paciente`;
+- o aplicativo avisa, na tela inicial e no Perfil, que a senha é provisória,
+  e oferece a troca em **Perfil > Alterar senha** — com as mesmas regras de
+  senha forte do nutricionista.
+
+Onde isso mora no código: `Api/servicos/senhaTemporaria.js` (forma a senha),
+`Api/repository/pacienteRepository.js` (`autenticarPaciente` e
+`trocarSenhaDoPaciente`).
 
 ### Tabelas da OMS
 
