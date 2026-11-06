@@ -1,8 +1,10 @@
 // Api/repository/conviteRepository.js
-// Convite de primeiro acesso do paciente.
+// Convite de acesso do paciente.
 //
-// Gera uma NOVA senha provisória para um paciente que ainda não ativou a
-// conta — a senha antiga está em hash, não dá para reenviar a mesma.
+// Regrava a senha provisória — a data de nascimento do paciente — para
+// quem ainda não escolheu uma senha própria. A senha gravada está em hash,
+// não dá para ler a atual, mas dá para gravar de novo a mesma: ela é
+// derivada da data de nascimento, que está na ficha.
 //
 // Também CRIA o acesso quando ele não existe: um paciente cadastrado com
 // "enviar convite" desmarcado não tem linha em usuario_paciente, e sem
@@ -10,7 +12,7 @@
 // tarde pela ficha.
 const connection = require('../connection');
 const bcrypt = require('bcryptjs');
-const { gerarSenhaTemporaria } = require('../servicos/senhaTemporaria');
+const { senhaDaDataNascimento } = require('../servicos/senhaTemporaria');
 
 function erroNegocio(codigo, mensagem) {
   const erro = new Error(mensagem);
@@ -24,6 +26,7 @@ async function renovarConvite(idPaciente, idProfissional) {
   const [linhas] = await connection.query(
     `SELECT p.id_paciente,
             p.nm_paciente,
+            p.dt_nascimento,
             p.ds_email       AS email_paciente,
             u.ds_email       AS email_acesso,
             u.ds_status,
@@ -59,7 +62,16 @@ async function renovarConvite(idPaciente, idProfissional) {
     );
   }
 
-  const senhaTemporaria = gerarSenhaTemporaria();
+  const senhaTemporaria = senhaDaDataNascimento(acesso.dt_nascimento);
+
+  if (!senhaTemporaria) {
+    throw erroNegocio(
+      'SEM_NASCIMENTO',
+      'Este paciente não tem data de nascimento válida na ficha, e é ela que ' +
+        'forma a senha provisória. Corrija a ficha antes de enviar o convite.'
+    );
+  }
+
   const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
 
   if (temAcesso) {

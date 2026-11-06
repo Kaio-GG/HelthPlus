@@ -6,7 +6,7 @@ const {
   listarPacientesPorProfissional,
   obterPacientePorIdEProfissional,
   autenticarPaciente,
-  ativarContaPaciente,
+  trocarSenhaDoPaciente,
   obterEvolucaoPaciente,
   excluirPaciente,
 } = require('../repository/pacienteRepository');
@@ -100,6 +100,7 @@ router.get(
       const evolucao = await obterEvolucaoPaciente(idPaciente);
 
       return res.status(200).json({
+        paciente: evolucao.paciente || null,
         historicoPeso: evolucao.historicoPeso || [],
         avaliacoes: evolucao.avaliacoes || [],
       });
@@ -112,6 +113,56 @@ router.get(
     }
   }
 );
+
+// Evolução de um paciente, lida pelo NUTRICIONISTA.
+//
+// É a mesma consulta de /minha-evolucao, com outra porta de entrada: aqui
+// quem se autentica é o profissional, e o vínculo com o paciente é
+// conferido antes. As duas telas ("Evolução" na ficha e "Minha evolução"
+// no aplicativo do paciente) passaram a mostrar os mesmos números porque
+// leem a mesma função.
+//
+// Também fica antes de GET /:id — "/:id/evolucao" não colide, mas manter as
+// rotas específicas em cima evita a próxima pegadinha.
+router.get('/:id/evolucao', autenticar, async (req, res) => {
+  const idPaciente = Number(req.params.id);
+  const idProfissional = Number(req.usuario.id_profissional);
+
+  if (!Number.isInteger(idPaciente) || idPaciente <= 0) {
+    return res.status(400).json({
+      mensagem: 'Identificador de paciente inválido.',
+    });
+  }
+
+  try {
+    // Sem esta checagem, qualquer nutricionista leria a evolução de
+    // qualquer paciente só trocando o número da URL.
+    const paciente = await obterPacientePorIdEProfissional(
+      idPaciente,
+      idProfissional
+    );
+
+    if (!paciente) {
+      return res.status(404).json({
+        mensagem: 'Paciente não encontrado.',
+      });
+    }
+
+    const evolucao = await obterEvolucaoPaciente(idPaciente);
+
+    return res.status(200).json({
+      paciente: evolucao.paciente || null,
+      historicoPeso: evolucao.historicoPeso || [],
+      avaliacoes: evolucao.avaliacoes || [],
+    });
+  } catch (erro) {
+    console.error('Erro ao buscar a evolução do paciente:', erro);
+
+    return res.status(500).json({
+      mensagem: 'Erro ao buscar a evolução do paciente.',
+    });
+  }
+});
 
 // Busca a ficha respeitando o vínculo entre paciente e nutricionista.
 router.get('/:id', autenticar, async (req, res) => {
@@ -252,7 +303,6 @@ router.post('/cadastro', async (req, res) => {
           para: p.emailAcesso,
           nomePaciente: p.nome,
           nomeProfissional: resultado.nomeProfissional,
-          senhaTemporaria: resultado.senhaTemporaria,
         });
 
         conviteEnviado = envio.enviado;
@@ -326,23 +376,18 @@ router.post('/login', async (req, res) => {
 
     const idPaciente = Number(resultado.paciente.id);
 
-    const token = resultado.primeiroAcesso
-      ? jwt.sign(
-          {
-            tipo: 'paciente_primeiro_acesso',
-            id_paciente: idPaciente,
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: '15m' }
-        )
-      : jwt.sign(
-          {
-            tipo: 'paciente',
-            id_paciente: idPaciente,
-          },
-          process.env.JWT_SECRET,
-          { expiresIn: '8h' }
-        );
+    // Um token só, de sessão normal. O token curto de
+    // "paciente_primeiro_acesso" deixou de existir junto com a tela: quem
+    // acerta a senha entra no aplicativo, e a conta pendente já foi
+    // ativada pelo autenticarPaciente().
+    const token = jwt.sign(
+      {
+        tipo: 'paciente',
+        id_paciente: idPaciente,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
 
     return res.status(200).json({
       ...resultado,
@@ -357,99 +402,63 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Ativação da conta após o primeiro acesso.
-router.post('/primeiro-acesso', async (req, res) => {
+// Troca de senha do paciente, de dentro do aplicativo.
+//
+// Pede a senha atual, como a do nutricionista: sem isso, quem pegasse o
+// celular destravado trocaria a senha da conta.
+//
+// A "senha atual" pode ser a data de nascimento — é com ela que o paciente
+// entra pela primeira vez. É justamente nesse caso que esta rota mais vale:
+// é por aqui que ele sai de uma senha que qualquer um poderia adivinhar.
+router.put('/senha', verificarSessaoPaciente, async (req, res) => {
+  const { senhaAtual, novaSenha } = req.body;
+
+  if (!senhaAtual) {
+    return res.status(400).json({ mensagem: 'Informe a senha atual.' });
+  }
+
+  // As mesmas regras da tela e da senha do nutricionista
+  // (app/utilitarios/validacoes.js e Api/storage/senhaStorage.js). A tela
+  // ajuda quem digita; quem garante é o servidor.
+  const problemas = [];
+
+  if (!novaSenha || novaSenha.length < 8) problemas.push('pelo menos 8 caracteres');
+  if (!/[A-ZÀ-Ý]/.test(novaSenha || '')) problemas.push('uma letra maiúscula');
+  if (!/\d/.test(novaSenha || '')) problemas.push('um número');
+  if (!/[^A-Za-z0-9\s]/.test(novaSenha || '')) problemas.push('um caractere especial');
+
+  if (problemas.length > 0) {
+    return res.status(400).json({
+      mensagem: `A nova senha precisa ter ${problemas.join(', ')}.`,
+    });
+  }
+
+  if (senhaAtual === novaSenha) {
+    return res.status(400).json({
+      mensagem: 'A nova senha precisa ser diferente da atual.',
+    });
+  }
+
   try {
-    const autorizacao = req.headers.authorization || '';
-    const token = autorizacao.startsWith('Bearer ')
-      ? autorizacao.slice(7)
-      : '';
-
-    if (!token || !process.env.JWT_SECRET) {
-      return res.status(401).json({
-        mensagem: 'Sessão de primeiro acesso inválida ou expirada.',
-      });
-    }
-
-    let dadosToken;
-
-    try {
-      dadosToken = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (erro) {
-      return res.status(401).json({
-        mensagem: 'Sessão de primeiro acesso inválida ou expirada.',
-      });
-    }
-
-    if (dadosToken.tipo !== 'paciente_primeiro_acesso') {
-      return res.status(403).json({
-        mensagem: 'Esta sessão não permite ativar a conta.',
-      });
-    }
-
-    const {
-      senha,
-      confirmarSenha,
-      aceitouTermos,
-      autorizouDados,
-    } = req.body;
-
-    if (typeof senha !== 'string' || senha.length < 8) {
-      return res.status(400).json({
-        mensagem: 'A senha precisa ter no mínimo 8 caracteres.',
-      });
-    }
-
-    if (senha !== confirmarSenha) {
-      return res.status(400).json({
-        mensagem: 'As senhas não conferem.',
-      });
-    }
-
-    if (aceitouTermos !== true || autorizouDados !== true) {
-      return res.status(400).json({
-        mensagem:
-          'É necessário registrar os consentimentos solicitados.',
-      });
-    }
-
-    await ativarContaPaciente(
-      Number(dadosToken.id_paciente),
-      senha,
-      'v1'
+    const resultado = await trocarSenhaDoPaciente(
+      req.paciente.id,
+      senhaAtual,
+      novaSenha
     );
 
-    const novoToken = jwt.sign(
-      {
-        tipo: 'paciente',
-        id_paciente: Number(dadosToken.id_paciente),
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' }
-    );
+    if (!resultado.sucesso) {
+      if (resultado.codigo === 'SENHA_ATUAL_INCORRETA') {
+        return res.status(401).json({ mensagem: 'A senha atual está incorreta.' });
+      }
 
-    return res.status(200).json({
-      mensagem: 'Conta ativada com sucesso.',
-      token: novoToken,
-    });
+      return res.status(404).json({ mensagem: 'Conta não encontrada.' });
+    }
+
+    return res.status(200).json({ mensagem: 'Senha alterada com sucesso!' });
   } catch (erro) {
-    if (erro.code === 'CONTA_NAO_PENDENTE') {
-      return res.status(409).json({
-        mensagem: 'Esta conta não está pendente de ativação.',
-      });
-    }
+    console.error('Erro ao trocar a senha do paciente:', erro);
 
-    if (erro.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({
-        mensagem: 'Os consentimentos já foram registrados.',
-      });
-    }
-
-    console.error('Erro ao ativar conta do paciente:', erro);
-
-    return res.status(500).json({
-      mensagem: 'Não foi possível ativar a conta.',
-    });
+    return res.status(500).json({ mensagem: 'Erro ao alterar a senha.' });
   }
 });
 

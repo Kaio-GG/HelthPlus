@@ -13,6 +13,7 @@ const profissionalStorage = require('./storage/profissionalStorage');
 const pacienteStorage = require('./storage/pacienteStorage');
 const planoStorage = require('./storage/planoStorage');
 const consultaStorage = require('./storage/consultaStorage');
+const avaliacaoStorage = require('./storage/avaliacaoStorage');
 const conviteStorage = require('./storage/conviteStorage');
 const senhaStorage = require('./storage/senhaStorage');
 const notificacaoStorage = require('./storage/notificacaoStorage');
@@ -22,6 +23,7 @@ app.use('/api/profissional', profissionalStorage);
 app.use('/api/paciente', pacienteStorage);
 app.use('/api/plano', planoStorage);
 app.use('/api/consulta', consultaStorage);
+app.use('/api/avaliacao', avaliacaoStorage);
 app.use('/api/convite', conviteStorage);
 
 // Rotas de senha

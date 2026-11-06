@@ -1,6 +1,9 @@
 const connection = require('../connection');
 const bcrypt = require('bcryptjs');
-const { gerarSenhaTemporaria } = require('../servicos/senhaTemporaria');
+const {
+  senhaDaDataNascimento,
+  aceitarDataDeNascimento,
+} = require('../servicos/senhaTemporaria');
 
 // --------------------------------------------------
 // Cadastro do paciente e criação do acesso
@@ -12,6 +15,13 @@ async function inserirPaciente(p) {
   try {
     await conn.beginTransaction();
 
+    // Nenhum telefone é gravado, e nenhum dado de saúde: o cadastro deixou
+    // de pedir os dois (telefone não era usado em lugar nenhum, e guardar
+    // dado de saúde sem necessidade é exposição de graça pela LGPD).
+    //
+    // As colunas continuam na tabela porque apagar coluna de banco de
+    // produção é outra conversa; elas simplesmente ficam nulas daqui para
+    // frente. Está anotado em Api/database/schema.sql.
     const [resultado] = await conn.query(
       `INSERT INTO paciente (
         id_profissional,
@@ -19,37 +29,23 @@ async function inserirPaciente(p) {
         dt_nascimento,
         sg_sexo,
         nm_responsavel,
-        nr_telefone_responsavel,
         ds_email,
-        nr_telefone,
         ds_cep,
         ds_numero,
         ds_logradouro,
-        nm_cidade,
-        ds_objetivo_consulta,
-        ds_restricoes_alimentares,
-        ds_alergias,
-        ds_condicoes_saude,
-        ds_medicamentos
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        nm_cidade
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         p.idProfissional,
         p.nome,
         p.dataNascimento,
         String(p.sexo || '').charAt(0).toUpperCase() || null,
         p.nomeResponsavel || null,
-        p.telefoneResponsavel || null,
         p.email || null,
-        p.telefone || null,
         p.cep || null,
         p.numero || null,
         p.logradouro || null,
         p.cidade || null,
-        p.objetivo || null,
-        p.restricoes || null,
-        p.alergias || null,
-        p.condicoes || null,
-        p.medicamentos || null,
       ]
     );
 
@@ -59,8 +55,19 @@ async function inserirPaciente(p) {
     let nomeProfissional = null;
 
     if (p.enviarConvite) {
-      // Senha provisória aleatória: ela só existe aqui e no e-mail do paciente.
-      senhaTemporaria = gerarSenhaTemporaria();
+      // A senha provisória é a DATA DE NASCIMENTO do paciente (DDMMAAAA).
+      // Assim o nutricionista pode liberar o acesso na própria consulta,
+      // sem depender de o e-mail chegar. Ver servicos/senhaTemporaria.js.
+      senhaTemporaria = senhaDaDataNascimento(p.dataNascimento);
+
+      if (!senhaTemporaria) {
+        const erro = new Error(
+          'A data de nascimento é inválida, e é ela que forma a senha provisória.'
+        );
+        erro.codigo = 'NASCIMENTO_INVALIDO';
+        throw erro;
+      }
+
       const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
 
       await conn.query(
@@ -102,10 +109,7 @@ async function listarPacientesPorProfissional(idProfissional) {
        p.dt_nascimento,
        p.sg_sexo,
        p.nm_responsavel,
-       p.nr_telefone_responsavel,
        p.ds_email,
-       p.nr_telefone,
-       p.ds_objetivo_consulta,
        u.ds_status
      FROM paciente p
      LEFT JOIN usuario_paciente u
@@ -122,10 +126,7 @@ async function listarPacientesPorProfissional(idProfissional) {
     nascimento: p.dt_nascimento,
     sexo: p.sg_sexo,
     responsavel: p.nm_responsavel,
-    telefoneResponsavel: p.nr_telefone_responsavel,
     email: p.ds_email,
-    telefone: p.nr_telefone,
-    objetivo: p.ds_objetivo_consulta,
     statusAcesso: p.ds_status || 'sem_acesso',
   }));
 }
@@ -146,18 +147,11 @@ async function obterPacientePorIdEProfissional(
        p.dt_nascimento,
        p.sg_sexo,
        p.nm_responsavel,
-       p.nr_telefone_responsavel,
        p.ds_email,
-       p.nr_telefone,
        p.ds_cep,
        p.ds_numero,
        p.ds_logradouro,
        p.nm_cidade,
-       p.ds_objetivo_consulta,
-       p.ds_restricoes_alimentares,
-       p.ds_alergias,
-       p.ds_condicoes_saude,
-       p.ds_medicamentos,
        u.ds_status
      FROM paciente p
      LEFT JOIN usuario_paciente u
@@ -182,18 +176,11 @@ async function obterPacientePorIdEProfissional(
     nascimento: p.dt_nascimento,
     sexo: p.sg_sexo,
     responsavel: p.nm_responsavel,
-    telefoneResponsavel: p.nr_telefone_responsavel,
     email: p.ds_email,
-    telefone: p.nr_telefone,
     cep: p.ds_cep,
     numero: p.ds_numero,
     logradouro: p.ds_logradouro,
     cidade: p.nm_cidade,
-    objetivo: p.ds_objetivo_consulta,
-    restricoes: p.ds_restricoes_alimentares,
-    alergias: p.ds_alergias,
-    condicoes: p.ds_condicoes_saude,
-    medicamentos: p.ds_medicamentos,
     statusAcesso: p.ds_status || 'sem_acesso',
   };
 }
@@ -202,6 +189,13 @@ async function obterPacientePorIdEProfissional(
 // Login do paciente
 // --------------------------------------------------
 
+// Entra com o e-mail e a senha. A senha pode ser a que o paciente escolheu
+// ou, enquanto ele não escolheu nenhuma, a data de nascimento dele.
+//
+// Não existe mais tela de primeiro acesso: a conta que ainda estava
+// 'pendente' vira 'ativo' aqui, no primeiro login que dá certo, e os
+// consentimentos da LGPD são registrados no mesmo momento. A troca de
+// senha passou a ser opcional, em Perfil > Alterar senha.
 async function autenticarPaciente(email, senha) {
   const [linhas] = await connection.query(
     `SELECT
@@ -210,6 +204,8 @@ async function autenticarPaciente(email, senha) {
        u.ds_senha,
        u.ds_status,
        p.nm_paciente,
+       p.dt_nascimento,
+       p.sg_sexo,
        p.id_profissional
      FROM usuario_paciente u
      INNER JOIN paciente p
@@ -235,10 +231,12 @@ async function autenticarPaciente(email, senha) {
     };
   }
 
-  const senhaCorreta = await bcrypt.compare(
-    senha,
-    usuario.ds_senha
-  );
+  // Uma comparação só, com o texto exatamente como foi digitado.
+  //
+  // A senha provisória são oito dígitos, então ela já entra por aqui sem
+  // tratamento nenhum. Havia antes uma segunda tentativa que limpava
+  // barras e traços; ela saiu junto com a regra que aceitava "12/03/2001".
+  const senhaCorreta = await bcrypt.compare(senha, usuario.ds_senha);
 
   if (!senhaCorreta) {
     return {
@@ -251,81 +249,82 @@ async function autenticarPaciente(email, senha) {
     return {
       sucesso: false,
       mensagem: 'Esta conta está bloqueada.',
+      bloqueado: true,
     };
   }
 
-  const primeiroAcesso = usuario.ds_status === 'pendente';
-
-  if (!primeiroAcesso && usuario.ds_status !== 'ativo') {
+  if (usuario.ds_status !== 'pendente' && usuario.ds_status !== 'ativo') {
     return {
       sucesso: false,
       mensagem: 'Não foi possível acessar esta conta.',
     };
   }
 
+  // Ainda usando a senha provisória? A tela avisa e oferece a troca.
+  const senhaProvisoria =
+    aceitarDataDeNascimento(senha) !== null &&
+    senha === senhaDaDataNascimento(usuario.dt_nascimento);
+
+  // Primeiro login de uma conta pendente: ativa e registra o consentimento.
+  // Uma falha aqui não derruba o login — a pessoa acertou a senha, e deixá-la
+  // fora do aplicativo por causa do INSERT do consentimento seria pior.
+  if (usuario.ds_status === 'pendente') {
+    try {
+      await ativarNoPrimeiroLogin(usuario.id_paciente);
+    } catch (erro) {
+      console.error(
+        'Erro ao ativar a conta do paciente no primeiro login:',
+        erro.message
+      );
+    }
+  }
+
   return {
     sucesso: true,
-    primeiroAcesso,
+    // Continua na resposta por compatibilidade com quem a lê: hoje é
+    // sempre false, porque a conta já sai ativada daqui.
+    primeiroAcesso: false,
+    senhaProvisoria,
     paciente: {
       id: String(usuario.id_paciente),
       nome: usuario.nm_paciente,
       email: usuario.ds_email,
+      nascimento: usuario.dt_nascimento,
+      sexo: usuario.sg_sexo,
     },
   };
 }
 
-// --------------------------------------------------
-// Ativação da conta no primeiro acesso
-// --------------------------------------------------
-
-async function ativarContaPaciente(
-  idPaciente,
-  senha,
-  versaoTermos = 'v1'
-) {
+// Marca a conta como ativa e grava os consentimentos da LGPD.
+//
+// Roda uma única vez por conta: só chega aqui quem está 'pendente', e o
+// status está no WHERE do UPDATE — por isso o INSERT não duplica.
+async function ativarNoPrimeiroLogin(idPaciente, versaoTermos = 'v1') {
   const conn = await connection.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    const [linhas] = await conn.query(
-      `SELECT id_paciente, ds_status
-       FROM usuario_paciente
-       WHERE id_paciente = ?
-       FOR UPDATE`,
+    const [atualizadas] = await conn.query(
+      `UPDATE usuario_paciente
+          SET ds_status = 'ativo'
+        WHERE id_paciente = ?
+          AND ds_status = 'pendente'`,
       [idPaciente]
     );
 
-    if (
-      linhas.length === 0 ||
-      linhas[0].ds_status !== 'pendente'
-    ) {
-      throw new Error(
-        'A conta não está disponível para primeiro acesso.'
+    if (atualizadas.affectedRows === 1) {
+      await conn.query(
+        `INSERT INTO consentimento_paciente
+            (id_paciente, tp_consentimento, st_aceito, ds_versao_termos)
+          VALUES
+            (?, 'termos_privacidade', 1, ?),
+            (?, 'tratamento_dados_saude', 1, ?)`,
+        [idPaciente, versaoTermos, idPaciente, versaoTermos]
       );
     }
 
-    const senhaHash = await bcrypt.hash(senha, 10);
-
-    await conn.query(
-      `UPDATE usuario_paciente
-       SET ds_senha = ?, ds_status = 'ativo'
-       WHERE id_paciente = ?`,
-      [senhaHash, idPaciente]
-    );
-
-    await conn.query(
-      `INSERT INTO consentimento_paciente
-        (id_paciente, tp_consentimento, st_aceito,
-         ds_versao_termos)
-       VALUES
-        (?, 'termos_privacidade', 1, ?),
-        (?, 'tratamento_dados_saude', 1, ?)`,
-      [idPaciente, versaoTermos, idPaciente, versaoTermos]
-    );
-
     await conn.commit();
-    return { sucesso: true };
   } catch (erro) {
     await conn.rollback();
     throw erro;
@@ -334,11 +333,74 @@ async function ativarContaPaciente(
   }
 }
 
+// Troca de senha de dentro do aplicativo: confere a senha atual e grava a
+// nova. Ativa a conta de quem ainda estava com a senha provisória.
+//
+// Devolve { sucesso: true } ou { sucesso: false, codigo } — quem chama
+// transforma o código em resposta HTTP.
+async function trocarSenhaDoPaciente(idPaciente, senhaAtual, novaSenha) {
+  const [linhas] = await connection.query(
+    `SELECT u.ds_senha, u.ds_status
+       FROM usuario_paciente u
+      WHERE u.id_paciente = ?
+      LIMIT 1`,
+    [idPaciente]
+  );
+
+  if (linhas.length === 0 || !linhas[0].ds_senha) {
+    return { sucesso: false, codigo: 'CONTA_NAO_ENCONTRADA' };
+  }
+
+  const conta = linhas[0];
+
+  // Como no login: uma comparação só, com o texto digitado. A senha
+  // provisória são oito dígitos e entra aqui sem tratamento.
+  const confere = await bcrypt.compare(senhaAtual, conta.ds_senha);
+
+  if (!confere) {
+    return { sucesso: false, codigo: 'SENHA_ATUAL_INCORRETA' };
+  }
+
+  await connection.query(
+    `UPDATE usuario_paciente
+        SET ds_senha = ?,
+            ds_status = CASE WHEN ds_status = 'pendente' THEN 'ativo' ELSE ds_status END
+      WHERE id_paciente = ?`,
+    [await bcrypt.hash(novaSenha, 12), idPaciente]
+  );
+
+  return { sucesso: true };
+}
+
 // --------------------------------------------------
 // Evolução do paciente: avaliações e medidas reais
 // --------------------------------------------------
 
+// A evolução é o histórico de avaliações do paciente, no formato que as
+// telas usam. Serve aos dois lados: a aba "Evolução" da ficha (lida pelo
+// nutricionista) e "Minha evolução" (lida pelo próprio paciente).
+//
+// A data de nascimento e o sexo vão junto porque a tela de detalhe refaz o
+// cálculo da OMS a partir do peso e da altura guardados — é assim que ela
+// mostra escore-z e classificação por extenso, como na calculadora, sem
+// precisar de uma tabela nova no banco.
 async function obterEvolucaoPaciente(idPaciente) {
+  const [pacienteBanco] = await connection.query(
+    `SELECT nm_paciente, dt_nascimento, sg_sexo
+       FROM paciente
+      WHERE id_paciente = ?
+      LIMIT 1`,
+    [idPaciente]
+  );
+
+  const paciente = pacienteBanco[0]
+    ? {
+        nome: pacienteBanco[0].nm_paciente,
+        nascimento: pacienteBanco[0].dt_nascimento,
+        sexo: pacienteBanco[0].sg_sexo,
+      }
+    : null;
+
   const [avaliacoesBanco] = await connection.query(
     `SELECT
        a.id_avaliacao,
@@ -357,6 +419,7 @@ async function obterEvolucaoPaciente(idPaciente) {
 
   if (avaliacoesBanco.length === 0) {
     return {
+      paciente,
       historicoPeso: [],
       avaliacoes: [],
     };
@@ -384,19 +447,29 @@ async function obterEvolucaoPaciente(idPaciente) {
     idsAvaliacoes
   );
 
+  // Uma linha por indicador calculado, com a leitura daquele dia. É o que
+  // a tela de detalhe mostra por extenso, e é de onde sai a contagem
+  // "3 de 4 indicadores adequados".
+  //
+  // A contagem é por ds_tom = 'adequado'. Antes ela usava
+  // st_valor_extremo = 0, o que contava como "na faixa" todo resultado que
+  // não fosse absurdo — um sobrepeso entrava na conta como adequado.
   const [resultadosBanco] = await connection.query(
     `SELECT
-       id_avaliacao,
-       COUNT(*) AS total,
-       SUM(
-         CASE
-           WHEN st_valor_extremo = 0 THEN 1
-           ELSE 0
-         END
-       ) AS na_faixa
-     FROM resultado_avaliacao
-     WHERE id_avaliacao IN (${placeholders})
-     GROUP BY id_avaliacao`,
+       r.id_avaliacao,
+       i.sg_indicador,
+       i.nm_indicador,
+       r.vl_observado,
+       r.vl_escore_z,
+       r.vl_percentil,
+       r.ds_classificacao,
+       r.ds_tom,
+       r.st_valor_extremo
+     FROM resultado_avaliacao r
+     INNER JOIN indicador i
+       ON i.id_indicador = r.id_indicador
+     WHERE r.id_avaliacao IN (${placeholders})
+     ORDER BY r.id_resultado ASC`,
     idsAvaliacoes
   );
 
@@ -414,16 +487,19 @@ async function obterEvolucaoPaciente(idPaciente) {
   }
 
   for (const resultado of resultadosBanco) {
-    resultadosPorAvaliacao.set(
-      String(resultado.id_avaliacao),
-      resultado
-    );
+    const id = String(resultado.id_avaliacao);
+
+    if (!resultadosPorAvaliacao.has(id)) {
+      resultadosPorAvaliacao.set(id, []);
+    }
+
+    resultadosPorAvaliacao.get(id).push(resultado);
   }
 
   const avaliacoes = avaliacoesBanco.map((a) => {
     const id = String(a.id_avaliacao);
     const medidas = medidasPorAvaliacao.get(id) || [];
-    const resultado = resultadosPorAvaliacao.get(id);
+    const resultados = resultadosPorAvaliacao.get(id) || [];
 
     let pesoKg = null;
     let alturaCm = null;
@@ -514,8 +590,22 @@ async function obterEvolucaoPaciente(idPaciente) {
       imc,
       tipo: a.tp_avaliacao,
       observacoes: a.ds_observacoes,
-      naFaixa: resultado ? Number(resultado.na_faixa) : null,
-      total: resultado ? Number(resultado.total) : null,
+      naFaixa: resultados.length
+        ? resultados.filter((item) => item.ds_tom === 'adequado').length
+        : null,
+      total: resultados.length || null,
+      resultados: resultados.map((item) => ({
+        indicador: item.sg_indicador,
+        rotulo: item.nm_indicador,
+        medida:
+          item.vl_observado === null ? null : Number(item.vl_observado),
+        zScore: item.vl_escore_z === null ? null : Number(item.vl_escore_z),
+        percentil:
+          item.vl_percentil === null ? null : Number(item.vl_percentil),
+        classificacao: item.ds_classificacao,
+        tom: item.ds_tom,
+        extremo: Boolean(item.st_valor_extremo),
+      })),
     };
   });
 
@@ -534,7 +624,11 @@ async function obterEvolucaoPaciente(idPaciente) {
     }));
 
   return {
+    paciente,
     historicoPeso,
+    // Da mais recente para a mais antiga: é a ordem em que a lista aparece
+    // na tela. O historicoPeso fica na ordem contrária, de propósito — um
+    // gráfico de linha lido da direita para a esquerda não se entende.
     avaliacoes: avaliacoes.reverse(),
   };
 }
@@ -543,10 +637,11 @@ async function obterEvolucaoPaciente(idPaciente) {
 // Exclusão do paciente
 //
 // Apaga de verdade, e leva junto tudo o que pendurado nele: o acesso ao
-// aplicativo, as avaliações (com as medidas e os resultados), os planos
-// alimentares, os consentimentos e a participação em inquéritos.
+// aplicativo, as avaliações (com as medidas e os resultados), as consultas
+// marcadas, os planos alimentares, os consentimentos e a participação em
+// inquéritos.
 //
-// É em transação porque são oito DELETEs: se o quinto falhasse, o
+// É em transação porque são nove DELETEs: se o quinto falhasse, o
 // paciente ficaria pela metade — sem avaliações e ainda na lista.
 //
 // A ordem importa: o banco recusa apagar uma linha que outra ainda
@@ -595,6 +690,11 @@ async function excluirPaciente(idPaciente, idProfissional) {
     // As refeições e os alimentos do plano saem por CASCADE.
     await conn.query('DELETE FROM plano_alimentar WHERE id_paciente = ?', [idPaciente]);
 
+    // As consultas apontam para o paciente. Sem este DELETE a exclusão
+    // morre no banco ("ER_ROW_IS_REFERENCED_2") para todo paciente que já
+    // teve consulta marcada — e é a maioria deles.
+    await conn.query('DELETE FROM consulta WHERE id_paciente = ?', [idPaciente]);
+
     await conn.query('DELETE FROM consentimento_paciente WHERE id_paciente = ?', [
       idPaciente,
     ]);
@@ -630,7 +730,7 @@ module.exports = {
   listarPacientesPorProfissional,
   obterPacientePorIdEProfissional,
   autenticarPaciente,
-  ativarContaPaciente,
+  trocarSenhaDoPaciente,
   obterEvolucaoPaciente,
   excluirPaciente,
 };

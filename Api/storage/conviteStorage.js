@@ -25,11 +25,12 @@ router.post('/reenviar/:idPaciente', autenticar, async (req, res) => {
   try {
     const convite = await renovarConvite(idPaciente, idProfissional);
 
+    // A senha provisória não vai para o e-mail: ela é a data de nascimento
+    // do paciente, e o e-mail apenas diz isso em palavras.
     const envio = await enviarConvitePaciente({
       para: convite.email,
       nomePaciente: convite.nomePaciente,
       nomeProfissional: convite.nomeProfissional,
-      senhaTemporaria: convite.senhaTemporaria,
     });
 
     // Saiu de verdade.
@@ -62,7 +63,7 @@ router.post('/reenviar/:idPaciente', autenticar, async (req, res) => {
     if (erro.codigo === 'CONTA_NAO_PENDENTE') {
       return res.status(409).json({ mensagem: erro.message });
     }
-    if (erro.codigo === 'SEM_EMAIL') {
+    if (erro.codigo === 'SEM_EMAIL' || erro.codigo === 'SEM_NASCIMENTO') {
       return res.status(422).json({ mensagem: erro.message });
     }
     // O e-mail de acesso é único no banco: outro paciente já usa este.

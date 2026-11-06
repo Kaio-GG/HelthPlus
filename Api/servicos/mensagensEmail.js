@@ -125,10 +125,10 @@ function enviarEmailRedefinicaoSenha(para, nome, token) {
 }
 
 // O convite de acesso do paciente NÃO mora aqui: ele está em
-// servicos/conviteEmail.js, que manda a senha provisória aleatória gerada
-// por servicos/senhaTemporaria.js. Juntar os dois módulos num só é uma
-// arrumação que vale a pena, mas que mexe em código de outra pessoa —
-// fica para quando a equipe decidir.
+// servicos/conviteEmail.js, que avisa o paciente de que a senha dele é a
+// própria data de nascimento (ver servicos/senhaTemporaria.js). Juntar os
+// dois módulos num só é uma arrumação que vale a pena, mas que mexe em
+// código de outra pessoa — fica para quando a equipe decidir.
 
 // ---------------------------------------------------------------
 // Boas-vindas do nutricionista
