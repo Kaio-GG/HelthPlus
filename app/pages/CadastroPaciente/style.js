@@ -37,11 +37,41 @@ export const estilos = StyleSheet.create({
   campoMetade: {
     width: '48%',
   },
-  linhaChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
+  avisoNascimento: {
+    marginTop: -4,
+    marginBottom: 16,
   },
+
+  // A senha do primeiro acesso em destaque: é o dado que o nutricionista
+  // precisa passar ao paciente, e ele sai desta tela sem anotar nada.
+  caixaSenha: {
+    backgroundColor: cores.verdeSuave,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: cores.bordaVerde,
+    padding: 14,
+    marginBottom: 16,
+  },
+  tituloSenha: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: cores.verdeLink,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  valorSenha: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: cores.verdeEscuro,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  dicaSenha: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: cores.textoSecundario,
+  },
+
   linhaConvite: {
     flexDirection: 'row',
     alignItems: 'center',

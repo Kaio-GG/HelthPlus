@@ -16,7 +16,6 @@ import Paciente from './pages/Paciente';
 import EsqueciSenha from './pages/EsqueciSenha';
 import VerificacaoEmail from './pages/VerificacaoEmail';
 import RedefinirSenha from './pages/RedefinirSenha';
-import PrimeiroAcesso from './pages/PrimeiroAcesso';
 
 // Área do nutricionista
 import HomeNutricionista from './pages/HomeNutricionista';
@@ -26,8 +25,7 @@ import FichaPaciente from './pages/FichaPaciente';
 import FaixaCalculadora from './pages/FaixaCalculadora';
 import Calculadora from './pages/Calculadora';
 import ResultadoCalculadora from './pages/ResultadoCalculadora';
-import PlanosAlimentares from './pages/PlanosAlimentares';
-import CriarPlanoAlimentar from './pages/CriarPlanoAlimentar';
+import PrevisaoAltura from './pages/PrevisaoAltura';
 import Pacotes from './pages/Pacotes';
 import Agenda from './pages/Agenda';
 import NovaConsulta from './pages/NovaConsulta';
@@ -39,12 +37,14 @@ import Termos from './pages/Termos';
 
 // Área do paciente
 import HomePaciente from './pages/HomePaciente';
-import RegistrosPaciente from './pages/RegistrosPaciente';
-import MeuPlano from './pages/MeuPlano';
 import EvolucaoPaciente from './pages/EvolucaoPaciente';
 import AgendaPaciente from './pages/AgendaPaciente';
 import PerfilPaciente from './pages/PerfilPaciente';
+import AlterarSenhaPaciente from './pages/AlterarSenhaPaciente';
+import Dicas from './pages/Dicas';
 
+// Usada pelos dois perfis
+import DetalheAvaliacao from './pages/DetalheAvaliacao';
 
 const Pilha = createNativeStackNavigator();
 
@@ -80,7 +80,6 @@ export default function App() {
                 <Pilha.Screen name="EsqueciSenha" component={EsqueciSenha} />
                 <Pilha.Screen name="VerificacaoEmail" component={VerificacaoEmail} />
                 <Pilha.Screen name="RedefinirSenha" component={RedefinirSenha} />
-                <Pilha.Screen name="PrimeiroAcesso" component={PrimeiroAcesso} />
 
                 {/* Área do nutricionista */}
                 <Pilha.Screen name="HomeNutricionista" component={HomeNutricionista} options={semAnimacao} />
@@ -94,10 +93,9 @@ export default function App() {
                 <Pilha.Screen name="FaixaCalculadora" component={FaixaCalculadora} />
                 <Pilha.Screen name="Calculadora" component={Calculadora} />
                 <Pilha.Screen name="ResultadoCalculadora" component={ResultadoCalculadora} />
+                <Pilha.Screen name="PrevisaoAltura" component={PrevisaoAltura} />
 
-                {/* Planos e consultas */}
-                <Pilha.Screen name="PlanosAlimentares" component={PlanosAlimentares} />
-                <Pilha.Screen name="CriarPlanoAlimentar" component={CriarPlanoAlimentar} />
+                {/* Assinatura e consultas */}
                 <Pilha.Screen name="Pacotes" component={Pacotes} />
                 <Pilha.Screen name="NovaConsulta" component={NovaConsulta} />
 
@@ -109,11 +107,15 @@ export default function App() {
 
                 {/* Área do paciente */}
                 <Pilha.Screen name="HomePaciente" component={HomePaciente} options={semAnimacao} />
-                <Pilha.Screen name="RegistrosPaciente" component={RegistrosPaciente} options={semAnimacao} />
+                <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} options={semAnimacao} />
                 <Pilha.Screen name="AgendaPaciente" component={AgendaPaciente} options={semAnimacao} />
                 <Pilha.Screen name="PerfilPaciente" component={PerfilPaciente} options={semAnimacao} />
-                <Pilha.Screen name="MeuPlano" component={MeuPlano} />
-                <Pilha.Screen name="EvolucaoPaciente" component={EvolucaoPaciente} />
+                <Pilha.Screen name="AlterarSenhaPaciente" component={AlterarSenhaPaciente} />
+                <Pilha.Screen name="Dicas" component={Dicas} />
+
+                {/* A avaliação por extenso: o nutricionista chega pela ficha,
+                    o paciente por "Minha evolução". A tela é a mesma. */}
+                <Pilha.Screen name="DetalheAvaliacao" component={DetalheAvaliacao} />
               </Pilha.Navigator>
             </NavigationContainer>
           </DialogoProvider>

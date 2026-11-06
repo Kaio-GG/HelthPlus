@@ -190,4 +190,16 @@ export const estilos = StyleSheet.create({
   botaoSalvar: {
     marginBottom: espacamento.md,
   },
+
+  // ----- Atalho para a previsão de altura -----
+  tituloPrevisao: {
+    ...tipografia.secao,
+    color: cores.verdeEscuro,
+  },
+  textoPrevisao: {
+    ...tipografia.apoio,
+    color: cores.textoSecundario,
+    marginTop: 4,
+    marginBottom: espacamento.lg,
+  },
 });

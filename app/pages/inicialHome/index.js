@@ -75,7 +75,7 @@ const Inicio = ({ navigation }) => {
               <View style={estilos.textos}>
                 <Text style={estilos.tituloOpcao}>Sou Paciente</Text>
                 <Text style={estilos.descricao}>
-                  Registre sua água e suas refeições
+                  Acompanhe sua evolução e suas consultas
                 </Text>
               </View>
 

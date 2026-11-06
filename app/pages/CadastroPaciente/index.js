@@ -1,14 +1,23 @@
-// Cadastro de paciente em 4 etapas:
-// 1) dados pessoais  2) contato e endereço  3) dados de saúde  4) acesso ao app
+// Cadastro de paciente em 3 etapas:
+// 1) dados pessoais  2) e-mail e endereço  3) acesso ao aplicativo
+//
+// O que saiu, e por quê:
+//
+//   Telefone do paciente e do responsável — não eram usados em lugar
+//   nenhum do aplicativo, e dado pessoal guardado sem uso é exposição de
+//   graça pela LGPD. O contato é pelo aplicativo e pelo e-mail.
+//
+//   A etapa "dados de saúde" inteira (objetivo da consulta, restrições e
+//   preferências, alergias, doenças, medicamentos) — existia para alimentar
+//   os planos alimentares, que saíram do produto. Sem eles, era um
+//   formulário de dados sensíveis que ninguém lia.
 import React, { useState } from 'react';
 import { View, Text, Switch } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import BarraEtapas from '../../componentes/BarraEtapas';
 import CampoTexto from '../../componentes/CampoTexto';
-import CampoSelecao from '../../componentes/CampoSelecao';
 import Alternador from '../../componentes/Alternador';
-import Chip from '../../componentes/Chip';
 import CaixaAviso from '../../componentes/CaixaAviso';
 import CaixaSelecao from '../../componentes/CaixaSelecao';
 import Selo from '../../componentes/Selo';
@@ -22,44 +31,40 @@ import { cores } from '../../tema';
 import { emailValido } from '../../utilitarios/validacoes';
 import {
   aplicarMascaraData,
-  aplicarMascaraTelefone,
   aplicarMascaraCep,
   apenasDigitos,
 } from '../../utilitarios/mascaras';
 import { converterDataBR, calcularIdadeEmMeses } from '../../utilitarios/datas';
 import { estilos } from './style';
 
-const TOTAL_ETAPAS = 4;
-const titulosDasEtapas = ['Dados pessoais', 'Contato e endereço', 'Dados de saúde', 'Acesso ao aplicativo'];
-
-const objetivosDaConsulta = [
-  'Emagrecimento',
-  'Ganho de massa muscular',
-  'Reeducação alimentar',
-  'Controle de doenças crônicas',
-  'Acompanhamento infantil',
-  'Outro',
-];
-const opcoesDeRestricao = ['Vegetariano', 'Vegano', 'Sem lactose', 'Sem glúten', 'Low carb'];
+const TOTAL_ETAPAS = 3;
+const titulosDasEtapas = ['Dados pessoais', 'E-mail e endereço', 'Acesso ao aplicativo'];
 
 // O que dizer ao nutricionista depois de cadastrar.
 //
 // O caso do meio é o que importa: o acesso do paciente foi criado, mas a
-// API está sem SMTP e o convite não saiu. Dizer "convite enviado" aí
-// deixaria o nutricionista esperando que o paciente recebesse algo.
+// API está sem SMTP e o aviso não saiu. Dizer "e-mail enviado" aí deixaria
+// o nutricionista esperando que o paciente recebesse algo.
+//
+// Nos três casos a senha é a mesma — a data de nascimento —, e por isso o
+// nutricionista consegue liberar o acesso na própria consulta, sem depender
+// do e-mail. É isso que a mensagem precisa deixar claro.
 const avisoDoConvite = (enviarConvite, conviteEnviado, email) => {
+  const comoEntrar =
+    'O paciente entra no aplicativo com o e-mail dele e os oito números da data de nascimento como senha.';
+
   if (!enviarConvite) {
-    return 'Você pode enviar o convite depois, pela ficha do paciente.';
+    return `${comoEntrar} Você pode enviar o e-mail de acesso depois, pela ficha do paciente.`;
   }
 
   if (conviteEnviado) {
-    return `O convite foi enviado para ${email}. O paciente cria a própria senha no primeiro acesso.`;
+    return `${comoEntrar} O aviso foi enviado para ${email}.`;
   }
 
   return (
-    'O acesso foi criado, mas a API está sem SMTP configurado: o convite não ' +
-    'chegou a sair (ele aparece no terminal da API). Preencha as variáveis ' +
-    'SMTP_ do Api/.env ou passe os dados de acesso ao paciente.'
+    `${comoEntrar} O acesso foi criado, mas a API está sem SMTP configurado: ` +
+    'o e-mail não chegou a sair (ele aparece no terminal da API). Preencha as ' +
+    'variáveis SMTP_ do Api/.env ou passe os dados de acesso ao paciente.'
   );
 };
 
@@ -68,18 +73,11 @@ const dadosIniciais = {
   nascimento: '',
   sexo: 'F',
   responsavel: '',
-  telefoneResponsavel: '',
-  telefone: '',
   email: '',
   cep: '',
   numero: '',
   logradouro: '',
   cidade: '',
-  objetivo: '',
-  restricoes: [],
-  alergias: '',
-  doencas: '',
-  medicamentos: '',
   enviarConvite: true,
   informouPaciente: false,
 };
@@ -89,7 +87,6 @@ const dataParaISO = (dataBR) => {
   const [dia, mes, ano] = dataBR.split('/');
   return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
 };
-
 
 const CadastroPaciente = ({ navigation }) => {
   const { pacientes, limitePacientes, recarregarPacientes } = useDados();
@@ -101,22 +98,17 @@ const CadastroPaciente = ({ navigation }) => {
   // Modal comum, que funciona nos três lugares.
   const mostrarAviso = (titulo, mensagem, tom = 'alerta') =>
     avisar({ titulo, mensagem, tom });
+
   const [etapa, setEtapa] = useState(1);
   const [dados, setDados] = useState(dadosIniciais);
   const [erros, setErros] = useState({});
   const [carregando, setCarregando] = useState(false);
 
-  const limiteAtingido = limitePacientes !== null && pacientes.length >= limitePacientes;
+  const limiteAtingido =
+    limitePacientes !== null && pacientes.length >= limitePacientes;
 
-  const atualizar = (campo, valor) => setDados((atuais) => ({ ...atuais, [campo]: valor }));
-
-  const alternarRestricao = (restricao) => {
-    const jaMarcada = dados.restricoes.includes(restricao);
-    atualizar(
-      'restricoes',
-      jaMarcada ? dados.restricoes.filter((item) => item !== restricao) : [...dados.restricoes, restricao]
-    );
-  };
+  const atualizar = (campo, valor) =>
+    setDados((atuais) => ({ ...atuais, [campo]: valor }));
 
   // Retorna os erros da etapa informada (objeto vazio = tudo certo).
   const validarEtapa = (numeroDaEtapa) => {
@@ -126,23 +118,28 @@ const CadastroPaciente = ({ navigation }) => {
       if (dados.nome.trim().length < 3) novosErros.nome = 'Informe o nome completo.';
 
       const nascimento = converterDataBR(dados.nascimento);
+
+      // A data de nascimento deixou de ser só um dado da ficha: é com ela
+      // que o paciente entra no aplicativo. Uma data errada aqui é um
+      // acesso que não abre.
       if (!nascimento || nascimento > new Date()) {
         novosErros.nascimento = 'Informe uma data de nascimento válida.';
-      } else if (calcularIdadeEmMeses(nascimento) < 18 * 12 && dados.responsavel.trim().length < 3) {
+      } else if (
+        calcularIdadeEmMeses(nascimento) < 18 * 12 &&
+        dados.responsavel.trim().length < 3
+      ) {
         novosErros.responsavel = 'Obrigatório para menores de 18 anos.';
       }
     }
 
     if (numeroDaEtapa === 2) {
       if (!emailValido(dados.email)) novosErros.email = 'Informe um e-mail válido.';
-      if (dados.cep && apenasDigitos(dados.cep).length !== 8) novosErros.cep = 'CEP incompleto.';
+      if (dados.cep && apenasDigitos(dados.cep).length !== 8) {
+        novosErros.cep = 'CEP incompleto.';
+      }
     }
 
     if (numeroDaEtapa === 3) {
-      if (!dados.objetivo) novosErros.objetivo = 'Selecione o objetivo da consulta.';
-    }
-
-    if (numeroDaEtapa === 4) {
       if (!dados.informouPaciente) {
         novosErros.informou = 'Confirme que o paciente foi informado.';
       }
@@ -155,7 +152,10 @@ const CadastroPaciente = ({ navigation }) => {
     if (carregando) return;
 
     if (!profissional?.id_profissional) {
-      mostrarAviso('Sessão expirada', 'Entre novamente na sua conta para cadastrar pacientes.');
+      mostrarAviso(
+        'Sessão expirada',
+        'Entre novamente na sua conta para cadastrar pacientes.'
+      );
       return;
     }
 
@@ -170,10 +170,8 @@ const CadastroPaciente = ({ navigation }) => {
         dataNascimento: dataParaISO(dados.nascimento),
         sexo: dados.sexo, // "F" ou "M"
         nomeResponsavel: dados.responsavel.trim(),
-        telefoneResponsavel: dados.telefoneResponsavel,
 
         // Etapa 2
-        telefone: dados.telefone,
         email: dados.email.trim(),
         cep: dados.cep,
         numero: dados.numero,
@@ -181,13 +179,6 @@ const CadastroPaciente = ({ navigation }) => {
         cidade: dados.cidade.trim(),
 
         // Etapa 3
-        objetivo: dados.objetivo,
-        restricoes: dados.restricoes.join(', '), // chips -> texto
-        alergias: dados.alergias.trim(),
-        condicoes: dados.doencas.trim(),
-        medicamentos: dados.medicamentos.trim(),
-
-        // Etapa 4
         enviarConvite: dados.enviarConvite,
         emailAcesso: dados.email.trim(),
       });
@@ -209,7 +200,12 @@ const CadastroPaciente = ({ navigation }) => {
 
       mostrarAviso(
         'Paciente cadastrado!',
-        avisoDoConvite(dados.enviarConvite, resposta.conviteEnviado, dados.email.trim())
+        avisoDoConvite(
+          dados.enviarConvite,
+          resposta.conviteEnviado,
+          dados.email.trim()
+        ),
+        'sucesso'
       );
 
       // Sai da tela de cadastro e vai para a lista de pacientes
@@ -250,11 +246,20 @@ const CadastroPaciente = ({ navigation }) => {
       rodape={
         <View style={estilos.linhaBotoes}>
           {etapa > 1 ? (
-            <Botao titulo="Voltar" variante="contorno" aoPressionar={voltarEtapa} estilo={estilos.botaoVoltar} />
+            <Botao
+              titulo="Voltar"
+              variante="contorno"
+              aoPressionar={voltarEtapa}
+              estilo={estilos.botaoVoltar}
+            />
           ) : null}
           <Botao
             titulo={
-              etapa === TOTAL_ETAPAS ? (carregando ? 'Salvando...' : 'Concluir cadastro') : 'Continuar'
+              etapa === TOTAL_ETAPAS
+                ? carregando
+                  ? 'Salvando...'
+                  : 'Concluir cadastro'
+                : 'Continuar'
             }
             aoPressionar={continuar}
             desabilitado={limiteAtingido || carregando}
@@ -296,6 +301,14 @@ const CadastroPaciente = ({ navigation }) => {
               erro={erros.nascimento}
             />
 
+            {/* A data virou credencial de acesso, então o nutricionista
+                precisa saber que ela não é só um dado da ficha. */}
+            <CaixaAviso
+              tom="info"
+              estilo={estilos.avisoNascimento}
+              texto="Confira a data: os oito números dela são a senha com que o paciente entra no aplicativo pela primeira vez."
+            />
+
             <Text style={estilos.rotuloAlternador}>Sexo (usado nos cálculos da OMS)</Text>
             <Alternador
               opcoes={[
@@ -308,7 +321,9 @@ const CadastroPaciente = ({ navigation }) => {
 
             <Text style={estilos.tituloSecao}>Responsável legal</Text>
             <Text style={estilos.dicaSecao}>
-              {menorDeIdade ? 'Obrigatório: paciente menor de 18 anos.' : 'Obrigatório para menores de 18 anos.'}
+              {menorDeIdade
+                ? 'Obrigatório: paciente menor de 18 anos.'
+                : 'Obrigatório para menores de 18 anos.'}
             </Text>
             <CampoTexto
               rotulo="Nome do responsável"
@@ -318,26 +333,12 @@ const CadastroPaciente = ({ navigation }) => {
               capitalizar="words"
               erro={erros.responsavel}
             />
-            <CampoTexto
-              rotulo="Telefone"
-              valor={dados.telefoneResponsavel}
-              aoMudar={(texto) => atualizar('telefoneResponsavel', aplicarMascaraTelefone(texto))}
-              placeholder="(00) 00000-0000"
-              teclado="phone-pad"
-            />
           </View>
         )}
 
-        {/* ---------- Etapa 2: contato e endereço ---------- */}
+        {/* ---------- Etapa 2: e-mail e endereço ---------- */}
         {etapa === 2 && (
           <View>
-            <CampoTexto
-              rotulo="Telefone / WhatsApp"
-              valor={dados.telefone}
-              aoMudar={(texto) => atualizar('telefone', aplicarMascaraTelefone(texto))}
-              placeholder="(00) 00000-0000"
-              teclado="phone-pad"
-            />
             <CampoTexto
               rotulo="E-mail"
               valor={dados.email}
@@ -384,66 +385,35 @@ const CadastroPaciente = ({ navigation }) => {
           </View>
         )}
 
-        {/* ---------- Etapa 3: dados de saúde ---------- */}
+        {/* ---------- Etapa 3: acesso ao aplicativo ---------- */}
         {etapa === 3 && (
           <View>
-            <CampoSelecao
-              rotulo="Objetivo da consulta"
-              valor={dados.objetivo}
-              opcoes={objetivosDaConsulta}
-              aoMudar={(valor) => atualizar('objetivo', valor)}
-              placeholder="Selecione"
-              erro={erros.objetivo}
-            />
-
-            <Text style={estilos.rotuloAlternador}>Restrições e preferências</Text>
-            <View style={estilos.linhaChips}>
-              {opcoesDeRestricao.map((restricao) => (
-                <Chip
-                  key={restricao}
-                  rotulo={restricao}
-                  comCheck
-                  ativo={dados.restricoes.includes(restricao)}
-                  aoPressionar={() => alternarRestricao(restricao)}
-                />
-              ))}
-            </View>
-
-            <CampoTexto
-              rotulo="Alergias alimentares (opcional)"
-              valor={dados.alergias}
-              aoMudar={(texto) => atualizar('alergias', texto)}
-              placeholder="Ex.: amendoim, frutos do mar"
-              multilinha
-            />
-            <CampoTexto
-              rotulo="Doenças e condições (opcional)"
-              valor={dados.doencas}
-              aoMudar={(texto) => atualizar('doencas', texto)}
-              placeholder="Ex.: diabetes, hipertensão"
-              multilinha
-            />
-            <CampoTexto
-              rotulo="Medicamentos em uso (opcional)"
-              valor={dados.medicamentos}
-              aoMudar={(texto) => atualizar('medicamentos', texto)}
-              placeholder="Nome e dose, se houver"
-              multilinha
-            />
-          </View>
-        )}
-
-        {/* ---------- Etapa 4: acesso ao aplicativo ---------- */}
-        {etapa === 4 && (
-          <View>
-            <CaixaAviso texto="O paciente entra no app com o e-mail abaixo. Para menores de 18 anos, o convite vai ao e-mail do responsável." />
+            <CaixaAviso texto="O paciente entra no app com o e-mail abaixo. Para menores de 18 anos, o aviso vai ao e-mail do responsável." />
 
             <CampoTexto rotulo="E-mail de acesso" valor={dados.email} somenteLeitura />
 
+            <View style={estilos.caixaSenha}>
+              <Text style={estilos.tituloSenha}>Senha do primeiro acesso</Text>
+              {/* A senha é mostrada EXATAMENTE como o paciente vai digitá-la:
+                  só os oito números. Mostrar "12/03/2016" aqui faria o
+                  nutricionista ditar a data com as barras. */}
+              <Text style={estilos.valorSenha}>
+                {dados.nascimento
+                  ? dados.nascimento.replace(/\D/g, '')
+                  : 'a data de nascimento'}
+              </Text>
+              <Text style={estilos.dicaSenha}>
+                São os oito números da data de nascimento, sem barras. O paciente
+                pode trocar a senha depois, no próprio aplicativo.
+              </Text>
+            </View>
+
             <View style={estilos.linhaConvite}>
               <View style={estilos.textoConvite}>
-                <Text style={estilos.tituloConvite}>Enviar convite agora</Text>
-                <Text style={estilos.dicaConvite}>O paciente cria a própria senha.</Text>
+                <Text style={estilos.tituloConvite}>Avisar por e-mail agora</Text>
+                <Text style={estilos.dicaConvite}>
+                  Manda ao paciente o e-mail de acesso.
+                </Text>
               </View>
               <Switch
                 value={dados.enviarConvite}
@@ -455,19 +425,24 @@ const CadastroPaciente = ({ navigation }) => {
 
             <Text style={estilos.rotuloAlternador}>Status do acesso</Text>
             <Selo
-              texto={dados.enviarConvite ? 'Convite pendente' : 'Sem convite'}
-              tom={dados.enviarConvite ? 'alerta' : 'neutro'}
+              texto={dados.enviarConvite ? 'Acesso liberado' : 'Acesso sem aviso'}
+              tom={dados.enviarConvite ? 'sucesso' : 'neutro'}
               estilo={estilos.seloStatus}
             />
 
             <CaixaSelecao
               marcado={dados.informouPaciente}
               aoAlternar={() => atualizar('informouPaciente', !dados.informouPaciente)}
-              rotulo="Informei ao paciente (ou ao responsável) como os dados de saúde serão usados."
+              rotulo="Informei ao paciente (ou ao responsável) como os dados dele serão usados, e que ele tem acesso ao aplicativo."
               erro={erros.informou}
             />
 
-            <CaixaAviso texto="No primeiro acesso, o próprio paciente aceita os Termos de Uso e a Política de Privacidade (LGPD)." />
+            {/* Não há mais tela de primeiro acesso para o paciente aceitar
+                os termos: o consentimento é registrado no banco quando ele
+                entra pela primeira vez (ver Api/repository/
+                pacienteRepository.js), e quem informa é o nutricionista —
+                é o que esta caixa de seleção acima declara. */}
+            <CaixaAviso texto="Os Termos de Uso e a Política de Privacidade (LGPD) ficam registrados em nome do paciente no primeiro acesso dele." />
           </View>
         )}
       </Cartao>

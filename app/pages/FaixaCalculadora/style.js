@@ -69,6 +69,18 @@ export const estilos = StyleSheet.create({
     marginTop: espacamento.md,
   },
 
+  // Separa as "outras ferramentas" das três faixas de referência: sem o
+  // título, o cartão da previsão de altura parecia uma quarta faixa.
+  tituloOutras: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: cores.textoSecundario,
+    alignSelf: 'stretch',
+    marginTop: 8,
+    marginBottom: 10,
+  },
   nota: {
     ...tipografia.miudo,
     color: cores.textoSecundario,

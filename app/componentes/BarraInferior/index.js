@@ -1,7 +1,7 @@
 // Barra de navegação inferior.
 // Props:
 //   abaAtiva   nutricionista: 'inicio' | 'agenda' | 'perfil'
-//              paciente: 'inicio' | 'registros' | 'consultas' | 'perfil'
+//              paciente: 'inicio' | 'evolucao' | 'consultas' | 'perfil'
 //   perfil     'nutricionista' (padrão) | 'paciente'
 
 import React from 'react';
@@ -20,7 +20,10 @@ const abasDoNutricionista = [
 
 const abasDoPaciente = [
   { chave: 'inicio', rotulo: 'Início', icone: 'casa', rota: 'HomePaciente' },
-  { chave: 'registros', rotulo: 'Registros', icone: 'prato', rota: 'RegistrosPaciente' },
+  // "Evolução" entrou no lugar de "Registros" (água e refeições), que
+  // saiu do produto. É a tela que o paciente mais tem motivo para abrir:
+  // é onde ele vê o que foi medido nas consultas.
+  { chave: 'evolucao', rotulo: 'Evolução', icone: 'grafico', rota: 'EvolucaoPaciente' },
   { chave: 'consultas', rotulo: 'Consultas', icone: 'calendario', rota: 'AgendaPaciente' },
   { chave: 'perfil', rotulo: 'Perfil', icone: 'usuario', rota: 'PerfilPaciente' },
 ];

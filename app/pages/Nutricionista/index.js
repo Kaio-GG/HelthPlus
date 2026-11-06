@@ -166,13 +166,11 @@ const Nutricionista = ({ navigation, route }) => {
               erro={erros.senha}
             />
 
+            {/* Só "esqueci minha senha". O "primeiro acesso" saiu: o
+                nutricionista cria a própria conta na aba ao lado, e o
+                paciente entra com a data de nascimento — nenhum dos dois
+                tinha o que fazer naquela tela. */}
             <View style={estilos.linhaLinks}>
-              <Text
-                style={estilos.link}
-                onPress={() => navigation.navigate("PrimeiroAcesso")}
-              >
-                Primeiro acesso
-              </Text>
               <Text
                 style={estilos.link}
                 onPress={() =>

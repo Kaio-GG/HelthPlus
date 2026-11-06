@@ -19,6 +19,8 @@ import { calcularIdadeEmMeses, formatarIdade } from '../../utilitarios/datas';
 import { estilos } from './style';
 
 const FaixaCalculadora = ({ navigation, route }) => {
+  // A lista do contexto vem do banco (recarregada a cada abertura), então
+  // o paciente que chegou pela rota é encontrado aqui.
   const { pacientes } = useDados();
 
   // Quando a tela vem da ficha de um paciente, já dá para dizer qual é a
@@ -80,6 +82,40 @@ const FaixaCalculadora = ({ navigation, route }) => {
           </TouchableOpacity>
         );
       })}
+
+      {/* Outra ferramenta da calculadora, e não uma faixa de referência:
+          por isso vem depois das três, separada por um título. */}
+      <Text style={estilos.tituloOutras}>Outras ferramentas</Text>
+
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() =>
+          navigation.navigate('PrevisaoAltura', {
+            pacienteId,
+            nomePaciente: paciente?.nome ?? null,
+            nascimento: paciente?.nascimento ?? null,
+            sexo: paciente?.sexo ?? null,
+          })
+        }
+        accessibilityRole="button"
+        accessibilityLabel="Previsão de altura adulta da criança"
+      >
+        <Cartao estilo={estilos.cartao}>
+          <View style={estilos.circulo}>
+            <Icone nome="grafico" tamanho={26} cor={cores.verdeBotao} />
+          </View>
+
+          <View style={estilos.textos}>
+            <Text style={estilos.rotulo}>Previsão de altura</Text>
+            <Text style={estilos.resumo} numberOfLines={2}>
+              Altura adulta estimada: pela altura dos pais e pela curva de
+              crescimento da criança.
+            </Text>
+          </View>
+
+          <Icone nome="chevron-direita" tamanho={20} cor={cores.textoSecundario} />
+        </Cartao>
+      </TouchableOpacity>
 
       <Text style={estilos.nota}>
         Cada faixa usa uma tabela da OMS e pontos de corte próprios. Escolha pela idade que o

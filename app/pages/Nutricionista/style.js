@@ -25,9 +25,11 @@ export const estilos = StyleSheet.create({
     flex: 1.3,
   },
 
+  // Com um link só, "space-between" o jogava para a esquerda do cartão,
+  // longe do campo de senha; alinhado à direita ele fica logo abaixo dele.
   linhaLinks: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: 20,
     marginTop: -2,
   },

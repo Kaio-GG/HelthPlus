@@ -37,11 +37,25 @@ export const calcularZScore = (medida, { L, M, S }) => {
   return (Math.pow(medida / M, L) - 1) / (L * S);
 };
 
-// A medida que corresponde a um escore-z inteiro (ex.: o peso do +3 DP).
-const medidaNoDesvio = (desvio, { L, M, S }) => {
+// A medida que corresponde a um escore-z (ex.: o peso do +3 DP, ou a
+// estatura que um escore-z de -0,4 representa aos 19 anos).
+//
+// É a fórmula LMS invertida: onde calcularZScore() vai da medida para o
+// escore, esta vai do escore para a medida.
+//
+//   X = M * (1 + L*S*Z)^(1/L)    quando L != 0
+//   X = M * e^(S*Z)              quando L == 0
+//
+// Exportada porque a previsão de altura (utilitarios/oms/previsaoAltura.js)
+// precisa dela: ela projeta a estatura adulta mantendo o escore-z atual e
+// lendo a curva aos 19 anos.
+export const medidaNoZScore = (desvio, { L, M, S }) => {
   if (Math.abs(L) < 1e-9) return M * Math.exp(S * desvio);
   return M * Math.pow(1 + L * S * desvio, 1 / L);
 };
+
+// Nome curto usado aqui dentro, no cálculo do escore-z ajustado.
+const medidaNoDesvio = medidaNoZScore;
 
 // Escore-z AJUSTADO.
 //

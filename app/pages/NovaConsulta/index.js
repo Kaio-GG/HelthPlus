@@ -29,14 +29,18 @@ const dataParaISO = (data) =>
 
 const NovaConsulta = ({ navigation, route }) => {
   const { avisar } = useDialogo();
-  const { pacientes, adicionarConsulta } = useDados();
+  const { pacientes, recarregarConsultas } = useDados();
   const { profissional, token } = useAuth();
 
   const dataInicial = route.params?.dataMs ? new Date(route.params.dataMs) : new Date();
 
   const [tipoPaciente, setTipoPaciente] = useState('cadastrado');
   const [busca, setBusca] = useState('');
-  const [pacienteId, setPacienteId] = useState(null);
+
+  // Chegando da ficha de um paciente, ele já vem escolhido: quem tocou em
+  // "Marcar consulta" dentro da ficha do Fulano não deveria ter de
+  // procurar o Fulano na busca da tela seguinte.
+  const [pacienteId, setPacienteId] = useState(route.params?.pacienteId ?? null);
   const [nomeAvulso, setNomeAvulso] = useState('');
   const [telefoneAvulso, setTelefoneAvulso] = useState('');
   const [data, setData] = useState(formatarDataBR(dataInicial));
@@ -89,7 +93,7 @@ const NovaConsulta = ({ navigation, route }) => {
     try {
       setSalvando(true);
 
-      const resposta = await criarConsulta(
+      await criarConsulta(
         {
           // idBanco existe nos pacientes que vieram do banco.
           idPaciente: ehAvulso ? null : pacienteEscolhido.idBanco ?? pacienteEscolhido.id,
@@ -105,18 +109,14 @@ const NovaConsulta = ({ navigation, route }) => {
         token
       );
 
-      // Mantém a agenda local atualizada (provisório, até a Agenda ler do banco).
-      adicionarConsulta({
-        idBanco: resposta.idConsulta,
-        pacienteId: ehAvulso ? null : pacienteEscolhido.id,
-        nome: ehAvulso ? nomeAvulso.trim() : pacienteEscolhido.nome,
-        inicio,
-        duracao: duracaoEmMinutos,
-        tipo: tipoConsulta,
-        observacoes,
-        status: 'pendente',
-        avulso: ehAvulso,
-      });
+      // Relê a agenda do banco.
+      //
+      // Antes a consulta era gravada na API e TAMBÉM numa lista em
+      // memória, e era a lista que alimentava as telas: a consulta
+      // marcada desaparecia ao fechar o aplicativo e nunca aparecia na
+      // ficha do paciente. Agora existe uma fonte só — a tabela
+      // "consulta" —, e é dela que a agenda e a ficha leem.
+      await recarregarConsultas();
 
       // Aviso na central de notificações. Um aviso que falha não pode
       // atrapalhar uma consulta que já foi agendada, por isso o catch vazio.

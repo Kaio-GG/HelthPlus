@@ -4,16 +4,17 @@
 // A tela é lida de cima para baixo em três níveis: a MEDIDA em destaque, a
 // CLASSIFICAÇÃO como etiqueta colorida e, só então, os números técnicos.
 // Antes estava tudo no mesmo peso e o valor se perdia no meio.
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Botao from '../../componentes/Botao';
 import CaixaAviso from '../../componentes/CaixaAviso';
-import { useDados } from '../../contexto/DadosContexto';
+import { useAuth } from '../../contexto/AuthContext';
 import { useDialogo } from '../../contexto/DialogoContexto';
 import { avaliarMedidas } from '../../utilitarios/oms/avaliacaoOms';
-import { formatarIdade, formatarDataBR } from '../../utilitarios/datas';
+import { montarCorpoDaAvaliacao, salvarAvaliacao } from '../../Api/avaliacoes';
+import { formatarIdade } from '../../utilitarios/datas';
 import { formatarNumero, formatarZScore } from '../../utilitarios/formatos';
 import { estilos } from './style';
 
@@ -27,8 +28,9 @@ const estiloDoTom = {
 const SEM_CLASSIFICACAO = [estilos.chipIndisponivel, estilos.textoChipIndisponivel];
 
 const ResultadoCalculadora = ({ navigation, route }) => {
-  const { salvarAvaliacao } = useDados();
+  const { token } = useAuth();
   const { avisar } = useDialogo();
+  const [salvando, setSalvando] = useState(false);
   const { pacienteId, nomePaciente, nascimentoMs, dataVisitaMs, sexo, posicao, medidas } =
     route.params;
 
@@ -49,24 +51,58 @@ const ResultadoCalculadora = ({ navigation, route }) => {
   const temImplausivel = calculados.some((item) => item.implausivel);
   const adulto = faixa.chave === 'adulto';
 
+  // Grava a avaliação no banco (POST /api/avaliacao).
+  //
+  // Antes isto só entrava numa lista em memória: a avaliação sumia ao
+  // fechar o aplicativo, e o paciente nunca a via em "Minha evolução".
+  // Agora ela vai para as tabelas avaliacao, medida_antropometrica e
+  // resultado_avaliacao, e é de lá que as duas telas de evolução leem.
+  //
+  // O cálculo continua sendo feito aqui, no aplicativo, com as curvas da
+  // OMS: a API recebe o resultado pronto. O porquê está em
+  // Api/repository/avaliacaoRepository.js.
   const salvarNaFicha = async () => {
-    // TODO: integrar com a API (salvar a avaliação na ficha do paciente).
-    salvarAvaliacao({
-      pacienteId,
-      data: formatarDataBR(dataDaVisita),
-      idade: idadeTexto,
-      pesoKg: medidas.pesoKg || 0,
-      alturaCm: medidas.alturaCm || 0,
-      imc: avaliacao.imc || 0,
-      naFaixa: adequados,
-      total: calculados.length,
-    });
-    await avisar({
-      titulo: 'Avaliação salva',
-      mensagem: 'A avaliação foi adicionada à ficha do paciente.',
-      tom: 'sucesso',
-    });
-    navigation.popTo('FichaPaciente', { pacienteId, aba: 'avaliacoes' });
+    if (salvando) return;
+
+    if (!token) {
+      avisar({
+        titulo: 'Sessão expirada',
+        mensagem: 'Entre novamente na sua conta para salvar a avaliação.',
+        tom: 'erro',
+      });
+      return;
+    }
+
+    try {
+      setSalvando(true);
+
+      await salvarAvaliacao(
+        montarCorpoDaAvaliacao({
+          pacienteId,
+          dataDaVisita,
+          medidas,
+          avaliacao,
+        }),
+        token
+      );
+
+      await avisar({
+        titulo: 'Avaliação salva',
+        mensagem:
+          'A avaliação entrou na ficha do paciente e já aparece no aplicativo dele.',
+        tom: 'sucesso',
+      });
+
+      navigation.popTo('FichaPaciente', { pacienteId, aba: 'avaliacoes' });
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível salvar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -77,7 +113,8 @@ const ResultadoCalculadora = ({ navigation, route }) => {
         <View>
           {pacienteId ? (
             <Botao
-              titulo="Salvar na ficha do paciente"
+              titulo={salvando ? 'Salvando...' : 'Salvar na ficha do paciente'}
+              desabilitado={salvando}
               aoPressionar={salvarNaFicha}
               estilo={estilos.botaoSalvar}
             />
@@ -173,6 +210,33 @@ const ResultadoCalculadora = ({ navigation, route }) => {
           </Cartao>
         );
       })}
+
+      {/* Previsão de altura: só para quem ainda cresce, e já com a
+          estatura desta avaliação preenchida. É o momento em que o
+          nutricionista está com a régua na mão e com a família na frente —
+          mandar procurar a ferramenta no menu seria perder a deixa. */}
+      {!adulto && medidas.alturaCm ? (
+        <Cartao>
+          <Text style={estilos.tituloPrevisao}>Previsão de altura adulta</Text>
+          <Text style={estilos.textoPrevisao}>
+            Com a estatura desta avaliação e a altura do pai e da mãe, dá para
+            estimar até onde esta criança deve crescer.
+          </Text>
+          <Botao
+            titulo="Estimar a altura adulta"
+            variante="contorno"
+            aoPressionar={() =>
+              navigation.navigate('PrevisaoAltura', {
+                pacienteId,
+                nomePaciente,
+                nascimentoMs,
+                sexo,
+                alturaCm: medidas.alturaCm,
+              })
+            }
+          />
+        </Cartao>
+      ) : null}
 
       <Cartao estilo={estilos.cartaoLegenda}>
         <View style={estilos.legenda}>

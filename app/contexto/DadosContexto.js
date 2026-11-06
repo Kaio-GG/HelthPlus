@@ -1,7 +1,15 @@
-
- // Estado compartilhado do aplicativo.
- // A sessão do nutricionista vem do AuthContext.
- // A sessão do paciente é mantida separadamente.
+// Estado compartilhado do aplicativo.
+//
+// A sessão do nutricionista vem do AuthContext; a do paciente é mantida
+// aqui, separada, porque as duas podem existir ao mesmo tempo no mesmo
+// celular (o nutricionista testando o aplicativo do paciente, por exemplo).
+//
+// O que mora aqui são os dados que mais de uma tela usa: a lista de
+// pacientes, a agenda de consultas e a assinatura. Todos vêm do banco, pela
+// API — nada mais é montado em memória.
+//
+// Os planos alimentares e os registros de água e refeições saíram daqui:
+// as duas funções foram removidas do produto.
 
 import React, {
   createContext,
@@ -15,28 +23,22 @@ import React, {
 import { useAuth } from './AuthContext';
 import { listarPacientes } from '../Api/Pacientes';
 import {
+  listarConsultas,
+  listarMinhasConsultas,
+  alterarStatusConsulta as alterarStatusNaApi,
+  confirmarConsulta as confirmarConsultaNaApi,
+} from '../Api/consultas';
+import {
   buscarAssinatura,
   assinarPlano,
   cancelarAssinatura as cancelarAssinaturaNaApi,
 } from '../Api/assinatura';
-import {
-  planosIndividuais,
-  planosClinica,
-} from '../dados/planosAssinatura';
-import { META_AGUA_PADRAO_LITROS } from '../dados/registros';
-import { nomesDasRefeicoes } from '../dados/alimentosTaco';
-import {
-  chaveDoDia,
-  formatarHora,
-  formatarDataBR,
-} from '../utilitarios/datas';
+import { planosIndividuais, planosClinica } from '../dados/planosAssinatura';
+import { formatarDataBR } from '../utilitarios/datas';
 
 const DadosContexto = createContext(null);
 
-const todosOsPlanos = [
-  ...planosIndividuais,
-  ...planosClinica,
-];
+const todosOsPlanos = [...planosIndividuais, ...planosClinica];
 
 // "12/03/2001" -> "2001-03-12". O banco devolve a data no formato ISO,
 // mas um cadastro recém-feito na tela pode chegar no formato brasileiro.
@@ -68,45 +70,36 @@ const normalizarPaciente = (paciente) => ({
   id: String(paciente.id ?? paciente.idBanco ?? ''),
   nascimento: normalizarNascimento(paciente.nascimento),
   statusAcesso: normalizarStatusAcesso(paciente.statusAcesso),
-  historicoPeso: Array.isArray(paciente.historicoPeso)
-    ? paciente.historicoPeso
-    : [],
-  ultimaConsulta: paciente.ultimaConsulta ?? null,
 });
 
 export const DadosProvider = ({ children }) => {
   const [pacientes, setPacientes] = useState([]);
   const [consultas, setConsultas] = useState([]);
-  const [planosAlimentares, setPlanosAlimentares] = useState([]);
-  const [avaliacoes, setAvaliacoes] = useState([]);
   const [planoAssinaturaId, setPlanoAssinaturaId] = useState(null);
   const [cobrancas, setCobrancas] = useState([]);
 
   // Enquanto a API não responde, o aplicativo não sabe se existe plano:
   // as telas mostram "carregando" em vez de "você não tem plano".
-  const [carregandoAssinatura, setCarregandoAssinatura] =
-    useState(false);
+  const [carregandoAssinatura, setCarregandoAssinatura] = useState(false);
   const [erroAssinatura, setErroAssinatura] = useState('');
 
-  const [carregandoPacientes, setCarregandoPacientes] =
-    useState(false);
+  const [carregandoPacientes, setCarregandoPacientes] = useState(false);
   const [erroPacientes, setErroPacientes] = useState('');
 
-  // Registros em memória: "<idPaciente>|<dia>".
-  const [registros, setRegistros] = useState({});
+  const [carregandoConsultas, setCarregandoConsultas] = useState(false);
+  const [erroConsultas, setErroConsultas] = useState('');
 
   // Sessão do paciente, separada da sessão do nutricionista.
   const [pacienteAtualId, setPacienteAtualId] = useState(null);
   const [dadosPacienteAtual, setDadosPacienteAtual] = useState(null);
   const [tokenPaciente, setTokenPaciente] = useState(null);
+  const [senhaProvisoria, setSenhaProvisoria] = useState(false);
 
   // O token é o que dá acesso às rotas do nutricionista na API.
   const { profissional: nutricionista, token } = useAuth();
 
   const planoAtual =
-    todosOsPlanos.find(
-      (plano) => plano.id === planoAssinaturaId
-    ) ?? null;
+    todosOsPlanos.find((plano) => plano.id === planoAssinaturaId) ?? null;
 
   // ---------- Pacientes ----------
 
@@ -132,9 +125,7 @@ export const DadosProvider = ({ children }) => {
 
       return normalizados;
     } catch (erro) {
-      setErroPacientes(
-        erro.message || 'Não foi possível carregar os pacientes.'
-      );
+      setErroPacientes(erro.message || 'Não foi possível carregar os pacientes.');
 
       return [];
     } finally {
@@ -154,302 +145,130 @@ export const DadosProvider = ({ children }) => {
 
   // ---------- Consultas ----------
 
-  const adicionarConsulta = (dados) => {
-    const nova = {
-      ...dados,
-      id: `c${Date.now()}`,
-    };
-
-    setConsultas((atuais) => [...atuais, nova]);
-
-    return nova;
-  };
-
-  const atualizarStatusConsulta = (id, status) => {
-    setConsultas((atuais) =>
-      atuais.map((consulta) =>
-        consulta.id === id
-          ? { ...consulta, status }
-          : consulta
-      )
-    );
-  };
-
-  // ---------- Planos alimentares ----------
-
-  const salvarPlanoAlimentar = (plano) => {
-    const existe = planosAlimentares.some(
-      (atual) => atual.id === plano.id
-    );
-
-    if (existe) {
-      setPlanosAlimentares((atuais) =>
-        atuais.map((atual) =>
-          atual.id === plano.id ? plano : atual
-        )
-      );
-
-      return plano;
+  // A agenda também vem do banco (tabela "consulta").
+  //
+  // Antes a consulta era gravada na API E numa lista em memória, e só a
+  // lista alimentava as telas: ao fechar o aplicativo, a agenda sumia e a
+  // consulta marcada não aparecia na ficha do paciente. Agora há uma fonte
+  // só, e o marcar-consulta termina com um recarregarConsultas().
+  //
+  // Serve aos dois perfis: com token de nutricionista, traz a agenda dele;
+  // com token de paciente, as consultas do paciente. Nunca os dois ao mesmo
+  // tempo — o perfil que estiver na tela é o que manda.
+  const recarregarConsultas = useCallback(async () => {
+    if (!token && !tokenPaciente) {
+      setConsultas([]);
+      setErroConsultas('');
+      return [];
     }
 
-    const novo = {
-      ...plano,
-      id: `pl${Date.now()}`,
-    };
+    setCarregandoConsultas(true);
+    setErroConsultas('');
 
-    setPlanosAlimentares((atuais) => [
-      novo,
-      ...atuais,
-    ]);
+    try {
+      const lista = token
+        ? await listarConsultas(token)
+        : await listarMinhasConsultas(tokenPaciente);
 
-    return novo;
-  };
+      setConsultas(lista || []);
 
-  const duplicarPlanoAlimentar = (id) => {
-    const original = planosAlimentares.find(
-      (plano) => plano.id === id
-    );
+      return lista || [];
+    } catch (erro) {
+      setErroConsultas(erro.message || 'Não foi possível carregar as consultas.');
 
-    if (!original) return;
+      return [];
+    } finally {
+      setCarregandoConsultas(false);
+    }
+  }, [token, tokenPaciente]);
 
-    const copia = {
-      ...original,
-      id: `pl${Date.now()}`,
-      nome: `${original.nome} (cópia)`,
-      status: 'ativo',
-    };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    recarregarConsultas();
+  }, [recarregarConsultas]);
 
-    setPlanosAlimentares((atuais) => [
-      copia,
-      ...atuais,
-    ]);
-  };
+  // As consultas de um paciente, da mais próxima para a mais distante.
+  // É o que a ficha do paciente mostra.
+  const consultasDoPaciente = useCallback(
+    (pacienteId) =>
+      consultas
+        .filter((consulta) => String(consulta.pacienteId) === String(pacienteId))
+        .sort((a, b) => a.inicio - b.inicio),
+    [consultas]
+  );
 
-  const alternarArquivamentoPlano = (id) => {
-    setPlanosAlimentares((atuais) =>
-      atuais.map((plano) =>
-        plano.id === id
-          ? {
-              ...plano,
-              status:
-                plano.status === 'ativo'
-                  ? 'arquivado'
-                  : 'ativo',
-            }
-          : plano
-      )
-    );
-  };
+  // Nutricionista muda o status (confirmada, cancelada, realizada).
+  // Grava no banco e relê: assim a tela não fica mostrando um status que
+  // a API recusou.
+  const atualizarStatusConsulta = useCallback(
+    async (idConsulta, status) => {
+      if (!token) {
+        throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
+      }
 
-  // ---------- Avaliações ----------
+      await alterarStatusNaApi(idConsulta, status, token);
+      await recarregarConsultas();
+    },
+    [token, recarregarConsultas]
+  );
 
-  const salvarAvaliacao = (avaliacao) => {
-    const nova = {
-      ...avaliacao,
-      id: `av${Date.now()}`,
-    };
+  // Paciente confirma a presença.
+  const confirmarMinhaConsulta = useCallback(
+    async (idConsulta) => {
+      if (!tokenPaciente) {
+        throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
+      }
 
-    setAvaliacoes((atuais) => [
-      nova,
-      ...atuais,
-    ]);
-
-    return nova;
-  };
-
-  // ---------- Registros de água e refeições ----------
-
-  const chaveDoRegistro = (pacienteId, dia) =>
-    `${pacienteId}|${chaveDoDia(dia)}`;
-
-  const montarRegistrosDoDia = (pacienteId, dia) => {
-    const registro =
-      registros[chaveDoRegistro(pacienteId, dia)] ?? {
-        aguaLitros: 0,
-        refeicoes: {},
-      };
-
-    const plano = planosAlimentares.find(
-      (item) =>
-        String(item.pacienteId) === String(pacienteId) &&
-        item.status === 'ativo'
-    );
-
-    const nomesEsperados = plano?.refeicoes?.length
-      ? plano.refeicoes.map((item) => item.nome)
-      : nomesDasRefeicoes;
-
-    const nomes = [
-      ...nomesEsperados,
-      ...Object.keys(registro.refeicoes).filter(
-        (nome) => !nomesEsperados.includes(nome)
-      ),
-    ];
-
-    return {
-      aguaLitros: registro.aguaLitros,
-      metaAguaLitros:
-        plano?.metaAguaLitros ||
-        META_AGUA_PADRAO_LITROS,
-      refeicoes: nomes.map((nome) => ({
-        nome,
-        horario:
-          registro.refeicoes[nome]?.horario ?? null,
-        descricao:
-          registro.refeicoes[nome]?.descricao ?? null,
-      })),
-    };
-  };
-
-  const obterRegistrosDoDia = (pacienteId, dia) =>
-    registros[chaveDoRegistro(pacienteId, dia)]
-      ? montarRegistrosDoDia(pacienteId, dia)
-      : null;
-
-  const registrarAgua = (pacienteId, mililitros) => {
-    const chave = chaveDoRegistro(
-      pacienteId,
-      new Date()
-    );
-
-    setRegistros((atuais) => {
-      const anterior = atuais[chave] ?? {
-        aguaLitros: 0,
-        refeicoes: {},
-      };
-
-      const total =
-        Math.max(
-          0,
-          Math.round(
-            anterior.aguaLitros * 1000 + mililitros
-          )
-        ) / 1000;
-
-      return {
-        ...atuais,
-        [chave]: {
-          ...anterior,
-          aguaLitros: total,
-        },
-      };
-    });
-  };
-
-  const registrarRefeicao = (
-    pacienteId,
-    nomeDaRefeicao,
-    descricao
-  ) => {
-    const chave = chaveDoRegistro(
-      pacienteId,
-      new Date()
-    );
-
-    setRegistros((atuais) => {
-      const anterior = atuais[chave] ?? {
-        aguaLitros: 0,
-        refeicoes: {},
-      };
-
-      const horario =
-        anterior.refeicoes[nomeDaRefeicao]?.horario ??
-        formatarHora(new Date());
-
-      return {
-        ...atuais,
-        [chave]: {
-          ...anterior,
-          refeicoes: {
-            ...anterior.refeicoes,
-            [nomeDaRefeicao]: {
-              horario,
-              descricao: String(
-                descricao ?? ''
-              ).trim(),
-            },
-          },
-        },
-      };
-    });
-  };
+      await confirmarConsultaNaApi(idConsulta, tokenPaciente);
+      await recarregarConsultas();
+    },
+    [tokenPaciente, recarregarConsultas]
+  );
 
   // ---------- Sessão do paciente ----------
 
-  // Recebe os dados do paciente e o token JWT.
-  // O token do paciente não substitui o do nutricionista.
-  const entrarComoPaciente = (
-    pacienteOuId,
-    token = null
-  ) => {
-    if (
-      pacienteOuId === null ||
-      pacienteOuId === undefined
-    ) {
+  // Recebe os dados do paciente, o token JWT e o que a API avisou sobre a
+  // senha ({ senhaProvisoria: true } quando ele entrou com a data de
+  // nascimento). O token do paciente não substitui o do nutricionista.
+  const entrarComoPaciente = (pacienteOuId, tokenRecebido = null, aviso = {}) => {
+    if (pacienteOuId === null || pacienteOuId === undefined) {
       setPacienteAtualId(null);
       setDadosPacienteAtual(null);
       setTokenPaciente(null);
+      setSenhaProvisoria(false);
       return;
     }
 
-    const recebido =
-      typeof pacienteOuId === 'object'
-        ? pacienteOuId
-        : null;
+    const recebido = typeof pacienteOuId === 'object' ? pacienteOuId : null;
+    const id = String(recebido ? recebido.id : pacienteOuId);
 
-    const id = String(
-      recebido ? recebido.id : pacienteOuId
-    );
-
-    if (
-      !id ||
-      id === 'undefined' ||
-      id === 'null'
-    ) {
+    if (!id || id === 'undefined' || id === 'null') {
       setPacienteAtualId(null);
       setDadosPacienteAtual(null);
       setTokenPaciente(null);
+      setSenhaProvisoria(false);
       return;
     }
 
     setPacienteAtualId(id);
+    setSenhaProvisoria(Boolean(aviso.senhaProvisoria));
 
-    if (token) {
-      setTokenPaciente(token);
+    if (tokenRecebido) {
+      setTokenPaciente(tokenRecebido);
     }
 
     if (!recebido) {
       setDadosPacienteAtual((atual) =>
-        atual && String(atual.id) === id
-          ? atual
-          : null
+        atual && String(atual.id) === id ? atual : null
       );
 
       return;
     }
 
-    const normalizado = {
+    setDadosPacienteAtual({
       ...recebido,
       id,
-    };
-
-    setDadosPacienteAtual(normalizado);
-
-    // Atualiza somente o paciente recebido.
-    setPacientes((atuais) => {
-      const existe = atuais.some(
-        (item) => String(item.id) === id
-      );
-
-      if (!existe) {
-        return [...atuais, normalizado];
-      }
-
-      return atuais.map((item) =>
-        String(item.id) === id
-          ? { ...item, ...normalizado }
-          : item
-      );
+      nascimento: normalizarNascimento(recebido.nascimento),
     });
   };
 
@@ -457,17 +276,18 @@ export const DadosProvider = ({ children }) => {
     setPacienteAtualId(null);
     setDadosPacienteAtual(null);
     setTokenPaciente(null);
+    setSenhaProvisoria(false);
+    setConsultas([]);
   };
 
+  // Depois de trocar a senha, o aviso de "senha provisória" não vale mais.
+  const marcarSenhaTrocada = () => setSenhaProvisoria(false);
+
   const pacienteAtual =
-    dadosPacienteAtual &&
-    String(dadosPacienteAtual.id) ===
-      String(pacienteAtualId)
+    dadosPacienteAtual && String(dadosPacienteAtual.id) === String(pacienteAtualId)
       ? dadosPacienteAtual
       : pacientes.find(
-          (paciente) =>
-            String(paciente.id) ===
-            String(pacienteAtualId)
+          (paciente) => String(paciente.id) === String(pacienteAtualId)
         ) ?? null;
 
   // ---------- Assinatura ----------
@@ -503,9 +323,7 @@ export const DadosProvider = ({ children }) => {
       // tentar de novo.
       setPlanoAssinaturaId(null);
       setCobrancas([]);
-      setErroAssinatura(
-        erro.message || 'Não foi possível carregar o seu plano.'
-      );
+      setErroAssinatura(erro.message || 'Não foi possível carregar o seu plano.');
     } finally {
       setCarregandoAssinatura(false);
     }
@@ -523,25 +341,26 @@ export const DadosProvider = ({ children }) => {
   //
   // Lança quando a API recusa (limite de pacientes, plano sob
   // consulta, sessão expirada) para a tela poder avisar o motivo.
-  const alterarPlanoAssinatura = async (idPlano) => {
-    if (!token) {
-      throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
-    }
+  const alterarPlanoAssinatura = useCallback(
+    async (idPlano) => {
+      if (!token) {
+        throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
+      }
 
-    const plano = todosOsPlanos.find(
-      (item) => item.id === idPlano
-    );
+      const plano = todosOsPlanos.find((item) => item.id === idPlano);
 
-    if (!plano) throw new Error('Plano desconhecido.');
+      if (!plano) throw new Error('Plano desconhecido.');
 
-    const dados = await assinarPlano(token, idPlano);
+      const dados = await assinarPlano(token, idPlano);
 
-    aplicarAssinatura(dados);
+      aplicarAssinatura(dados);
 
-    return dados;
-  };
+      return dados;
+    },
+    [token, aplicarAssinatura]
+  );
 
-  const cancelarPlanoAssinatura = async () => {
+  const cancelarPlanoAssinatura = useCallback(async () => {
     if (!token) {
       throw new Error('Sua sessão expirou. Entre novamente na sua conta.');
     }
@@ -550,7 +369,7 @@ export const DadosProvider = ({ children }) => {
 
     // As cobranças de antes continuam: são histórico, não assinatura.
     setPlanoAssinaturaId(null);
-  };
+  }, [token]);
 
   // As cobranças não são criadas aqui: quem grava é a API, no mesmo
   // pedido que assina o plano (PUT /api/assinatura). O aplicativo só
@@ -563,41 +382,32 @@ export const DadosProvider = ({ children }) => {
       nutricionista,
       pacientes,
       consultas,
-      planosAlimentares,
-      avaliacoes,
       cobrancas,
 
       carregandoPacientes,
       erroPacientes,
+      carregandoConsultas,
+      erroConsultas,
       carregandoAssinatura,
       erroAssinatura,
 
       pacienteAtual,
       pacienteAtualId,
       tokenPaciente,
+      senhaProvisoria,
 
       planoAtual,
-      limitePacientes: planoAtual
-        ? planoAtual.limitePacientes
-        : null,
+      limitePacientes: planoAtual ? planoAtual.limitePacientes : null,
 
       recarregarPacientes,
-      adicionarConsulta,
+      recarregarConsultas,
+      consultasDoPaciente,
       atualizarStatusConsulta,
-
-      salvarPlanoAlimentar,
-      duplicarPlanoAlimentar,
-      alternarArquivamentoPlano,
-
-      salvarAvaliacao,
-
-      montarRegistrosDoDia,
-      obterRegistrosDoDia,
-      registrarAgua,
-      registrarRefeicao,
+      confirmarMinhaConsulta,
 
       entrarComoPaciente,
       sairComoPaciente,
+      marcarSenhaTrocada,
 
       alterarPlanoAssinatura,
       cancelarPlanoAssinatura,
@@ -607,28 +417,31 @@ export const DadosProvider = ({ children }) => {
       nutricionista,
       pacientes,
       consultas,
-      planosAlimentares,
-      avaliacoes,
       cobrancas,
-      planoAssinaturaId,
       carregandoPacientes,
       erroPacientes,
+      carregandoConsultas,
+      erroConsultas,
       carregandoAssinatura,
       erroAssinatura,
       recarregarPacientes,
+      recarregarConsultas,
+      consultasDoPaciente,
+      atualizarStatusConsulta,
+      confirmarMinhaConsulta,
       recarregarAssinatura,
-      registros,
+      alterarPlanoAssinatura,
+      cancelarPlanoAssinatura,
+      pacienteAtual,
       pacienteAtualId,
-      dadosPacienteAtual,
       tokenPaciente,
-      token,
+      senhaProvisoria,
+      planoAtual,
     ]
   );
 
   return (
-    <DadosContexto.Provider value={valor}>
-      {children}
-    </DadosContexto.Provider>
+    <DadosContexto.Provider value={valor}>{children}</DadosContexto.Provider>
   );
 };
 
@@ -636,9 +449,7 @@ export const useDados = () => {
   const contexto = useContext(DadosContexto);
 
   if (!contexto) {
-    throw new Error(
-      'useDados deve ser usado dentro de <DadosProvider>.'
-    );
+    throw new Error('useDados deve ser usado dentro de <DadosProvider>.');
   }
 
   return contexto;

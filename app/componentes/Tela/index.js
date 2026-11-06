@@ -59,7 +59,25 @@ const Tela = ({
   const margens = useSafeAreaInsets();
   const comBarraInferior = Boolean(abaAtiva);
 
-  const espacoFinal = comBarraInferior ? 110 + margens.bottom : 32;
+  // Quanto respiro sobra depois do último elemento da tela.
+  //
+  // A barra inferior é "position: absolute", então ela fica POR CIMA do
+  // conteúdo: a rolagem precisa reservar a altura dela, senão o último
+  // cartão some atrás da barra.
+  //
+  // E, com barra ou sem, entra a margem de segurança do sistema
+  // (margens.bottom): é a faixa do gesto de voltar do celular, onde nada
+  // deve ficar. Ela só era somada no caso COM barra — era por isso que o
+  // último botão de uma tela sem barra (o "Apagar paciente" da ficha, por
+  // exemplo) encostava na beirada e parecia cortado.
+  //
+  // O rodapé fixo não entra na conta: ele é irmão da rolagem na coluna, e
+  // já cuida da própria margem de segurança.
+  const ALTURA_DA_BARRA_INFERIOR = 110;
+  const RESPIRO_FINAL = 40;
+
+  const espacoFinal =
+    (comBarraInferior ? ALTURA_DA_BARRA_INFERIOR : RESPIRO_FINAL) + margens.bottom;
 
   // Só funciona em telas roláveis
   const cabecalhoNaRolagem = cabecalhoRolavel && rolavel;

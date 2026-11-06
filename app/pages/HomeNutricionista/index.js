@@ -32,8 +32,9 @@ const slidesDoBanner = [
       "Avalie indicadores nutricionais de forma rápida utilizando referências da OMS.",
   },
   {
-    titulo: "Planos alimentares",
-    texto: "Monte, duplique e acompanhe os planos dos seus pacientes.",
+    titulo: "Evolução do paciente",
+    texto:
+      "Cada avaliação salva vira gráfico na ficha — e o paciente vê a mesma coisa no aplicativo dele.",
   },
   {
     titulo: "Agenda",
@@ -54,11 +55,14 @@ const atalhos = [
     icone: "usuarios",
     rota: "Pacientes",
   },
+  // No lugar do "Criar Plano Alimentar", que saiu do produto: o atalho
+  // para a assinatura. Era o que estava mais longe da mão — ficava só no
+  // cartão do fim desta tela, e no Perfil.
   {
-    chave: "plano",
-    rotulo: "Criar Plano Alimentar",
-    icone: "prancheta",
-    rota: "CriarPlanoAlimentar",
+    chave: "assinatura",
+    rotulo: "Trocar meu plano",
+    icone: "escudo",
+    rota: "Pacotes",
   },
   {
     chave: "calculadora",
@@ -390,7 +394,7 @@ const HomeNutricionista = ({ navigation }) => {
         ) : (
           <Text style={estilos.semPlano}>
             Você ainda não tem um plano ativo. Escolha um para cadastrar
-            pacientes e montar planos alimentares.
+            pacientes e acompanhar as avaliações deles.
           </Text>
         )}
 

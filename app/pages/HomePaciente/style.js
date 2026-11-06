@@ -2,16 +2,6 @@ import { StyleSheet } from 'react-native';
 import { cores, espacamento } from '../../tema';
 
 export const estilos = StyleSheet.create({
-  // Emblema do cabeçalho (igual ao da Home do nutricionista): anel amarelo
-  emblema: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 3,
-    borderColor: '#FFF59D',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   tituloCartao: {
     fontSize: 18,
     lineHeight: 24,
@@ -25,30 +15,94 @@ export const estilos = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  // ----- Hoje -----
-  linhaAgua: {
+  // ----- Aviso da senha provisória -----
+  cartaoSenha: {
+    backgroundColor: cores.alertaFundo,
+  },
+  linhaSenha: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    gap: espacamento.sm,
   },
-  rotuloAgua: {
+  tituloSenha: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    color: cores.alertaTexto,
+  },
+  textoSenha: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: cores.textoPrincipal,
+    marginTop: espacamento.sm,
+  },
+  botaoSenha: {
+    marginTop: espacamento.md,
+  },
+
+  // ----- Última avaliação -----
+  linhaMedidas: {
     flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: espacamento.md,
   },
-  tituloAgua: {
-    marginLeft: 6,
-    fontSize: 15,
+  medida: {
+    flex: 1,
+  },
+  rotuloMedida: {
+    fontSize: 11.5,
+    color: cores.textoSecundario,
+  },
+  valorMedida: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: cores.verdeEscuro,
+    marginTop: 2,
+  },
+  variacao: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: cores.textoSecundario,
+    marginBottom: espacamento.md,
+  },
+  variacaoForte: {
     fontWeight: '800',
     color: cores.verdeEscuro,
   },
-  valorAgua: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: cores.verdeEscuro,
+  botaoCartao: {
+    marginTop: espacamento.md,
   },
-  botaoRegistrar: {
-    marginTop: 16,
+
+  // ----- Dica do dia -----
+  cartaoDica: {
+    backgroundColor: cores.verdeClaro,
+  },
+  linhaDica: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espacamento.sm,
+  },
+  circuloDica: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: cores.branco,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rotuloDica: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: cores.verdeLink,
+  },
+  textoDica: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    color: cores.verdeEscuro,
+    marginTop: espacamento.md,
   },
 
   // ----- Próxima consulta -----

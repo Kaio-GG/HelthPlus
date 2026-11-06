@@ -1,4 +1,4 @@
-// app/Api/Consultas.js
+// app/Api/consultas.js
 // Chamadas da API de consultas (mesmo padrão do Pacientes.js).
 import api from './connection';
 

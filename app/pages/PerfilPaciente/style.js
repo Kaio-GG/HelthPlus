@@ -31,6 +31,21 @@ export const estilos = StyleSheet.create({
     marginTop: 4,
     marginBottom: 0,
   },
+  linhaTitulo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  avisoSenha: {
+    marginTop: 0,
+    marginBottom: 4,
+  },
+  textoDireitos: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: cores.textoSecundario,
+    marginBottom: 10,
+  },
   itemConta: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,82 +1,150 @@
-// Consultas do paciente: próximas e anteriores. O paciente pode confirmar ou cancelar as próximas.
-import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+// Consultas do paciente: próximas e anteriores.
+//
+// A lista vem do banco (GET /api/consulta/minhas), pelo token do paciente.
+// Ele pode confirmar a presença numa consulta que está pendente; cancelar
+// não é dele — quem desmarca é o nutricionista, e a API não tem rota de
+// cancelamento pelo paciente. Antes a tela oferecia "cancelar consulta" e
+// só mexia numa lista em memória: o nutricionista nunca ficava sabendo.
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
 import Selo from '../../componentes/Selo';
+import CaixaAviso from '../../componentes/CaixaAviso';
 import SemSessaoPaciente from '../../componentes/SemSessaoPaciente';
 import { useDados } from '../../contexto/DadosContexto';
+import { useDialogo } from '../../contexto/DialogoContexto';
 import { formatarDataExtensa, formatarHora } from '../../utilitarios/datas';
 import { estilos } from './style';
 
+// O texto do selo é curto de propósito: num celular de 375 px,
+// "Aguardando confirmação" sozinho comia metade do cartão e empurrava a
+// data para três linhas. A explicação completa fica no toque.
 const statusDaConsulta = {
   confirmada: { texto: 'Confirmada', tom: 'sucesso' },
-  pendente: { texto: 'Aguardando confirmação', tom: 'alerta' },
-  concluida: { texto: 'Concluída', tom: 'neutro' },
+  pendente: { texto: 'A confirmar', tom: 'alerta' },
+  realizada: { texto: 'Realizada', tom: 'neutro' },
   cancelada: { texto: 'Cancelada', tom: 'erro' },
 };
 
-const AgendaPaciente = () => {
-  const { pacienteAtual: paciente, consultas, atualizarStatusConsulta } = useDados();
+const semStatus = { texto: '—', tom: 'neutro' };
+
+const AgendaPaciente = ({ navigation }) => {
+  const {
+    pacienteAtual: paciente,
+    consultas,
+    confirmarMinhaConsulta,
+    recarregarConsultas,
+    carregandoConsultas,
+  } = useDados();
+
+  const { avisar, confirmar } = useDialogo();
+  const [confirmando, setConfirmando] = useState(null);
 
   if (!paciente) return <SemSessaoPaciente />;
 
   const inicioDeHoje = new Date();
   inicioDeHoje.setHours(0, 0, 0, 0);
 
-  const minhasConsultas = consultas.filter((consulta) => consulta.pacienteId === paciente.id);
-  const proximas = minhasConsultas
+  const proximas = consultas
     .filter(
       (consulta) =>
-        consulta.inicio >= inicioDeHoje && (consulta.status === 'pendente' || consulta.status === 'confirmada')
+        consulta.inicio >= inicioDeHoje &&
+        (consulta.status === 'pendente' || consulta.status === 'confirmada')
     )
     .sort((a, b) => a.inicio - b.inicio);
-  const anteriores = minhasConsultas.filter((consulta) => !proximas.includes(consulta)).sort((a, b) => b.inicio - a.inicio);
 
-  // Ações possíveis para uma consulta futura.
-  const abrirAcoes = (consulta) => {
-    const botoes = [];
-    if (consulta.status === 'pendente') {
-      // TODO: integrar com a API (avisar o nutricionista da confirmação).
-      botoes.push({ text: 'Confirmar presença', onPress: () => atualizarStatusConsulta(consulta.id, 'confirmada') });
-    }
-    botoes.push({
-      text: 'Cancelar consulta',
-      style: 'destructive',
-      // TODO: integrar com a API (avisar o nutricionista do cancelamento).
-      onPress: () => atualizarStatusConsulta(consulta.id, 'cancelada'),
+  const anteriores = consultas
+    .filter((consulta) => !proximas.includes(consulta))
+    .sort((a, b) => b.inicio - a.inicio);
+
+  // Confirmar a presença grava no banco: é assim que o nutricionista vê a
+  // confirmação na agenda dele.
+  const confirmarPresenca = async (consulta) => {
+    if (confirmando) return;
+
+    const querConfirmar = await confirmar({
+      titulo: 'Confirmar presença?',
+      mensagem: `${consulta.tipo} em ${formatarDataExtensa(consulta.inicio)} às ${formatarHora(consulta.inicio)}.`,
+      rotuloConfirmar: 'Confirmar',
+      rotuloCancelar: 'Agora não',
     });
-    botoes.push({ text: 'Fechar', style: 'cancel' });
 
-    Alert.alert(
-      consulta.tipo,
-      `${formatarDataExtensa(consulta.inicio)} às ${formatarHora(consulta.inicio)}`,
-      botoes
-    );
+    if (!querConfirmar) return;
+
+    try {
+      setConfirmando(consulta.id);
+
+      await confirmarMinhaConsulta(consulta.idBanco ?? consulta.id);
+
+      avisar({
+        titulo: 'Presença confirmada',
+        mensagem: 'Seu nutricionista já está vendo a confirmação.',
+        tom: 'sucesso',
+      });
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível confirmar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    } finally {
+      setConfirmando(null);
+    }
   };
 
-  const renderizarConsulta = (consulta, interativa) => {
+  const renderizarConsulta = (consulta, podeConfirmar) => {
     const fim = new Date(consulta.inicio.getTime() + consulta.duracao * 60000);
-    const status = statusDaConsulta[consulta.status] ?? statusDaConsulta.pendente;
+    const status = statusDaConsulta[consulta.status] ?? semStatus;
+    const pendente = podeConfirmar && consulta.status === 'pendente';
 
     return (
       <TouchableOpacity
         key={consulta.id}
         activeOpacity={0.85}
-        disabled={!interativa}
-        onPress={() => abrirAcoes(consulta)}
+        disabled={!pendente}
+        onPress={() => confirmarPresenca(consulta)}
+        accessibilityRole={pendente ? 'button' : undefined}
+        accessibilityLabel={
+          pendente ? `Confirmar presença em ${formatarDataExtensa(consulta.inicio)}` : undefined
+        }
       >
+        {/* Duas linhas, e não quatro colunas.
+            
+            A versão anterior punha hora, data, tipo e selo lado a lado:
+            num celular estreito a data saía em três linhas e o tipo ficava
+            espremido. Agora o horário e a data dividem a primeira linha, e
+            o selo desce para a segunda, onde tem largura de sobra. */}
         <Cartao estilo={estilos.itemConsulta}>
           <View style={estilos.barraLateral} />
-          <View style={estilos.colunaHorario}>
-            <Text style={estilos.horaInicio}>{formatarHora(consulta.inicio)}</Text>
-            <Text style={estilos.horaFim}>{formatarHora(fim)}</Text>
+
+          <View style={estilos.corpoConsulta}>
+            <View style={estilos.linhaPrincipal}>
+              <View style={estilos.colunaHorario}>
+                <Text style={estilos.horaInicio}>{formatarHora(consulta.inicio)}</Text>
+                <Text style={estilos.horaFim}>{formatarHora(fim)}</Text>
+              </View>
+
+              <View style={estilos.dadosConsulta}>
+                <Text style={estilos.dataConsulta}>
+                  {formatarDataExtensa(consulta.inicio)}
+                </Text>
+                <Text style={estilos.tipoConsulta}>{consulta.tipo}</Text>
+              </View>
+            </View>
+
+            <View style={estilos.rodapeConsulta}>
+              <Selo texto={status.texto} tom={status.tom} />
+
+              {pendente ? (
+                <Text style={estilos.acaoConsulta}>
+                  {confirmando === consulta.id
+                    ? 'Confirmando...'
+                    : 'Toque para confirmar'}
+                </Text>
+              ) : null}
+            </View>
           </View>
-          <View style={estilos.dadosConsulta}>
-            <Text style={estilos.dataConsulta}>{formatarDataExtensa(consulta.inicio)}</Text>
-            <Text style={estilos.tipoConsulta}>{consulta.tipo}</Text>
-          </View>
-          <Selo texto={status.texto} tom={status.tom} />
         </Cartao>
       </TouchableOpacity>
     );
@@ -86,13 +154,18 @@ const AgendaPaciente = () => {
     <Tela
       titulo="Consultas"
       subtitulo="Seus atendimentos marcados"
-      mostrarVoltar={false}
+      // Mesma razão da tela de evolução: a seta volta para o início.
+      aoVoltar={() => navigation.replace('HomePaciente')}
       abaAtiva="consultas"
       perfilBarra="paciente"
+      aoAtualizar={recarregarConsultas}
+      atualizando={carregandoConsultas}
     >
       <Text style={estilos.tituloLista}>Próximas</Text>
       {proximas.length === 0 ? (
-        <Text style={estilos.vazio}>Nenhuma consulta marcada. Seu nutricionista marca e avisa você por aqui.</Text>
+        <Text style={estilos.vazio}>
+          Nenhuma consulta marcada. Seu nutricionista marca e avisa você por aqui.
+        </Text>
       ) : (
         proximas.map((consulta) => renderizarConsulta(consulta, true))
       )}
@@ -103,6 +176,12 @@ const AgendaPaciente = () => {
           {anteriores.map((consulta) => renderizarConsulta(consulta, false))}
         </View>
       ) : null}
+
+      <CaixaAviso
+        tom="info"
+        estilo={estilos.avisoRodape}
+        texto="Precisa desmarcar ou mudar o horário? Fale com o seu nutricionista: quem organiza a agenda é ele."
+      />
     </Tela>
   );
 };

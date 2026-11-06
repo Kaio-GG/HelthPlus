@@ -14,12 +14,6 @@ export const estilos = StyleSheet.create({
     color: cores.verdeEscuro,
     marginBottom: 12,
   },
-  tituloLista: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: cores.verdeEscuro,
-    marginBottom: 8,
-  },
 
   // ----- Resumo -----
   grade: {
@@ -46,17 +40,7 @@ export const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pesoAtual: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: cores.verdeBotao,
-    marginBottom: 12,
-  },
-  linhaBotoes: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  // Botão de enviar o e-mail de primeiro acesso, no fim do cartão.
+  // Botão de enviar o e-mail de acesso, no fim do cartão.
   botaoConvite: {
     marginTop: espacamento.md,
   },
@@ -66,9 +50,6 @@ export const estilos = StyleSheet.create({
     marginTop: espacamento.xl,
   },
 
-  botaoMetade: {
-    width: '48.5%',
-  },
   botaoTopo: {
     marginBottom: espacamento.lg,
   },
@@ -101,99 +82,118 @@ export const estilos = StyleSheet.create({
     color: cores.verdeEscuro,
   },
 
-  // ----- Registros -----
-  seletorDia: {
+  // ----- Consultas do paciente (aba Resumo) -----
+  linhaConsulta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  textoDia: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: cores.verdeEscuro,
-  },
-  linhaAgua: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  tituloAgua: {
-    marginLeft: 6,
-    fontSize: 16,
-    fontWeight: '800',
-    color: cores.verdeEscuro,
-  },
-  valorAgua: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: cores.verdeEscuro,
-    marginBottom: 10,
-  },
-  percentualAgua: {
-    marginTop: 6,
-    fontSize: 12,
-    color: cores.textoSecundario,
-  },
-  linhaRefeicao: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: cores.linha,
   },
-  marcadorRefeicao: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: cores.bordaVerde,
+  circuloConsulta: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: cores.verdeClaro,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-    marginTop: 2,
+    marginRight: 10,
   },
-  marcadorRegistrada: {
-    backgroundColor: cores.verdeBotao,
-    borderColor: cores.verdeBotao,
-  },
-  dadosRefeicao: {
+  dadosConsulta: {
     flex: 1,
+    paddingRight: 8,
   },
-  nomeRefeicao: {
-    fontSize: 14,
+  dataConsulta: {
+    fontSize: 13.5,
     fontWeight: '800',
     color: cores.verdeEscuro,
   },
-  horarioRefeicao: {
+  detalheConsulta: {
     fontSize: 12,
     color: cores.textoSecundario,
+    marginTop: 1,
   },
-  descricaoRefeicao: {
-    fontSize: 13,
-    color: cores.textoPrincipal,
-    marginTop: 2,
+  subtituloLista: {
+    fontSize: 12.5,
+    color: cores.textoSecundario,
+    marginTop: 12,
   },
-  naoRegistrado: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: cores.alertaTexto,
-    marginTop: 2,
+  avisoAcesso: {
+    marginTop: espacamento.md,
+    marginBottom: 0,
   },
-  linkLembrete: {
+  dicaGrafico: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: cores.textoSecundario,
+    marginTop: 10,
+  },
+
+  // ----- Cartão de avaliação: a linha que diz que ele abre -----
+  linhaVerDetalhe: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+    gap: 2,
+  },
+  verDetalhe: {
     fontSize: 12.5,
     fontWeight: '700',
     color: cores.verdeLink,
   },
-  rodapeSomenteLeitura: {
+
+  // ----- Aba Evolução: "do começo até agora" -----
+  //
+  // Uma linha por indicador, empilhadas. Eram três blocos lado a lado, e
+  // no celular cada um ficava com uns 90 px: "+2,73 kg/m²" quebrava no
+  // meio. Em linha, cada um tem a largura inteira do cartão.
+  cabecalhoCartao: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    gap: espacamento.sm,
+    marginBottom: espacamento.lg,
+  },
+  linhaVariacao: {
+    backgroundColor: cores.verdeSuave,
+    borderRadius: 14,
+    paddingHorizontal: espacamento.lg,
+    paddingVertical: 12,
+    marginBottom: espacamento.sm,
+  },
+  // Rótulo à esquerda, número à direita, na mesma linha de base.
+  topoVariacao: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: espacamento.sm,
+  },
+  rotuloVariacao: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: cores.textoSecundario,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  valorVariacao: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: cores.verdeEscuro,
+    // Encolhe em vez de quebrar quando o número é comprido ("+12,1 cm").
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  valorVariacaoNeutro: {
+    color: cores.textoSecundario,
+  },
+  detalheVariacao: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: cores.textoSecundario,
     marginTop: 4,
   },
-  textoSomenteLeitura: {
-    marginLeft: 6,
-    fontSize: 12,
-    color: cores.textoSecundario,
+  avisoJanela: {
+    marginBottom: espacamento.lg,
   },
 });

@@ -2,20 +2,11 @@ import { StyleSheet } from "react-native";
 import { cores } from "../../tema";
 
 export const estilos = StyleSheet.create({
-  // Emblema do cabeçalho (mesmo da Home): ícone dentro de um anel amarelo
-  emblema: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 3,
-    borderColor: "#FFF59D",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
+  // Com um link só, alinhado à direita ele fica logo abaixo do campo de
+  // senha; "space-between" o jogava para a outra ponta do cartão.
   linhaLinks: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     marginBottom: 20,
     marginTop: -2,
   },
@@ -24,8 +15,10 @@ export const estilos = StyleSheet.create({
     fontWeight: "700",
     color: cores.verdeLink,
   },
+  // Os dois avisos do fim do cartão. O "marginBottom: 0" é para o último
+  // deles não deixar um vão no pé do cartão.
   aviso: {
-    marginTop: 20,
+    marginTop: 16,
     marginBottom: 0,
   },
 

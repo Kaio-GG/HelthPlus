@@ -12,16 +12,23 @@ import { useDialogo } from '../../contexto/DialogoContexto';
 import { chaveDoDia, formatarDataExtensa, formatarHora, mesmoDia } from '../../utilitarios/datas';
 import { estilos } from './style';
 
+// As quatro situações que a API aceita em ds_status (ver
+// Api/storage/consultaStorage.js). "concluida" não é uma delas: a tela
+// oferecia esse nome e a API devolvia 400 — a consulta nunca saía de
+// "confirmada". O nome certo é "realizada".
 const statusDaConsulta = {
   confirmada: { texto: 'Confirmada', tom: 'sucesso' },
   pendente: { texto: 'Pendente', tom: 'alerta' },
-  concluida: { texto: 'Concluída', tom: 'neutro' },
+  realizada: { texto: 'Realizada', tom: 'neutro' },
   cancelada: { texto: 'Cancelada', tom: 'erro' },
 };
 
+const semStatus = { texto: '—', tom: 'neutro' };
+
 const Agenda = ({ navigation }) => {
-  const { consultas, atualizarStatusConsulta } = useDados();
-  const { escolher } = useDialogo();
+  const { consultas, atualizarStatusConsulta, recarregarConsultas, carregandoConsultas } =
+    useDados();
+  const { escolher, avisar } = useDialogo();
   const [diaSelecionado, setDiaSelecionado] = useState(new Date());
 
   // Dias que têm consulta (ignorando as canceladas) ficam com um pontinho.
@@ -44,7 +51,7 @@ const Agenda = ({ navigation }) => {
       opcoes.push({ rotulo: 'Confirmar consulta', valor: 'confirmada', variante: 'primario' });
     }
     if (consulta.status === 'confirmada') {
-      opcoes.push({ rotulo: 'Marcar como concluída', valor: 'concluida', variante: 'primario' });
+      opcoes.push({ rotulo: 'Marcar como realizada', valor: 'realizada', variante: 'primario' });
     }
     if (consulta.status === 'pendente' || consulta.status === 'confirmada') {
       opcoes.push({ rotulo: 'Cancelar consulta', valor: 'cancelada', variante: 'perigo' });
@@ -56,7 +63,20 @@ const Agenda = ({ navigation }) => {
       opcoes,
     });
 
-    if (novoStatus) atualizarStatusConsulta(consulta.id, novoStatus);
+    if (!novoStatus) return;
+
+    // A troca de status vai para o banco. Se a API recusar (sessão
+    // expirada, consulta de outro profissional), a tela precisa dizer o
+    // motivo em vez de mostrar um status que não foi gravado.
+    try {
+      await atualizarStatusConsulta(consulta.id, novoStatus);
+    } catch (erro) {
+      avisar({
+        titulo: 'Não foi possível alterar',
+        mensagem: erro.message || 'Tente de novo em instantes.',
+        tom: 'erro',
+      });
+    }
   };
 
   const quantidade = consultasDoDia.length;
@@ -67,6 +87,8 @@ const Agenda = ({ navigation }) => {
       subtitulo="Suas consultas marcadas"
       mostrarVoltar={false}
       abaAtiva="agenda"
+      aoAtualizar={recarregarConsultas}
+      atualizando={carregandoConsultas}
       direita={
         <BotaoCircular
           icone="mais"
@@ -93,7 +115,7 @@ const Agenda = ({ navigation }) => {
 
       {consultasDoDia.map((consulta) => {
         const fim = new Date(consulta.inicio.getTime() + consulta.duracao * 60000);
-        const status = statusDaConsulta[consulta.status];
+        const status = statusDaConsulta[consulta.status] ?? semStatus;
         return (
           <TouchableOpacity key={consulta.id} activeOpacity={0.85} onPress={() => abrirAcoes(consulta)}>
             <Cartao estilo={estilos.itemConsulta}>
