@@ -16,15 +16,42 @@ const {
 
 const { enviarEmailNotificacao } = require('../servicos/mensagensEmail');
 
-// ATENÇÃO: a API ainda não usa token de sessão. Enquanto não usar, estas
-// rotas confiam no id que vem da URL — quem souber um id vê as notificações
-// daquele profissional. Ao implementar o JWT, tirar o id da URL e usar o do
-// token.
+const autenticar = require('../middleware/autenticar');
 
 function idValido(valor) {
     const numero = Number(valor);
 
     return Number.isInteger(numero) && numero > 0 ? numero : null;
+}
+
+// Quem é o profissional destas rotas vem SEMPRE do token, nunca da URL.
+//
+// Antes vinha da URL, e era disso que o aviso aqui falava: quem soubesse um
+// id lia as notificações daquele profissional — e elas citam nome de
+// paciente e horário de consulta. Como :idProfissional continua no caminho
+// (é a URL que o aplicativo chama), ele agora precisa BATER com o do token;
+// divergente, a resposta é 403.
+//
+// Por que não apagar o parâmetro: a URL é a mesma em versão do aplicativo já
+// instalada. Mantido e conferido, a rota continua funcionando para o dono
+// dos dados e deixa de funcionar para todo mundo mais.
+//
+// Devolve o id, ou null depois de já ter respondido o erro.
+function profissionalDaSessao(req, res) {
+    const doToken = Number(req.usuario.id_profissional);
+    const daUrl = idValido(req.params.idProfissional);
+
+    if (!daUrl) {
+        res.status(400).json({ mensagem: 'Profissional não identificado.' });
+        return null;
+    }
+
+    if (daUrl !== doToken) {
+        res.status(403).json({ mensagem: 'Acesso não autorizado.' });
+        return null;
+    }
+
+    return doToken;
 }
 
 // Converte o que veio do corpo em 0 ou 1, mantendo o valor atual quando o
@@ -39,13 +66,11 @@ function comoBit(valor, atual) {
 // GET /api/notificacao/:idProfissional
 // Lista as notificações e quantas ainda não foram lidas.
 // ---------------------------------------------------------------
-router.get('/:idProfissional', async (req, res) => {
+router.get('/:idProfissional', autenticar, async (req, res) => {
     try {
-        const idProfissional = idValido(req.params.idProfissional);
+        const idProfissional = profissionalDaSessao(req, res);
 
-        if (!idProfissional) {
-            return res.status(400).json({ mensagem: 'Profissional não identificado.' });
-        }
+        if (!idProfissional) return;
 
         const [notificacoes, naoLidas] = await Promise.all([
             listarNotificacoes(idProfissional, req.query.limite),
@@ -64,13 +89,11 @@ router.get('/:idProfissional', async (req, res) => {
 // ---------------------------------------------------------------
 // GET /api/notificacao/:idProfissional/preferencias
 // ---------------------------------------------------------------
-router.get('/:idProfissional/preferencias', async (req, res) => {
+router.get('/:idProfissional/preferencias', autenticar, async (req, res) => {
     try {
-        const idProfissional = idValido(req.params.idProfissional);
+        const idProfissional = profissionalDaSessao(req, res);
 
-        if (!idProfissional) {
-            return res.status(400).json({ mensagem: 'Profissional não identificado.' });
-        }
+        if (!idProfissional) return;
 
         return res.status(200).json({
             preferencias: await buscarPreferencias(idProfissional)
@@ -86,13 +109,11 @@ router.get('/:idProfissional/preferencias', async (req, res) => {
 // ---------------------------------------------------------------
 // PUT /api/notificacao/:idProfissional/preferencias
 // ---------------------------------------------------------------
-router.put('/:idProfissional/preferencias', async (req, res) => {
+router.put('/:idProfissional/preferencias', autenticar, async (req, res) => {
     try {
-        const idProfissional = idValido(req.params.idProfissional);
+        const idProfissional = profissionalDaSessao(req, res);
 
-        if (!idProfissional) {
-            return res.status(400).json({ mensagem: 'Profissional não identificado.' });
-        }
+        if (!idProfissional) return;
 
         // Só o que veio no corpo muda; o resto fica como estava.
         const atuais = await buscarPreferencias(idProfissional);
@@ -121,13 +142,11 @@ router.put('/:idProfissional/preferencias', async (req, res) => {
 // ---------------------------------------------------------------
 // PUT /api/notificacao/:idProfissional/todas-lidas
 // ---------------------------------------------------------------
-router.put('/:idProfissional/todas-lidas', async (req, res) => {
+router.put('/:idProfissional/todas-lidas', autenticar, async (req, res) => {
     try {
-        const idProfissional = idValido(req.params.idProfissional);
+        const idProfissional = profissionalDaSessao(req, res);
 
-        if (!idProfissional) {
-            return res.status(400).json({ mensagem: 'Profissional não identificado.' });
-        }
+        if (!idProfissional) return;
 
         const marcadas = await marcarTodasComoLidas(idProfissional);
 
@@ -146,15 +165,20 @@ router.put('/:idProfissional/todas-lidas', async (req, res) => {
 // ---------------------------------------------------------------
 // PUT /api/notificacao/:idProfissional/:idNotificacao/lida
 // ---------------------------------------------------------------
-router.put('/:idProfissional/:idNotificacao/lida', async (req, res) => {
+router.put('/:idProfissional/:idNotificacao/lida', autenticar, async (req, res) => {
     try {
-        const idProfissional = idValido(req.params.idProfissional);
+        const idProfissional = profissionalDaSessao(req, res);
+
+        if (!idProfissional) return;
+
         const idNotificacao = idValido(req.params.idNotificacao);
 
-        if (!idProfissional || !idNotificacao) {
+        if (!idNotificacao) {
             return res.status(400).json({ mensagem: 'Notificação não identificada.' });
         }
 
+        // O id do profissional entra no UPDATE: marcar como lida a
+        // notificação de outra conta não encontra linha.
         await marcarComoLida(idNotificacao, idProfissional);
 
         // Já estar lida não é erro: a tela pode ter marcado duas vezes.
@@ -177,16 +201,17 @@ router.put('/:idProfissional/:idNotificacao/lida', async (req, res) => {
 // paciente cadastrado). Quando a agenda e os planos estiverem gravando no
 // banco, o natural é a própria API chamar inserirNotificacao() de dentro
 // daquelas rotas, e esta aqui deixar de ser necessária.
+//
+// O dono do aviso é quem está logado. O "idProfissional" que vinha no corpo
+// é IGNORADO de propósito: aceito, ele deixava qualquer um injetar aviso na
+// central de outra pessoa — e o aviso dispara e-mail para quem tem "Resumo
+// por e-mail" ligado.
 // ---------------------------------------------------------------
-router.post('/', async (req, res) => {
+router.post('/', autenticar, async (req, res) => {
     try {
-        const { idProfissional, tipo, titulo, mensagem, rota, idReferencia } = req.body;
+        const { tipo, titulo, mensagem, rota, idReferencia } = req.body;
 
-        const id = idValido(idProfissional);
-
-        if (!id) {
-            return res.status(400).json({ mensagem: 'Profissional não identificado.' });
-        }
+        const id = Number(req.usuario.id_profissional);
 
         if (!TIPOS.includes(tipo)) {
             return res.status(400).json({

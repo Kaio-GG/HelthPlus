@@ -16,6 +16,8 @@ const {
 
 const { crnValido, normalizarCrn } = require('../utilitarios/crn');
 
+const autenticar = require('../middleware/autenticar');
+
 const { enviarEmailBoasVindasProfissional } = require('../servicos/mensagensEmail');
 
 const AVISO_DE_CRN = 'Registro profissional inválido. Informe a regional e o número, como em CRN-3 12345.';
@@ -196,7 +198,14 @@ router.post('/login', async (req, res) => {
 // no id que vem da URL, ou seja: quem souber um id consegue alterar os
 // dados daquele profissional. Ao implementar o JWT, tirar o id da URL e
 // usar o do token.
-router.put('/:id', async (req, res) => {
+// Exige token, e só deixa editar a PRÓPRIA conta.
+//
+// Aberta, esta rota reescrevia nome, CRN e telefone de qualquer
+// nutricionista, sem token e sem confirmar senha. Trocar o CRN exibido de um
+// profissional de saúde é alterar dado com efeito sobre terceiros — o
+// paciente confere o registro para saber com quem está falando (Art. 6º, V
+// da LGPD, qualidade e exatidão dos dados).
+router.put('/:id', autenticar, async (req, res) => {
     try {
         const idProfissional = Number(req.params.id);
         const { nome, registro, telefone } = req.body;
@@ -204,6 +213,12 @@ router.put('/:id', async (req, res) => {
         if (!Number.isInteger(idProfissional) || idProfissional <= 0) {
             return res.status(400).json({
                 mensagem: 'Profissional não identificado.'
+            });
+        }
+
+        if (idProfissional !== Number(req.usuario.id_profissional)) {
+            return res.status(403).json({
+                mensagem: 'Acesso não autorizado.'
             });
         }
 

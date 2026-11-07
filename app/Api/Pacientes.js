@@ -21,9 +21,20 @@ const criarErro = (erro, padrao) =>
   );
 
 // CADASTRO DO PACIENTE
-export const cadastrarPaciente = async (dados) => {
+//
+// Leva o token: a rota passou a exigi-lo, e o paciente nasce na lista de
+// quem está logado — a API ignora o "idProfissional" que vier no corpo.
+export const cadastrarPaciente = async (dados, token) => {
   try {
-    const resposta = await api.post('/api/paciente/cadastro', dados);
+    if (!token) {
+      throw new Error('Sua sessão expirou. Entre novamente como nutricionista.');
+    }
+
+    const resposta = await api.post(
+      '/api/paciente/cadastro',
+      dados,
+      cabecalho(token)
+    );
 
     return resposta.data;
   } catch (erro) {

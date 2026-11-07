@@ -17,8 +17,14 @@ import {
 const NotificacoesContexto = createContext(null);
 
 export const NotificacoesProvider = ({ children }) => {
-  const { profissional } = useAuth();
+  const { profissional, token } = useAuth();
   const idProfissional = profissional?.id_profissional ?? null;
+
+  // As rotas de notificação da API passaram a exigir o token da sessão, e
+  // dele sai o profissional dos avisos. Sem token não há o que buscar: a
+  // chamada voltaria 401 e o sino mostraria erro no lugar de ficar quieto.
+  // Por isso "pronto" entra em toda guarda e em toda lista de dependências.
+  const pronto = Boolean(idProfissional && token);
 
   const [notificacoes, setNotificacoes] = useState([]);
   const [naoLidas, setNaoLidas] = useState(0);
@@ -36,14 +42,14 @@ export const NotificacoesProvider = ({ children }) => {
   }, []);
 
   const recarregar = useCallback(async () => {
-    if (!idProfissional) {
+    if (!pronto) {
       limpar();
       return;
     }
 
     setCarregando(true);
     try {
-      const dados = await listarNotificacoes(idProfissional);
+      const dados = await listarNotificacoes(idProfissional, token);
       setNotificacoes(dados.notificacoes ?? []);
       setNaoLidas(dados.naoLidas ?? 0);
       setErro(null);
@@ -52,7 +58,7 @@ export const NotificacoesProvider = ({ children }) => {
     } finally {
       setCarregando(false);
     }
-  }, [idProfissional, limpar]);
+  }, [pronto, idProfissional, token, limpar]);
 
   // Ao entrar (e ao trocar de conta), busca o que existe.
   //
@@ -64,14 +70,14 @@ export const NotificacoesProvider = ({ children }) => {
     let ativo = true;
 
     const buscar = async () => {
-      if (!idProfissional) {
+      if (!pronto) {
         if (ativo) limpar();
         return;
       }
 
       setCarregando(true);
       try {
-        const dados = await listarNotificacoes(idProfissional);
+        const dados = await listarNotificacoes(idProfissional, token);
         if (!ativo) return;
         setNotificacoes(dados.notificacoes ?? []);
         setNaoLidas(dados.naoLidas ?? 0);
@@ -88,11 +94,11 @@ export const NotificacoesProvider = ({ children }) => {
     return () => {
       ativo = false;
     };
-  }, [idProfissional, limpar]);
+  }, [pronto, idProfissional, token, limpar]);
 
   const marcarLida = useCallback(
     async (idNotificacao) => {
-      if (!idProfissional) return;
+      if (!pronto) return;
 
       // Risca na tela antes da resposta: o toque precisa parecer imediato.
       // Se a chamada falhar, o recarregar seguinte traz a verdade do banco.
@@ -106,49 +112,49 @@ export const NotificacoesProvider = ({ children }) => {
       setNaoLidas((atual) => Math.max(0, atual - 1));
 
       try {
-        const dados = await marcarNotificacaoLida(idProfissional, idNotificacao);
+        const dados = await marcarNotificacaoLida(idProfissional, idNotificacao, token);
         if (typeof dados.naoLidas === 'number') setNaoLidas(dados.naoLidas);
       } catch (problema) {
         setErro(problema.message);
       }
     },
-    [idProfissional]
+    [pronto, idProfissional, token]
   );
 
   const marcarTudoLido = useCallback(async () => {
-    if (!idProfissional) return;
+    if (!pronto) return;
 
     try {
-      await marcarTodasLidas(idProfissional);
+      await marcarTodasLidas(idProfissional, token);
       await recarregar();
     } catch (problema) {
       setErro(problema.message);
     }
-  }, [idProfissional, recarregar]);
+  }, [pronto, idProfissional, token, recarregar]);
 
   const carregarPreferencias = useCallback(async () => {
-    if (!idProfissional) return null;
+    if (!pronto) return null;
 
     try {
-      const dados = await buscarPreferencias(idProfissional);
+      const dados = await buscarPreferencias(idProfissional, token);
       setPreferencias(dados);
       return dados;
     } catch (problema) {
       setErro(problema.message);
       return null;
     }
-  }, [idProfissional]);
+  }, [pronto, idProfissional, token]);
 
   // Devolve a preferência salva, ou lança para a tela avisar o usuário.
   const alterarPreferencias = useCallback(
     async (mudancas) => {
-      if (!idProfissional) return null;
+      if (!pronto) return null;
 
-      const salvas = await salvarPreferencias(idProfissional, mudancas);
+      const salvas = await salvarPreferencias(idProfissional, mudancas, token);
       setPreferencias(salvas);
       return salvas;
     },
-    [idProfissional]
+    [pronto, idProfissional, token]
   );
 
   const valor = useMemo(

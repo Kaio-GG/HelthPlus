@@ -90,7 +90,7 @@ const dataParaISO = (dataBR) => {
 
 const CadastroPaciente = ({ navigation }) => {
   const { pacientes, limitePacientes, recarregarPacientes } = useDados();
-  const { profissional } = useAuth();
+  const { profissional, token } = useAuth();
   const { avisar } = useDialogo();
 
   // Antes isto precisava desviar para o window.alert no navegador, porque o
@@ -163,6 +163,8 @@ const CadastroPaciente = ({ navigation }) => {
       setCarregando(true);
 
       const resposta = await cadastrarPaciente({
+        // A API ignora este campo e usa o profissional do token. Fica aqui
+        // porque versão antiga da API ainda o lê do corpo.
         idProfissional: profissional.id_profissional,
 
         // Etapa 1
@@ -181,7 +183,7 @@ const CadastroPaciente = ({ navigation }) => {
         // Etapa 3
         enviarConvite: dados.enviarConvite,
         emailAcesso: dados.email.trim(),
-      });
+      }, token);
 
       // Relê a lista do banco: é ela que a tela inicial usa para dizer
       // quantos pacientes do plano já foram usados. Um erro aqui não
@@ -191,12 +193,11 @@ const CadastroPaciente = ({ navigation }) => {
       // Fica na central de notificações. Um aviso que falha não pode
       // atrapalhar um cadastro que já deu certo, por isso o catch vazio.
       criarNotificacao({
-        idProfissional: profissional.id_profissional,
         tipo: 'paciente',
         titulo: 'Paciente cadastrado',
         mensagem: dados.nome.trim() + ' entrou na sua lista de pacientes.',
         rota: 'Pacientes',
-      }).catch(() => {});
+      }, token).catch(() => {});
 
       mostrarAviso(
         'Paciente cadastrado!',

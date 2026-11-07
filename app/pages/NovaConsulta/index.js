@@ -122,7 +122,6 @@ const NovaConsulta = ({ navigation, route }) => {
       // atrapalhar uma consulta que já foi agendada, por isso o catch vazio.
       if (profissional?.id_profissional) {
         criarNotificacao({
-          idProfissional: profissional.id_profissional,
           tipo: 'consulta',
           titulo: 'Consulta agendada',
           mensagem:
@@ -132,7 +131,7 @@ const NovaConsulta = ({ navigation, route }) => {
             ' às ' +
             horario,
           rota: 'Agenda',
-        }).catch(() => {});
+        }, token).catch(() => {});
       }
 
       await avisar({

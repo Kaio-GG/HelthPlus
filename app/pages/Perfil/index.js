@@ -114,11 +114,15 @@ const crnTexto =
     try {
       setSalvando(true);
 
-      const resposta = await atualizarNutricionista(nutricionista.id_profissional, {
-        nome: nome.trim(),
-        crn: normalizarCrn(montarCrn(crnRegional, crnNumero, crnProvisorio)),
-        telefone,
-      });
+      const resposta = await atualizarNutricionista(
+        nutricionista.id_profissional,
+        {
+          nome: nome.trim(),
+          crn: normalizarCrn(montarCrn(crnRegional, crnNumero, crnProvisorio)),
+          telefone,
+        },
+        token
+      );
 
       // Guarda na sessão o que o servidor confirmou, não o que foi digitado.
       await atualizarProfissional(resposta.profissional);

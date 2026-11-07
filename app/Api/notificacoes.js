@@ -1,14 +1,28 @@
 // app/Api/notificacoes.js
 // Central de notificações do nutricionista.
+//
+// Todas as chamadas levam o token da sessão: as rotas de notificação da API
+// passaram a exigi-lo, e o profissional de quem são os avisos sai do token,
+// não mais do id na URL. Sem o token a resposta é 401; com o token de outra
+// conta, 403.
+//
+// O :idProfissional continua no caminho porque a API ainda o aceita (e
+// confere contra o token), o que mantém a URL igual à das versões do
+// aplicativo já instaladas.
 import api from './connection';
+
+const cabecalho = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
 const mensagemDoErro = (erro, reserva) =>
   erro.response?.data?.mensagem || erro.response?.data?.message || reserva;
 
 // LISTA AS NOTIFICAÇÕES E QUANTAS NÃO FORAM LIDAS
-export const listarNotificacoes = async (idProfissional) => {
+export const listarNotificacoes = async (idProfissional, token) => {
   try {
-    const resposta = await api.get(`/api/notificacao/${idProfissional}`);
+    const resposta = await api.get(
+      `/api/notificacao/${idProfissional}`,
+      cabecalho(token)
+    );
 
     return resposta.data; // { notificacoes: [...], naoLidas }
   } catch (erro) {
@@ -16,10 +30,12 @@ export const listarNotificacoes = async (idProfissional) => {
   }
 };
 
-export const marcarNotificacaoLida = async (idProfissional, idNotificacao) => {
+export const marcarNotificacaoLida = async (idProfissional, idNotificacao, token) => {
   try {
     const resposta = await api.put(
-      `/api/notificacao/${idProfissional}/${idNotificacao}/lida`
+      `/api/notificacao/${idProfissional}/${idNotificacao}/lida`,
+      null,
+      cabecalho(token)
     );
 
     return resposta.data; // { naoLidas }
@@ -28,9 +44,13 @@ export const marcarNotificacaoLida = async (idProfissional, idNotificacao) => {
   }
 };
 
-export const marcarTodasLidas = async (idProfissional) => {
+export const marcarTodasLidas = async (idProfissional, token) => {
   try {
-    const resposta = await api.put(`/api/notificacao/${idProfissional}/todas-lidas`);
+    const resposta = await api.put(
+      `/api/notificacao/${idProfissional}/todas-lidas`,
+      null,
+      cabecalho(token)
+    );
 
     return resposta.data; // { mensagem, marcadas }
   } catch (erro) {
@@ -38,9 +58,12 @@ export const marcarTodasLidas = async (idProfissional) => {
   }
 };
 
-export const buscarPreferencias = async (idProfissional) => {
+export const buscarPreferencias = async (idProfissional, token) => {
   try {
-    const resposta = await api.get(`/api/notificacao/${idProfissional}/preferencias`);
+    const resposta = await api.get(
+      `/api/notificacao/${idProfissional}/preferencias`,
+      cabecalho(token)
+    );
 
     return resposta.data.preferencias;
   } catch (erro) {
@@ -49,11 +72,12 @@ export const buscarPreferencias = async (idProfissional) => {
 };
 
 // Só os campos enviados mudam; os outros ficam como estão no banco.
-export const salvarPreferencias = async (idProfissional, preferencias) => {
+export const salvarPreferencias = async (idProfissional, preferencias, token) => {
   try {
     const resposta = await api.put(
       `/api/notificacao/${idProfissional}/preferencias`,
-      preferencias
+      preferencias,
+      cabecalho(token)
     );
 
     return resposta.data.preferencias;
@@ -67,9 +91,12 @@ export const salvarPreferencias = async (idProfissional, preferencias) => {
 // Usada pelas telas que ainda não gravam no banco (agenda, planos). Quando
 // essas rotas existirem na API, a notificação passa a nascer lá dentro e
 // esta função sai daqui.
-export const criarNotificacao = async (dados) => {
+//
+// "idProfissional" não precisa mais ir no corpo: a API grava o aviso para
+// quem está logado e ignora o que vier. Quem ainda manda não quebra.
+export const criarNotificacao = async (dados, token) => {
   try {
-    const resposta = await api.post('/api/notificacao', dados);
+    const resposta = await api.post('/api/notificacao', dados, cabecalho(token));
 
     return resposta.data;
   } catch (erro) {

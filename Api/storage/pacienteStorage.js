@@ -246,14 +246,16 @@ router.delete('/:id', autenticar, async (req, res) => {
 });
 
 // Cadastra um paciente.
-router.post('/cadastro', async (req, res) => {
-  const p = req.body;
-
-  if (!p.idProfissional) {
-    return res.status(400).json({
-      mensagem: 'Profissional não identificado.',
-    });
-  }
+// Exige token de nutricionista, e o paciente nasce pendurado em QUEM ESTÁ
+// LOGADO — o "idProfissional" que vinha no corpo é ignorado.
+//
+// Aberta, esta rota deixava qualquer um na rede criar ficha de paciente
+// (nome, data de nascimento, endereço, responsável) na lista de qualquer
+// nutricionista, e abrir junto uma conta de acesso cuja senha é a data de
+// nascimento que ele mesmo escolheu. Tratamento de dado pessoal sem base
+// legal e sem controle de integridade.
+router.post('/cadastro', autenticar, async (req, res) => {
+  const p = { ...req.body, idProfissional: Number(req.usuario.id_profissional) };
 
   if (!p.nome || !p.dataNascimento || !p.sexo) {
     return res.status(400).json({

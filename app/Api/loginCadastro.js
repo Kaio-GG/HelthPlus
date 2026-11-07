@@ -32,7 +32,14 @@ export const cadastrarNutricionista = async (nome, crn, email, senha) => {
 
 
 // ATUALIZACAO DOS DADOS PROFISSIONAIS
-export const atualizarNutricionista = async (idProfissional, { nome, crn, telefone }) => {
+//
+// Leva o token: a rota passou a exigi-lo, e so aceita editar a propria
+// conta. Sem o token, 401; com o id de outra conta no caminho, 403.
+export const atualizarNutricionista = async (
+  idProfissional,
+  { nome, crn, telefone },
+  token
+) => {
 
   try {
 
@@ -40,6 +47,8 @@ export const atualizarNutricionista = async (idProfissional, { nome, crn, telefo
       nome,
       registro: crn,
       telefone
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
     });
 
     return resposta.data; // { mensagem, profissional }
