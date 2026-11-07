@@ -384,6 +384,88 @@ Dois detalhes que pegam gente desprevenida:
 
 ## Problemas comuns
 
+### Não consigo logar: o diagnóstico em 4 passos
+
+É de longe o problema que mais aparece, e quase sempre tem a mesma causa: **a
+API não está rodando**.
+
+O modelo mental que resolve a maioria dos casos: a API é um programa que fica
+rodando num terminal aberto. Fechar o terminal, dar Ctrl+C, reiniciar o
+computador, ou o Windows matar o processo — qualquer um desses derruba a API.
+Ela não volta sozinha. O aplicativo no celular, sem a API, não tem com quem
+conversar: toda tela que precisa do servidor falha, e o login é a primeira
+delas.
+
+Rode os passos na ordem. Pare no primeiro que falhar.
+
+**Passo 1 — a API está no ar?**
+
+```bash
+curl.exe -s http://localhost:3000/
+```
+
+Resposta esperada: `{"mensagem":"API HelthPlus funcionando!"}`
+
+Se não vier nada, ou vier erro de conexão, a API está desligada. Suba ela e
+**deixe esse terminal aberto**:
+
+```bash
+cd Api; npm run dev
+```
+
+**Passo 2 — o MySQL está no ar?**
+
+```bash
+Get-Service MySQL* | Select-Object Name, Status
+```
+
+Tem de dizer `Running`. Se disser `Stopped`, suba (precisa de PowerShell como
+administrador):
+
+```bash
+Start-Service MySQL80
+```
+
+Sintoma típico de MySQL parado: a API sobe sem reclamar, mas todo login
+devolve erro 500, e o terminal dela mostra `ECONNREFUSED`.
+
+**Passo 3 — o IP do `app/.env` é o desta máquina?**
+
+```bash
+(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' }).IPAddress
+```
+
+Compare com o que está em `app/.env`, na linha `EXPO_PUBLIC_API_URL`. O
+roteador entrega esse IP por DHCP e **ele muda depois de reiniciar**. Se
+mudou, corrija o `app/.env` e recarregue o app no celular (sacuda o aparelho,
+toque em *Reload*).
+
+Atenção: entre os IPs listados pode aparecer um `192.168.56.x`, que é de
+adaptador virtual (VirtualBox) e **não serve** — o celular não o alcança. Use
+o da sua rede Wi-Fi ou Ethernet, normalmente `192.168.0.x` ou `192.168.1.x`.
+
+**Passo 4 — a rota de login responde?**
+
+```bash
+try { Invoke-RestMethod -Uri http://localhost:3000/api/profissional/login -Method Post -ContentType 'application/json' -Body '{"email":"nao-existe@teste.com","senha":"errada"}' } catch { "HTTP " + $_.Exception.Response.StatusCode.value__ }
+```
+
+- **`HTTP 401`** — ótimo, é o esperado. A rota funciona de ponta a ponta:
+  alcançou o banco, comparou a senha e recusou. O problema não está na API —
+  está no celular (veja os itens de rede abaixo), ou a senha está errada
+  mesmo.
+- **`HTTP 500`** — a API está no ar mas quebrou por dentro. Olhe o terminal
+  dela: a mensagem de erro aparece lá. As duas causas mais comuns são
+  `JWT_SECRET` vazio no `Api/.env` e MySQL fora do ar.
+
+**O terminal da API é o melhor amigo aqui.** Deixe-o visível e tente logar
+pelo celular: toda requisição que chega e todo erro aparecem nele. Se você
+tenta logar e **nada** aparece no terminal, a requisição não chegou — é
+problema de rede (passo 3, Firewall, ou aparelhos em redes diferentes), e não
+da API.
+
+### Outros problemas
+
 **"Network Error" ao fazer login no celular**
 A API precisa estar rodando (`npm run dev` dentro de `Api/`), o IP do
 `app/.env` precisa ser o da sua máquina, e os dois aparelhos precisam estar
