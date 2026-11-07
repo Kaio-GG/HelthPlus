@@ -70,13 +70,13 @@ const Calendario = ({
       ) : null}
 
       <View style={estilos.cabecalho}>
-        <TouchableOpacity onPress={() => mudarMes(-1)} hitSlop={10} accessibilityLabel="Mês anterior">
+        <TouchableOpacity onPress={() => mudarMes(-1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Mês anterior">
           <Icone nome="chevron-esquerda" tamanho={22} cor={cores.verdeBotao} />
         </TouchableOpacity>
         <Text style={estilos.tituloMes}>
           {comNavegacaoDeAno ? nomesMeses[mes] : `${nomesMeses[mes]} ${ano}`}
         </Text>
-        <TouchableOpacity onPress={() => mudarMes(1)} hitSlop={10} accessibilityLabel="Próximo mês">
+        <TouchableOpacity onPress={() => mudarMes(1)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Próximo mês">
           <Icone nome="chevron-direita" tamanho={22} cor={cores.verdeBotao} />
         </TouchableOpacity>
       </View>
@@ -100,7 +100,18 @@ const Calendario = ({
             const temConsulta = diasComConsulta && diasComConsulta.has(chaveDoDia(data));
 
             return (
-              <TouchableOpacity key={indiceDia} style={estilos.celula} onPress={() => aoSelecionar(data)}>
+              <TouchableOpacity
+                key={indiceDia}
+                style={estilos.celula}
+                onPress={() => aoSelecionar(data)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selecionado }}
+                accessibilityLabel={
+                  data.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) +
+                  (ehHoje ? ', hoje' : '') +
+                  (temConsulta ? ', tem consulta' : '')
+                }
+              >
                 <View
                   style={[
                     estilos.circulo,

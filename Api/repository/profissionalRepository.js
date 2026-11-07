@@ -62,7 +62,8 @@ async function buscarProfissionalPorEmailLogin(email) {
             ds_profissao,
             nr_registro_conselho,
             nr_telefone,
-            st_ativo
+            st_ativo,
+            COALESCE(nr_versao_sessao, 0) AS nr_versao_sessao
         FROM profissional
         WHERE ds_email = ?
     `;

@@ -15,6 +15,8 @@ const CampoBusca = ({ valor, aoMudar, placeholder = 'Buscar', estilo }) => (
       placeholder={placeholder}
       placeholderTextColor={cores.textoDesabilitado}
       autoCorrect={false}
+      accessibilityRole="search"
+      accessibilityLabel={placeholder}
     />
   </View>
 );

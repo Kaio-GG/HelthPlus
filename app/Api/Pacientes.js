@@ -234,3 +234,33 @@ export const alterarSenhaDoPaciente = async (token, senhaAtual, novaSenha) => {
     throw criarErro(erro, 'Não foi possível alterar a senha');
   }
 };
+
+// Primeiro acesso do paciente: aceite dos termos (dele ou do responsável)
+// e troca da senha provisória. Recebe o token de primeiro acesso que veio
+// do login e devolve { token, paciente } da sessão normal.
+export const concluirPrimeiroAcesso = async (tokenPrimeiroAcesso, dados) => {
+  try {
+    const resposta = await api.post(
+      '/api/paciente/primeiro-acesso',
+      dados,
+      cabecalho(tokenPrimeiroAcesso)
+    );
+
+    return resposta.data;
+  } catch (erro) {
+    if (erro.response?.status === 401) {
+      throw new Error('O tempo para concluir o primeiro acesso acabou. Entre de novo.');
+    }
+    throw criarErro(erro, 'Não foi possível concluir o primeiro acesso');
+  }
+};
+
+// "Sair de todos os aparelhos" do paciente.
+export const encerrarSessoesDoPaciente = async (token) => {
+  try {
+    const resposta = await api.post('/api/paciente/encerrar-sessoes', {}, cabecalho(token));
+    return resposta.data;
+  } catch (erro) {
+    throw criarErro(erro, 'Não foi possível encerrar as sessões');
+  }
+};

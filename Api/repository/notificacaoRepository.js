@@ -142,7 +142,8 @@ async function inserirNotificacao({
     titulo,
     mensagem = null,
     rota = null,
-    idReferencia = null
+    idReferencia = null,
+    obrigatoria = false
 }) {
     if (!TIPOS.includes(tipo)) {
         throw new Error(`Tipo de notificação desconhecido: ${tipo}`);
@@ -150,7 +151,10 @@ async function inserirNotificacao({
 
     const preferencias = await buscarPreferencias(idProfissional);
 
-    if (!preferencias[COLUNA_DA_PREFERENCIA[tipo]]) return null;
+    // "obrigatoria" é para aviso com prazo legal (um pedido LGPD do
+    // paciente tem 15 dias de resposta): ele chega mesmo com o tipo
+    // desligado nas preferências.
+    if (!obrigatoria && !preferencias[COLUNA_DA_PREFERENCIA[tipo]]) return null;
 
     const sql = `
         INSERT INTO notificacao (

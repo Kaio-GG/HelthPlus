@@ -39,6 +39,8 @@ import {
   obterEvolucaoDoPaciente,
 } from '../../Api/Pacientes';
 import { reenviarConviteDoPaciente } from '../../Api/convite';
+import { exportarDadosDoPaciente } from '../../Api/lgpd';
+import { compartilharDados } from '../../utilitarios/compartilhar';
 import { cores } from '../../tema';
 
 import {
@@ -243,6 +245,24 @@ const FichaPaciente = ({ navigation, route }) => {
       });
     } finally {
       setEnviandoConvite(false);
+    }
+  };
+
+  // Cópia de tudo o que o sistema guarda sobre o paciente, em JSON. É como
+  // o nutricionista atende um pedido de cópia ou de portabilidade (LGPD,
+  // Art. 18, II e V). A exportação fica no registro de auditoria.
+  const [exportando, setExportando] = useState(false);
+
+  const exportarDados = async () => {
+    if (exportando || !paciente) return;
+    setExportando(true);
+    try {
+      const dados = await exportarDadosDoPaciente(token, paciente.id);
+      await compartilharDados(`Dados de ${paciente.nome} — Health Plus`, dados);
+    } catch (erro) {
+      avisar({ titulo: 'Não foi possível exportar', mensagem: erro.message, tom: 'erro' });
+    } finally {
+      setExportando(false);
     }
   };
 
@@ -590,9 +610,38 @@ const FichaPaciente = ({ navigation, route }) => {
         estilo={estilos.botaoTopo}
       />
 
+      {/* ---------- LGPD: cópia dos dados e quem acessou ---------- */}
+      <Cartao>
+        <Text style={estilos.tituloCartao} accessibilityRole="header">
+          Privacidade (LGPD)
+        </Text>
+        <Text style={estilos.vazio}>
+          Cada acesso a esta ficha fica registrado, e o paciente vê a mesma lista no aplicativo dele.
+        </Text>
+        <Botao
+          titulo="Exportar dados do paciente"
+          icone="download"
+          variante="contorno"
+          carregando={exportando}
+          aoPressionar={exportarDados}
+          dica="Gera um arquivo com a ficha, as avaliações, as consultas e os aceites"
+          estilo={estilos.botaoConvite}
+        />
+        <Botao
+          titulo="Histórico de acessos"
+          icone="historico"
+          variante="contorno"
+          aoPressionar={() =>
+            navigation.navigate('HistoricoAcessos', { pacienteId: paciente.id, nomePaciente: paciente.nome })
+          }
+          estilo={estilos.botaoConvite}
+        />
+      </Cartao>
+
       {/* Fica por último, e sozinho, para ninguém tocar sem querer. */}
       <Botao
         titulo={apagando ? 'Apagando...' : 'Apagar paciente'}
+        rotuloAcessivel={`Apagar o paciente ${paciente.nome}`}
         variante="perigo"
         desabilitado={apagando}
         aoPressionar={apagarPaciente}
@@ -757,7 +806,7 @@ const FichaPaciente = ({ navigation, route }) => {
         {seriePeso.length > 0 ? (
           <Cartao>
             <Text style={estilos.tituloCartao}>Peso (kg)</Text>
-            <GraficoLinha pontos={seriePeso} altura={150} />
+            <GraficoLinha pontos={seriePeso} altura={150} sufixo="kg" />
           </Cartao>
         ) : null}
 
@@ -766,7 +815,7 @@ const FichaPaciente = ({ navigation, route }) => {
         {serieAltura.length > 0 ? (
           <Cartao>
             <Text style={estilos.tituloCartao}>Altura (cm)</Text>
-            <GraficoLinha pontos={serieAltura} altura={150} cor={cores.verdeLink} />
+            <GraficoLinha pontos={serieAltura} altura={150} cor={cores.verdeLink} sufixo="cm" />
             <Text style={estilos.dicaGrafico}>
               A altura só sobe. Um degrau para baixo costuma ser erro de anotação.
             </Text>

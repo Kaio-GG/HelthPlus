@@ -17,6 +17,7 @@ import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Rect, Line, Text as TextoSvg } from 'react-native-svg';
 import { cores } from '../../tema';
+import { descreverSerie } from '../../utilitarios/acessibilidade';
 import { estilos } from './style';
 
 const MARGEM_LATERAL = 6;
@@ -35,6 +36,7 @@ const GraficoBarra = ({
   sufixo = '',
   casas = 1,
   zeroNaBase = true,
+  rotuloAcessivel,
 }) => {
   const [largura, setLargura] = useState(0);
 
@@ -62,7 +64,12 @@ const GraficoBarra = ({
   );
 
   return (
-    <View onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}>
+    <View
+      onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={rotuloAcessivel || descreverSerie(pontos, { sufixo, casas })}
+    >
       {largura > 0 && (
         <Svg width={largura} height={altura}>
           {/* Linha de base */}

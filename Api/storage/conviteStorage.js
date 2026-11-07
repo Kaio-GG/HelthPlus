@@ -11,10 +11,13 @@ const { renovarConvite } = require('../repository/conviteRepository');
 const { enviarConvitePaciente } = require('../servicos/conviteEmail');
 const { enviarEmailConviteTeste } = require('../servicos/mensagensEmail');
 const { buscarContatoDoProfissional } = require('../repository/notificacaoRepository');
+const { limites } = require('../middleware/limiteTaxa');
+const { registrarAuditoria } = require('../servicos/auditoria');
+const { emailValido } = require('../utilitarios/validacao');
 
 const router = express.Router();
 
-router.post('/reenviar/:idPaciente', autenticar, async (req, res) => {
+router.post('/reenviar/:idPaciente', autenticar, limites.envioEmail, async (req, res) => {
   const idPaciente = Number(req.params.idPaciente);
   const idProfissional = Number(req.usuario.id_profissional);
 
@@ -24,6 +27,14 @@ router.post('/reenviar/:idPaciente', autenticar, async (req, res) => {
 
   try {
     const convite = await renovarConvite(idPaciente, idProfissional);
+
+    registrarAuditoria(req, {
+      acao: 'convite.reenviar',
+      recurso: 'paciente',
+      idRecurso: idPaciente,
+      idPacienteAlvo: idPaciente,
+      detalhe: { acessoCriado: convite.acessoCriado },
+    });
 
     // A senha provisória não vai para o e-mail: ela é a data de nascimento
     // do paciente, e o e-mail apenas diz isso em palavras.
@@ -88,14 +99,14 @@ router.post('/reenviar/:idPaciente', autenticar, async (req, res) => {
 // Só nutricionista logado convida: é um e-mail saindo do nosso domínio
 // para um endereço escolhido por quem chamou a rota.
 // ---------------------------------------------------------------
-router.post('/testador', autenticar, async (req, res) => {
+router.post('/testador', autenticar, limites.envioEmail, async (req, res) => {
   const idProfissional = Number(req.usuario.id_profissional);
   const email = String(req.body?.email || '').trim();
   const recado = String(req.body?.recado || '').trim().slice(0, 300);
   const link = String(process.env.LINK_TESTE_APP || '').trim();
 
   // Validação simples, igual à do aplicativo: algo@algo.algo.
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+  if (!emailValido(email)) {
     return res.status(400).json({ mensagem: 'Informe um e-mail válido.' });
   }
 
@@ -111,6 +122,8 @@ router.post('/testador', autenticar, async (req, res) => {
     // O token guarda só o id; o nome de quem convida sai do banco, para
     // o convidado saber quem o chamou.
     const contato = await buscarContatoDoProfissional(idProfissional);
+
+    registrarAuditoria(req, { acao: 'convite.testador', recurso: 'convite' });
 
     const envio = await enviarEmailConviteTeste(email, {
       nomeQuemConvida: contato?.nm_profissional || null,

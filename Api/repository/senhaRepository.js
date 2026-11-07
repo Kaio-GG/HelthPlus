@@ -51,11 +51,15 @@ async function buscarTokenValido(tokenHash) {
     return resultado[0];
 }
 
+// Queima o token. O "dt_uso IS NULL" no WHERE é o que impede o mesmo
+// código de valer duas vezes quando duas requisições chegam juntas: só uma
+// delas consegue a linha, e a outra recebe false.
 async function marcarTokenComoUsado(idToken) {
     const sql = `
         UPDATE token_senha
         SET dt_uso = NOW()
         WHERE id_token = ?
+          AND dt_uso IS NULL
     `;
 
     const [resultado] = await pool.execute(sql, [idToken]);
@@ -172,6 +176,7 @@ async function marcarTokenDoPacienteComoUsado(idToken) {
         UPDATE token_senha_paciente
         SET dt_uso = NOW()
         WHERE id_token = ?
+          AND dt_uso IS NULL
     `;
 
     const [resultado] = await pool.execute(sql, [idToken]);
@@ -180,8 +185,8 @@ async function marcarTokenDoPacienteComoUsado(idToken) {
 }
 
 // ds_status fica como está de propósito: quem ainda não ativou a conta
-// continua 'pendente' e passa pela tela de primeiro acesso, onde registra
-// os consentimentos da LGPD. Redefinir a senha não substitui esse passo.
+// continua 'pendente' e, no próximo login, passa pela tela de primeiro
+// acesso para aceitar os termos. Redefinir a senha não substitui o aceite.
 async function atualizarSenhaDoPaciente(idPaciente, senhaHash) {
     const sql = `
         UPDATE usuario_paciente

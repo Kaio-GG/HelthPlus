@@ -219,15 +219,25 @@ router.post('/', autenticar, async (req, res) => {
             });
         }
 
-        if (!titulo || !titulo.trim()) {
+        if (!titulo || typeof titulo !== 'string' || !titulo.trim()) {
             return res.status(400).json({ mensagem: 'A notificação precisa de um título.' });
+        }
+
+        // Os tamanhos das colunas. Passar disso era erro 500 ("Data too long").
+        if (titulo.trim().length > 120 || (mensagem && String(mensagem).trim().length > 255)) {
+            return res.status(400).json({ mensagem: 'Título até 120 e mensagem até 255 caracteres.' });
+        }
+
+        // A rota é o nome de uma tela do aplicativo, e nada mais.
+        if (rota && !/^[A-Za-z]{1,60}$/.test(rota)) {
+            return res.status(400).json({ mensagem: 'Rota inválida.' });
         }
 
         const criada = await inserirNotificacao({
             idProfissional: id,
             tipo,
             titulo: titulo.trim(),
-            mensagem: mensagem ? mensagem.trim() : null,
+            mensagem: mensagem ? String(mensagem).trim() : null,
             rota: rota || null,
             idReferencia: idValido(idReferencia)
         });
@@ -260,7 +270,7 @@ router.post('/', autenticar, async (req, res) => {
                         contato.nm_profissional,
                         {
                             titulo: titulo.trim(),
-                            mensagem: mensagem ? mensagem.trim() : null
+                            mensagem: mensagem ? String(mensagem).trim() : null
                         }
                     );
                 })

@@ -35,14 +35,21 @@ export const redefinirSenha = async (token, senha) => {
 };
 
 // TROCA DE SENHA DE DENTRO DO APLICATIVO (pede a senha atual)
-export const alterarSenha = async (idProfissional, senhaAtual, novaSenha) => {
-  try {
-    const resposta = await api.put(`/api/senha/${idProfissional}`, {
-      senhaAtual,
-      novaSenha,
-    });
+// Troca a senha do nutricionista logado. O id sai do token, na API.
+// A resposta traz um token novo: as outras sessões foram encerradas.
+export const alterarSenha = async (token, senhaAtual, novaSenha) => {
+  if (!token) {
+    throw new Error('Sua sessão expirou. Entre novamente.');
+  }
 
-    return resposta.data;
+  try {
+    const resposta = await api.put(
+      '/api/senha',
+      { senhaAtual, novaSenha },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    return resposta.data; // { mensagem, token }
   } catch (erro) {
     throw new Error(mensagemDoErro(erro, 'Não foi possível alterar a senha.'));
   }

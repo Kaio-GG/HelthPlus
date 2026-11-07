@@ -1,3 +1,4 @@
+import { cores } from "../../tema";
 import { StyleSheet } from "react-native";
 
 // Medidas extraídas do SVG (frame 393 x 716).
@@ -149,5 +150,28 @@ export const estilos = StyleSheet.create({
     marginTop: 12,
     marginBottom: 24,
     paddingHorizontal: 32,
+  },
+  carregando: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  botaoAcessibilidade: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  textoAcessibilidade: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: cores.verdeEscuro,
+    textDecorationLine: "underline",
+  },
+  linkRodape: {
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
 });
