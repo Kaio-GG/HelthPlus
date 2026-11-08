@@ -10,11 +10,14 @@
 // confere contra o token), o que mantém a URL igual à das versões do
 // aplicativo já instaladas.
 import api from './connection';
+import { mensagemDeErro } from './erros';
 
 const cabecalho = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
-const mensagemDoErro = (erro, reserva) =>
-  erro.response?.data?.mensagem || erro.response?.data?.message || reserva;
+// Ver app/Api/erros.js. O helper que vivia aqui era o mais pobre dos seis:
+// não tinha ramo de rede nenhum, então com a API fora do ar o sino mostrava
+// só "Não foi possível carregar as notificações", sem dizer por quê.
+const mensagemDoErro = mensagemDeErro;
 
 // LISTA AS NOTIFICAÇÕES E QUANTAS NÃO FORAM LIDAS
 export const listarNotificacoes = async (idProfissional, token) => {

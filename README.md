@@ -384,10 +384,29 @@ Dois detalhes que pegam gente desprevenida:
 
 ## Problemas comuns
 
-### Não consigo logar: o diagnóstico em 4 passos
+### Não consigo logar: comece pela mensagem na tela
 
-É de longe o problema que mais aparece, e quase sempre tem a mesma causa: **a
-API não está rodando**.
+Desde 7/11/2026 a mensagem de erro **diz qual é a causa**, e ela é o
+diagnóstico mais rápido. O tratamento está em `app/Api/erros.js`, usado por
+todos os clientes de API.
+
+| A tela diz | O que é | O que fazer |
+|---|---|---|
+| "Sem resposta da API em `http://...`" | a requisição não chegou: API desligada, IP errado no `app/.env`, celular em outra rede | compare o endereço mostrado com o IP real (passo 3 abaixo) — é o caso mais comum |
+| "A API em `http://...` não respondeu em 10 segundos" | alguém escutou mas travou; costuma ser MySQL fora do ar | passo 2, e olhe o terminal da API |
+| "E-mail ou senha inválidos." | a API respondeu: as credenciais não batem | use "Esqueci minha senha" |
+| "Esta conta está desativada." | a API respondeu: `st_ativo = 0` no banco | reative a conta |
+| algo com "(HTTP 500 — o erro completo está no terminal da API.)" | defeito no servidor, não erro seu | leia o stack no terminal da API |
+
+Se a mensagem citar um endereço, **confira esse endereço**: é nele que o app
+tentou falar. Em 7/11/2026 o roteador trocou o IP da máquina de `.104` para
+`.101` no meio do dia, e o app continuou batendo no `.104`. A mensagem antiga
+dizia só "Não foi possível realizar o login", que parece senha errada — e não
+era.
+
+### O diagnóstico em 4 passos
+
+Se a mensagem não bastar: a causa mais comum é **a API não estar rodando**.
 
 O modelo mental que resolve a maioria dos casos: a API é um programa que fica
 rodando num terminal aberto. Fechar o terminal, dar Ctrl+C, reiniciar o
@@ -472,9 +491,45 @@ A API precisa estar rodando (`npm run dev` dentro de `Api/`), o IP do
 na mesma rede. O Firewall do Windows costuma bloquear a porta 3000 na
 primeira vez — libere quando ele perguntar.
 
-**Mudei o `.env` e nada mudou**
-Recarregue o aplicativo no celular (sacuda o aparelho e toque em *Reload*).
-A CLI do Expo não precisa reiniciar.
+**Mudei o `app/.env` e nada mudou**
+
+Reinicie a CLI do Expo. Esta entrada dizia o contrário, e estava errada.
+
+O motivo está na primeira linha que o `npx expo start` imprime:
+
+```
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+```
+
+A CLI lê o `.env` **uma vez, ao iniciar**, e embute o valor no bundle que
+serve. Um Metro que já estava rodando continua com o valor antigo na
+memória, por mais vezes que você recarregue o aplicativo — o celular pede
+bundle novo e recebe o mesmo valor velho.
+
+A documentação do Expo diz que recarregar basta e que não é preciso
+reiniciar a CLI, mas isso vale para edições de **código**. Para o `.env`:
+
+1. Pare a CLI (Ctrl+C no terminal dela).
+2. Confira que a porta 8081 ficou livre — um Metro órfão de uma sessão
+   anterior continua servindo o bundle antigo, e o `expo start` seguinte
+   sobe em 8082 sem avisar que o celular ainda fala com o 8081:
+
+   ```bash
+   netstat -ano | Select-String ":8081.*LISTENING"
+   ```
+
+   Se aparecer algo, encerre pelo PID da última coluna:
+
+   ```bash
+   Stop-Process -Id <PID> -Force
+   ```
+
+3. Suba de novo com `npx expo start` e recarregue o aplicativo.
+
+Foi exatamente isso em 7/11/2026: o `.env` já estava certo em `.101`, mas um
+Metro órfão segurava a 8081 com `.104`, e a tela seguia mostrando o endereço
+antigo.
 
 **Erro 500 ao abrir no celular, ou `Cannot read properties of undefined (reading 'exists')`**
 O mapa de arquivos do Metro ficou corrompido. Pare o servidor (Ctrl+C) e

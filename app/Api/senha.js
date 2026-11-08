@@ -1,11 +1,12 @@
 // app/Api/senha.js
 // Chamadas da redefinição e da troca de senha.
 import api from './connection';
+import { mensagemDeErro } from './erros';
 
-// Mensagem de erro da API, com um texto de reserva quando a resposta não
-// trouxer nada (rede fora, servidor desligado).
-const mensagemDoErro = (erro, reserva) =>
-  erro.response?.data?.mensagem || erro.response?.data?.message || reserva;
+// Ver app/Api/erros.js. O helper daqui também não distinguia "a API recusou"
+// de "a API não respondeu" — e este é o fluxo de quem já está sem acesso à
+// conta, justamente quem menos pode receber uma mensagem vaga.
+const mensagemDoErro = mensagemDeErro;
 
 // PEDIDO DO LINK DE REDEFINIÇÃO
 //
