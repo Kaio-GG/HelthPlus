@@ -57,6 +57,9 @@ CREATE TABLE IF NOT EXISTS `profissional` (
   `id_unidade` int DEFAULT NULL,
   `nr_telefone` varchar(20) DEFAULT NULL,
   `st_ativo` tinyint(1) DEFAULT '1',
+  `nr_versao_sessao` int NOT NULL DEFAULT '0',
+  `nr_tentativas_falhas` int NOT NULL DEFAULT '0',
+  `dt_bloqueio_ate` datetime DEFAULT NULL,
   PRIMARY KEY (`id_profissional`),
   UNIQUE KEY `ds_email` (`ds_email`),
   KEY `id_unidade` (`id_unidade`),
@@ -121,6 +124,9 @@ CREATE TABLE IF NOT EXISTS `usuario_paciente` (
   `ds_senha` varchar(255) DEFAULT NULL,
   `ds_status` varchar(30) NOT NULL DEFAULT 'pendente',
   `dt_criacao` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `nr_versao_sessao` int NOT NULL DEFAULT '0',
+  `nr_tentativas_falhas` int NOT NULL DEFAULT '0',
+  `dt_bloqueio_ate` datetime DEFAULT NULL,
   PRIMARY KEY (`id_usuario_paciente`),
   UNIQUE KEY `id_paciente` (`id_paciente`),
   UNIQUE KEY `ds_email` (`ds_email`),
@@ -414,14 +420,35 @@ CREATE TABLE IF NOT EXISTS `preferencia_notificacao` (
 
 
 
+-- ---------------------------------------------------------------
+-- consentimento_paciente
+-- Os aceites do paciente (ou do responsável legal): Termos e Política de
+-- Privacidade, e o tratamento dos dados de saúde (LGPD, Art. 11, I).
+--
+--   tp_consentidor   'titular' (o próprio paciente adulto) ou
+--                    'responsavel' (pai, mãe ou responsável legal do menor)
+--   nm_consentidor   o nome de quem aceitou
+--   ds_origem        'app_primeiro_acesso' = aceito na tela, pela pessoa.
+--                    NULL = gravado automaticamente pela versão antiga do
+--                    sistema, no primeiro login, sem tela nenhuma. Essas
+--                    linhas NÃO valem como consentimento e ficam só como
+--                    histórico; quem só tem elas aceita de novo no login.
+--   dt_revogacao     preenchida quando o paciente revoga, ou quando um
+--                    aceite novo (versão nova dos termos) substitui este
+--   ds_motivo_revogacao  'revogado_pelo_titular' ou 'substituido'
+-- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS consentimento_paciente (
   id_consentimento INT NOT NULL AUTO_INCREMENT,
   id_paciente INT NOT NULL,
   tp_consentimento VARCHAR(50) NOT NULL,
   st_aceito TINYINT(1) NOT NULL DEFAULT 1,
   ds_versao_termos VARCHAR(30) NOT NULL,
+  tp_consentidor VARCHAR(20) DEFAULT NULL,
+  nm_consentidor VARCHAR(100) DEFAULT NULL,
+  ds_origem VARCHAR(30) DEFAULT NULL,
   dt_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   dt_revogacao TIMESTAMP NULL DEFAULT NULL,
+  ds_motivo_revogacao VARCHAR(40) DEFAULT NULL,
   PRIMARY KEY (id_consentimento),
   INDEX idx_consentimento_paciente (id_paciente),
   CONSTRAINT fk_consentimento_paciente
@@ -608,6 +635,78 @@ CREATE TABLE IF NOT EXISTS `consulta` (
     REFERENCES `paciente` (`id_paciente`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+
+-- ---------------------------------------------------------------
+-- solicitacao_titular
+-- Pedidos que o paciente faz pelo aplicativo com base na LGPD (Art. 18):
+-- cópia dos dados, correção, exclusão, informação, oposição.
+--
+-- O prazo de resposta completa é de 15 dias (Art. 19, II) e fica gravado
+-- em dt_prazo, para a tela do nutricionista mostrar o que está vencendo.
+-- ds_status: 'aberta', 'em_andamento', 'atendida' ou 'recusada'.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `solicitacao_titular` (
+  `id_solicitacao` int NOT NULL AUTO_INCREMENT,
+  `id_paciente` int NOT NULL,
+  `id_profissional` int NOT NULL,
+  `tp_solicitacao` varchar(20) NOT NULL,
+  `ds_mensagem` varchar(1000) DEFAULT NULL,
+  `ds_status` varchar(20) NOT NULL DEFAULT 'aberta',
+  `ds_resposta` varchar(1000) DEFAULT NULL,
+  `dt_abertura` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `dt_prazo` datetime NOT NULL,
+  `dt_conclusao` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_solicitacao`),
+  KEY `idx_solicitacao_profissional` (`id_profissional`, `ds_status`, `dt_prazo`),
+  KEY `idx_solicitacao_paciente` (`id_paciente`),
+  CONSTRAINT `solicitacao_titular_ibfk_1` FOREIGN KEY (`id_paciente`)
+    REFERENCES `paciente` (`id_paciente`),
+  CONSTRAINT `solicitacao_titular_ibfk_2` FOREIGN KEY (`id_profissional`)
+    REFERENCES `profissional` (`id_profissional`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ---------------------------------------------------------------
+-- log_auditoria
+-- Quem fez o quê, quando, de onde, e em qual paciente (LGPD, Art. 37).
+-- Gravado por Api/servicos/auditoria.js.
+--
+-- NÃO guarda nome nem dado de saúde: só ids, a ação e um detalhe técnico
+-- curto. E-mail de quem errou o login entra como pseudônimo (HMAC), nunca
+-- em texto.
+--
+-- Encadeado por hash: ds_hash = SHA-256(ds_hash_anterior + conteúdo da
+-- linha). Editar ou apagar uma linha no meio quebra a corrente, e
+-- "npm run auditoria:verificar" (pasta Api) mostra onde.
+--
+-- Sem chave estrangeira de propósito: a linha precisa sobreviver à
+-- exclusão do paciente e do profissional — é ela que prova o que houve.
+--
+-- Recomendado em produção: o usuário do banco da API com INSERT e SELECT
+-- nesta tabela, e sem UPDATE (o DELETE fica só para o expurgo por prazo):
+--   REVOKE UPDATE ON helthplus.log_auditoria FROM 'helthplus'@'localhost';
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `log_auditoria` (
+  `id_log` bigint NOT NULL AUTO_INCREMENT,
+  `dt_evento` datetime(3) NOT NULL,
+  `tp_ator` varchar(20) NOT NULL,
+  `id_ator` int DEFAULT NULL,
+  `ds_acao` varchar(60) NOT NULL,
+  `ds_recurso` varchar(40) DEFAULT NULL,
+  `id_recurso` int DEFAULT NULL,
+  `id_paciente_alvo` int DEFAULT NULL,
+  `st_sucesso` tinyint(1) NOT NULL DEFAULT '1',
+  `ds_ip` varchar(45) DEFAULT NULL,
+  `ds_dispositivo` varchar(120) DEFAULT NULL,
+  `ds_id_requisicao` char(36) DEFAULT NULL,
+  `ds_detalhe` text,
+  `ds_hash_anterior` char(64) NOT NULL,
+  `ds_hash` char(64) NOT NULL,
+  PRIMARY KEY (`id_log`),
+  KEY `idx_auditoria_paciente` (`id_paciente_alvo`, `dt_evento`),
+  KEY `idx_auditoria_ator` (`tp_ator`, `id_ator`, `dt_evento`),
+  KEY `idx_auditoria_data` (`dt_evento`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- ---------------------------------------------------------------
 -- Catálogos de referência: tipo_medida e indicador
 --
@@ -702,6 +801,141 @@ PREPARE acrescentar FROM @comando;
 EXECUTE acrescentar;
 DEALLOCATE PREPARE acrescentar;
 
+
+-- ---- Segurança, LGPD e auditoria (2026-11-07) ----
+
+-- profissional.nr_versao_sessao — sobe quando a senha muda ou em "sair de todos os aparelhos"; derruba os tokens antigos
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'profissional' AND COLUMN_NAME = 'nr_versao_sessao'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `profissional` ADD COLUMN `nr_versao_sessao` int NOT NULL DEFAULT ''0''',
+  'SELECT "profissional.nr_versao_sessao já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- profissional.nr_tentativas_falhas — senhas erradas seguidas, para o bloqueio temporário
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'profissional' AND COLUMN_NAME = 'nr_tentativas_falhas'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `profissional` ADD COLUMN `nr_tentativas_falhas` int NOT NULL DEFAULT ''0''',
+  'SELECT "profissional.nr_tentativas_falhas já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- profissional.dt_bloqueio_ate — até quando a conta fica bloqueada por excesso de tentativas (UTC)
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'profissional' AND COLUMN_NAME = 'dt_bloqueio_ate'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `profissional` ADD COLUMN `dt_bloqueio_ate` datetime DEFAULT NULL',
+  'SELECT "profissional.dt_bloqueio_ate já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- usuario_paciente.nr_versao_sessao — sobe quando a senha muda ou em "sair de todos os aparelhos"; derruba os tokens antigos
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'usuario_paciente' AND COLUMN_NAME = 'nr_versao_sessao'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `usuario_paciente` ADD COLUMN `nr_versao_sessao` int NOT NULL DEFAULT ''0''',
+  'SELECT "usuario_paciente.nr_versao_sessao já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- usuario_paciente.nr_tentativas_falhas — senhas erradas seguidas, para o bloqueio temporário
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'usuario_paciente' AND COLUMN_NAME = 'nr_tentativas_falhas'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `usuario_paciente` ADD COLUMN `nr_tentativas_falhas` int NOT NULL DEFAULT ''0''',
+  'SELECT "usuario_paciente.nr_tentativas_falhas já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- usuario_paciente.dt_bloqueio_ate — até quando a conta fica bloqueada por excesso de tentativas (UTC)
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'usuario_paciente' AND COLUMN_NAME = 'dt_bloqueio_ate'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `usuario_paciente` ADD COLUMN `dt_bloqueio_ate` datetime DEFAULT NULL',
+  'SELECT "usuario_paciente.dt_bloqueio_ate já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- consentimento_paciente.tp_consentidor — titular ou responsavel
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'consentimento_paciente' AND COLUMN_NAME = 'tp_consentidor'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `consentimento_paciente` ADD COLUMN `tp_consentidor` varchar(20) DEFAULT NULL',
+  'SELECT "consentimento_paciente.tp_consentidor já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- consentimento_paciente.nm_consentidor — nome de quem aceitou
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'consentimento_paciente' AND COLUMN_NAME = 'nm_consentidor'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `consentimento_paciente` ADD COLUMN `nm_consentidor` varchar(100) DEFAULT NULL',
+  'SELECT "consentimento_paciente.nm_consentidor já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- consentimento_paciente.ds_origem — app_primeiro_acesso, ou NULL nos aceites automáticos antigos
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'consentimento_paciente' AND COLUMN_NAME = 'ds_origem'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `consentimento_paciente` ADD COLUMN `ds_origem` varchar(30) DEFAULT NULL',
+  'SELECT "consentimento_paciente.ds_origem já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- consentimento_paciente.ds_motivo_revogacao — revogado_pelo_titular ou substituido
+SET @coluna_existe = (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'consentimento_paciente' AND COLUMN_NAME = 'ds_motivo_revogacao'
+);
+SET @comando = IF(@coluna_existe = 0,
+  'ALTER TABLE `consentimento_paciente` ADD COLUMN `ds_motivo_revogacao` varchar(40) DEFAULT NULL',
+  'SELECT "consentimento_paciente.ds_motivo_revogacao já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
+-- índice notificacao.idx_notificacao_data — a lista do sino ordena por data (era a pendência 4)
+SET @indice_existe = (
+  SELECT COUNT(*) FROM information_schema.STATISTICS
+   WHERE TABLE_SCHEMA = 'helthplus' AND TABLE_NAME = 'notificacao' AND INDEX_NAME = 'idx_notificacao_data'
+);
+SET @comando = IF(@indice_existe = 0,
+  'ALTER TABLE `notificacao` ADD INDEX `idx_notificacao_data` (`id_profissional`, `dt_criacao`)',
+  'SELECT "índice notificacao.idx_notificacao_data já existe" AS resultado');
+PREPARE acrescentar FROM @comando;
+EXECUTE acrescentar;
+DEALLOCATE PREPARE acrescentar;
+
 -- ---------------------------------------------------------------
 -- Pendências conhecidas da modelagem
 --
@@ -724,6 +958,11 @@ DEALLOCATE PREPARE acrescentar;
 --    pelos INSERT acima, porque medida_antropometrica e
 --    resultado_avaliacao não gravam sem elas.
 --
--- 4. "notificacao" não tem índice por data. Com a lista crescendo, o
---    ORDER BY dt_criacao de cada abertura da tela passa a ordenar tudo.
+-- 4. (Resolvida em 2026-11-07: índice idx_notificacao_data.)
+--
+-- 5. Colunas de dado sensível que o aplicativo não preenche mais
+--    (ds_alergias, ds_condicoes_saude, ds_medicamentos...) continuam aqui
+--    com o que foi gravado antes. Apagá-las é destrutivo e por isso está
+--    num arquivo à parte, para rodar com consciência:
+--      Api/database/migracoes/001_minimizacao_lgpd.sql
 -- ---------------------------------------------------------------

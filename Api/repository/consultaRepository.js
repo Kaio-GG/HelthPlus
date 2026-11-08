@@ -120,7 +120,7 @@ async function listarConsultasDoProfissional(idProfissional, de, ate) {
 // ---------------------------------------------------------------------
 async function alterarStatusConsulta(idConsulta, idProfissional, status) {
   const [linhas] = await connection.query(
-    'SELECT id_consulta FROM consulta WHERE id_consulta = ? AND id_profissional = ?',
+    'SELECT id_consulta, id_paciente FROM consulta WHERE id_consulta = ? AND id_profissional = ?',
     [idConsulta, idProfissional]
   );
   if (linhas.length === 0) {
@@ -132,7 +132,8 @@ async function alterarStatusConsulta(idConsulta, idProfissional, status) {
     [status, idConsulta, idProfissional]
   );
 
-  return { idConsulta: Number(idConsulta), status };
+  // idPaciente não vai para a tela; a rota usa para o log de auditoria.
+  return { idConsulta: Number(idConsulta), status, idPaciente: linhas[0].id_paciente };
 }
 
 // ---------------------------------------------------------------------

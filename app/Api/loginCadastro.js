@@ -83,3 +83,16 @@ export const loginNutricionista = async (email, senha) => {
   }
 
 };
+
+// "Sair de todos os aparelhos" do nutricionista. Derruba também a sessão
+// deste aparelho: depois disto, é preciso entrar de novo.
+export const encerrarSessoesDoProfissional = async (token) => {
+  try {
+    const resposta = await api.post('/api/profissional/encerrar-sessoes', {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return resposta.data;
+  } catch (erro) {
+    throw erroDaApi(erro, 'Não foi possível encerrar as sessões');
+  }
+};

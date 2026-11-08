@@ -3,14 +3,16 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test testes/seguranca.test.js",
+    "auditoria:verificar": "node scripts/verificarAuditoria.js",
+    "retencao:executar": "node -e \"require('./servicos/retencao').executarExpurgo().then(r=>{console.log(r);process.exit(0)})\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "API do Health Plus (Express + MySQL)",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -23,5 +25,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

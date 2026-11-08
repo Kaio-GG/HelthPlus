@@ -53,7 +53,9 @@ async function renovarConvite(idPaciente, idProfissional) {
   }
 
   // Sem acesso criado, o e-mail do convite é o da ficha do paciente.
-  const email = acesso.email_acesso || acesso.email_paciente;
+  const email = String(acesso.email_acesso || acesso.email_paciente || '')
+    .trim()
+    .toLowerCase();
 
   if (!email) {
     throw erroNegocio(

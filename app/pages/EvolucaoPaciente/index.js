@@ -322,7 +322,7 @@ const EvolucaoPaciente = ({ navigation }) => {
                   <Text style={estilos.pesoAtual}>{formatarNumero(ultimoPeso)} kg</Text>
                 ) : null}
               </View>
-              <GraficoLinha pontos={seriePeso} altura={150} />
+              <GraficoLinha pontos={seriePeso} altura={150} sufixo="kg" />
             </Cartao>
           ) : null}
 
@@ -330,7 +330,7 @@ const EvolucaoPaciente = ({ navigation }) => {
           {serieAltura.length > 0 ? (
             <Cartao>
               <Text style={estilos.tituloCartao}>Altura (cm)</Text>
-              <GraficoLinha pontos={serieAltura} altura={150} cor={cores.verdeLink} />
+              <GraficoLinha pontos={serieAltura} altura={150} cor={cores.verdeLink} sufixo="cm" />
             </Cartao>
           ) : null}
 

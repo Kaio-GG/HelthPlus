@@ -74,7 +74,7 @@ async function inserirPaciente(p) {
         `INSERT INTO usuario_paciente
           (id_paciente, ds_email, ds_senha, ds_status)
          VALUES (?, ?, ?, 'pendente')`,
-        [idPaciente, p.emailAcesso, senhaHash]
+        [idPaciente, String(p.emailAcesso).trim().toLowerCase(), senhaHash]
       );
 
       // Nome do nutricionista, para aparecer no e-mail de convite.
@@ -189,13 +189,24 @@ async function obterPacientePorIdEProfissional(
 // Login do paciente
 // --------------------------------------------------
 
-// Entra com o e-mail e a senha. A senha pode ser a que o paciente escolheu
-// ou, enquanto ele não escolheu nenhuma, a data de nascimento dele.
+// Hash de mentira para quando o e-mail não existe: o login demora o mesmo
+// tanto com e sem conta, e o tempo de resposta não entrega quem é paciente.
+const HASH_FALSO = bcrypt.hashSync('senha-que-nao-existe', 10);
+
+// Confere e-mail e senha. NÃO registra consentimento nenhum.
 //
-// Não existe mais tela de primeiro acesso: a conta que ainda estava
-// 'pendente' vira 'ativo' aqui, no primeiro login que dá certo, e os
-// consentimentos da LGPD são registrados no mesmo momento. A troca de
-// senha passou a ser opcional, em Perfil > Alterar senha.
+// Antes, o primeiro login que dava certo gravava "aceito" nos termos e no
+// tratamento de dados de saúde, sem o paciente ver tela nenhuma. Entrar
+// no aplicativo é conduta, não manifestação de vontade, e a LGPD exige
+// consentimento específico e destacado para dado de saúde (Art. 11, I).
+// Agora quem decide se falta aceite é a rota, com consentimentoVigente(),
+// e o aceite só é gravado pela tela de primeiro acesso.
+//
+// Devolve:
+//   { sucesso: false, motivo }                 e-mail ou senha errados
+//   { sucesso: false, bloqueado: true }        conta bloqueada pelo nutricionista
+//   { sucesso: false, bloqueioTemporario }     muitas tentativas
+//   { sucesso: true, conta }                   senha certa
 async function autenticarPaciente(email, senha) {
   const [linhas] = await connection.query(
     `SELECT
@@ -203,7 +214,10 @@ async function autenticarPaciente(email, senha) {
        u.ds_email,
        u.ds_senha,
        u.ds_status,
+       COALESCE(u.nr_versao_sessao, 0) AS nr_versao_sessao,
+       u.dt_bloqueio_ate > UTC_TIMESTAMP() AS bloqueio_temporario,
        p.nm_paciente,
+       p.nm_responsavel,
        p.dt_nascimento,
        p.sg_sexo,
        p.id_profissional
@@ -215,76 +229,48 @@ async function autenticarPaciente(email, senha) {
     [email]
   );
 
-  if (linhas.length === 0) {
-    return {
-      sucesso: false,
-      mensagem: 'E-mail ou senha inválidos.',
-    };
+  if (linhas.length === 0 || !linhas[0].ds_senha) {
+    await bcrypt.compare(String(senha), HASH_FALSO);
+    return { sucesso: false, motivo: 'conta_inexistente' };
   }
 
   const usuario = linhas[0];
 
-  if (!usuario.ds_senha) {
-    return {
-      sucesso: false,
-      mensagem: 'A conta ainda não possui uma senha configurada.',
-    };
+  if (usuario.bloqueio_temporario) {
+    return { sucesso: false, bloqueioTemporario: true, idPaciente: usuario.id_paciente };
   }
 
-  // Uma comparação só, com o texto exatamente como foi digitado.
-  //
-  // A senha provisória são oito dígitos, então ela já entra por aqui sem
-  // tratamento nenhum. Havia antes uma segunda tentativa que limpava
-  // barras e traços; ela saiu junto com a regra que aceitava "12/03/2001".
-  const senhaCorreta = await bcrypt.compare(senha, usuario.ds_senha);
+  // Uma comparação só, com o texto exatamente como foi digitado. A senha
+  // provisória são oito dígitos e entra por aqui sem tratamento.
+  const senhaCorreta = await bcrypt.compare(String(senha), usuario.ds_senha);
 
   if (!senhaCorreta) {
-    return {
-      sucesso: false,
-      mensagem: 'E-mail ou senha inválidos.',
-    };
+    return { sucesso: false, motivo: 'senha_incorreta', idPaciente: usuario.id_paciente };
   }
 
   if (usuario.ds_status === 'bloqueado') {
-    return {
-      sucesso: false,
-      mensagem: 'Esta conta está bloqueada.',
-      bloqueado: true,
-    };
+    return { sucesso: false, bloqueado: true, idPaciente: usuario.id_paciente };
   }
 
   if (usuario.ds_status !== 'pendente' && usuario.ds_status !== 'ativo') {
-    return {
-      sucesso: false,
-      mensagem: 'Não foi possível acessar esta conta.',
-    };
+    return { sucesso: false, motivo: 'status_invalido', idPaciente: usuario.id_paciente };
   }
 
-  // Ainda usando a senha provisória? A tela avisa e oferece a troca.
+  // Ainda usando a data de nascimento como senha?
   const senhaProvisoria =
     aceitarDataDeNascimento(senha) !== null &&
     senha === senhaDaDataNascimento(usuario.dt_nascimento);
 
-  // Primeiro login de uma conta pendente: ativa e registra o consentimento.
-  // Uma falha aqui não derruba o login — a pessoa acertou a senha, e deixá-la
-  // fora do aplicativo por causa do INSERT do consentimento seria pior.
-  if (usuario.ds_status === 'pendente') {
-    try {
-      await ativarNoPrimeiroLogin(usuario.id_paciente);
-    } catch (erro) {
-      console.error(
-        'Erro ao ativar a conta do paciente no primeiro login:',
-        erro.message
-      );
-    }
-  }
-
   return {
     sucesso: true,
-    // Continua na resposta por compatibilidade com quem a lê: hoje é
-    // sempre false, porque a conta já sai ativada daqui.
-    primeiroAcesso: false,
     senhaProvisoria,
+    conta: {
+      idPaciente: usuario.id_paciente,
+      status: usuario.ds_status,
+      versaoSessao: usuario.nr_versao_sessao,
+      nascimento: usuario.dt_nascimento,
+      responsavel: usuario.nm_responsavel,
+    },
     paciente: {
       id: String(usuario.id_paciente),
       nome: usuario.nm_paciente,
@@ -295,36 +281,130 @@ async function autenticarPaciente(email, senha) {
   };
 }
 
-// Marca a conta como ativa e grava os consentimentos da LGPD.
+// Os dois aceites que o aplicativo pede. Os nomes são os que já estavam
+// gravados em consentimento_paciente.
+const TIPOS_DE_CONSENTIMENTO = ['termos_privacidade', 'tratamento_dados_saude'];
+
+// O paciente tem aceite válido, não revogado, dos DOIS tipos, na versão
+// atual dos termos? Os aceites gravados automaticamente pela versão antiga
+// (origem nula ou 'legado') não contam: não houve manifestação de vontade.
+async function consentimentoVigente(idPaciente, versao) {
+  const [linhas] = await connection.query(
+    `SELECT DISTINCT tp_consentimento
+       FROM consentimento_paciente
+      WHERE id_paciente = ?
+        AND st_aceito = 1
+        AND dt_revogacao IS NULL
+        AND ds_versao_termos = ?
+        AND ds_origem = 'app_primeiro_acesso'`,
+    [idPaciente, versao]
+  );
+
+  const aceitos = new Set(linhas.map((l) => l.tp_consentimento));
+  return TIPOS_DE_CONSENTIMENTO.every((tipo) => aceitos.has(tipo));
+}
+
+// A senha gravada ainda é a data de nascimento? Confere pelo hash, e não
+// pelo que foi digitado agora.
+async function senhaAindaEhProvisoria(idPaciente) {
+  const [linhas] = await connection.query(
+    `SELECT u.ds_senha, p.dt_nascimento
+       FROM usuario_paciente u
+       JOIN paciente p ON p.id_paciente = u.id_paciente
+      WHERE u.id_paciente = ?`,
+    [idPaciente]
+  );
+
+  if (!linhas[0]?.ds_senha) return false;
+
+  const provisoria = senhaDaDataNascimento(linhas[0].dt_nascimento);
+  if (!provisoria) return false;
+
+  return bcrypt.compare(provisoria, linhas[0].ds_senha);
+}
+
+async function dadosDoPrimeiroAcesso(idPaciente) {
+  const [linhas] = await connection.query(
+    `SELECT p.nm_paciente, p.nm_responsavel, p.dt_nascimento, p.sg_sexo, u.ds_email
+       FROM paciente p
+       JOIN usuario_paciente u ON u.id_paciente = p.id_paciente
+      WHERE p.id_paciente = ?`,
+    [idPaciente]
+  );
+
+  return linhas[0] || null;
+}
+
+// Grava o aceite que o próprio paciente (ou o responsável) deu na tela de
+// primeiro acesso, troca a senha provisória se veio uma nova, ativa a
+// conta e encerra sessões antigas. Tudo ou nada.
 //
-// Roda uma única vez por conta: só chega aqui quem está 'pendente', e o
-// status está no WHERE do UPDATE — por isso o INSERT não duplica.
-async function ativarNoPrimeiroLogin(idPaciente, versaoTermos = 'v1') {
+//   versao             a versão dos termos aceita
+//   consentimento      { consentidor: 'titular' | 'responsavel', nomeConsentidor }
+//                      ou null se o aceite da versão atual já existia
+//   novaSenhaHash      hash da senha nova, ou null se não precisava trocar
+//
+// Devolve a versão de sessão nova, para a rota emitir o token.
+async function concluirPrimeiroAcesso(idPaciente, dados) {
   const conn = await connection.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    const [atualizadas] = await conn.query(
-      `UPDATE usuario_paciente
-          SET ds_status = 'ativo'
-        WHERE id_paciente = ?
-          AND ds_status = 'pendente'`,
-      [idPaciente]
-    );
+    if (dados.consentimento) {
+      // Aceites anteriores ainda abertos (de versões velhas dos termos)
+      // ficam no histórico, marcados como substituídos.
+      await conn.query(
+        `UPDATE consentimento_paciente
+            SET dt_revogacao = CURRENT_TIMESTAMP,
+                ds_motivo_revogacao = 'substituido'
+          WHERE id_paciente = ?
+            AND dt_revogacao IS NULL`,
+        [idPaciente]
+      );
 
-    if (atualizadas.affectedRows === 1) {
+      const valores = TIPOS_DE_CONSENTIMENTO.flatMap((tipo) => [
+        idPaciente,
+        tipo,
+        dados.versao,
+        dados.consentimento.consentidor,
+        dados.consentimento.nomeConsentidor,
+      ]);
+
       await conn.query(
         `INSERT INTO consentimento_paciente
-            (id_paciente, tp_consentimento, st_aceito, ds_versao_termos)
-          VALUES
-            (?, 'termos_privacidade', 1, ?),
-            (?, 'tratamento_dados_saude', 1, ?)`,
-        [idPaciente, versaoTermos, idPaciente, versaoTermos]
+            (id_paciente, tp_consentimento, st_aceito, ds_versao_termos,
+             tp_consentidor, nm_consentidor, ds_origem)
+          VALUES ${TIPOS_DE_CONSENTIMENTO.map(() => "(?, ?, 1, ?, ?, ?, 'app_primeiro_acesso')").join(', ')}`,
+        valores
       );
     }
 
+    if (dados.novaSenhaHash) {
+      await conn.query(
+        'UPDATE usuario_paciente SET ds_senha = ? WHERE id_paciente = ?',
+        [dados.novaSenhaHash, idPaciente]
+      );
+    }
+
+    await conn.query(
+      `UPDATE usuario_paciente
+          SET ds_status = CASE WHEN ds_status = 'pendente' THEN 'ativo' ELSE ds_status END,
+              nr_versao_sessao = COALESCE(nr_versao_sessao, 0) + 1,
+              nr_tentativas_falhas = 0,
+              dt_bloqueio_ate = NULL
+        WHERE id_paciente = ?`,
+      [idPaciente]
+    );
+
+    const [versao] = await conn.query(
+      'SELECT nr_versao_sessao FROM usuario_paciente WHERE id_paciente = ?',
+      [idPaciente]
+    );
+
     await conn.commit();
+
+    return { versaoSessao: versao[0]?.nr_versao_sessao || 0 };
   } catch (erro) {
     await conn.rollback();
     throw erro;
@@ -334,13 +414,13 @@ async function ativarNoPrimeiroLogin(idPaciente, versaoTermos = 'v1') {
 }
 
 // Troca de senha de dentro do aplicativo: confere a senha atual e grava a
-// nova. Ativa a conta de quem ainda estava com a senha provisória.
+// nova. Encerra as outras sessões e devolve a versão nova da sessão, para
+// este aparelho continuar logado com um token novo.
 //
-// Devolve { sucesso: true } ou { sucesso: false, codigo } — quem chama
-// transforma o código em resposta HTTP.
+// Devolve { sucesso: true, versaoSessao } ou { sucesso: false, codigo }.
 async function trocarSenhaDoPaciente(idPaciente, senhaAtual, novaSenha) {
   const [linhas] = await connection.query(
-    `SELECT u.ds_senha, u.ds_status
+    `SELECT u.ds_senha
        FROM usuario_paciente u
       WHERE u.id_paciente = ?
       LIMIT 1`,
@@ -351,11 +431,7 @@ async function trocarSenhaDoPaciente(idPaciente, senhaAtual, novaSenha) {
     return { sucesso: false, codigo: 'CONTA_NAO_ENCONTRADA' };
   }
 
-  const conta = linhas[0];
-
-  // Como no login: uma comparação só, com o texto digitado. A senha
-  // provisória são oito dígitos e entra aqui sem tratamento.
-  const confere = await bcrypt.compare(senhaAtual, conta.ds_senha);
+  const confere = await bcrypt.compare(String(senhaAtual), linhas[0].ds_senha);
 
   if (!confere) {
     return { sucesso: false, codigo: 'SENHA_ATUAL_INCORRETA' };
@@ -364,12 +440,38 @@ async function trocarSenhaDoPaciente(idPaciente, senhaAtual, novaSenha) {
   await connection.query(
     `UPDATE usuario_paciente
         SET ds_senha = ?,
-            ds_status = CASE WHEN ds_status = 'pendente' THEN 'ativo' ELSE ds_status END
+            nr_versao_sessao = COALESCE(nr_versao_sessao, 0) + 1
       WHERE id_paciente = ?`,
     [await bcrypt.hash(novaSenha, 12), idPaciente]
   );
 
-  return { sucesso: true };
+  const [versao] = await connection.query(
+    'SELECT nr_versao_sessao FROM usuario_paciente WHERE id_paciente = ?',
+    [idPaciente]
+  );
+
+  return { sucesso: true, versaoSessao: versao[0]?.nr_versao_sessao || 0 };
+}
+
+// Resumo dos aceites, SEM dado pessoal. Vai para o log de auditoria antes
+// de o paciente ser apagado: a ficha some (direito de eliminação), mas
+// fica a prova de que o tratamento teve base legal enquanto durou
+// (Art. 37 — registro das operações).
+async function resumoDosConsentimentos(idPaciente, conn = connection) {
+  const [linhas] = await conn.query(
+    `SELECT tp_consentimento AS tipo,
+            ds_versao_termos AS versao,
+            tp_consentidor AS consentidor,
+            ds_origem AS origem,
+            DATE_FORMAT(dt_registro, '%Y-%m-%d %H:%i:%s') AS registrado,
+            DATE_FORMAT(dt_revogacao, '%Y-%m-%d %H:%i:%s') AS revogado
+       FROM consentimento_paciente
+      WHERE id_paciente = ?
+      ORDER BY id_consentimento`,
+    [idPaciente]
+  );
+
+  return linhas;
 }
 
 // --------------------------------------------------
@@ -688,14 +790,29 @@ async function excluirPaciente(idPaciente, idProfissional) {
     await conn.query('DELETE FROM avaliacao WHERE id_paciente = ?', [idPaciente]);
 
     // As refeições e os alimentos do plano saem por CASCADE.
-    await conn.query('DELETE FROM plano_alimentar WHERE id_paciente = ?', [idPaciente]);
+    // A tabela some com a migração 001 (função removida); sem ela, segue.
+    try {
+      await conn.query('DELETE FROM plano_alimentar WHERE id_paciente = ?', [idPaciente]);
+    } catch (erro) {
+      if (erro.code !== 'ER_NO_SUCH_TABLE') throw erro;
+    }
 
     // As consultas apontam para o paciente. Sem este DELETE a exclusão
     // morre no banco ("ER_ROW_IS_REFERENCED_2") para todo paciente que já
     // teve consulta marcada — e é a maioria deles.
     await conn.query('DELETE FROM consulta WHERE id_paciente = ?', [idPaciente]);
 
+    // O resumo dos aceites sai ANTES do DELETE: quem chama grava no log
+    // de auditoria, que não guarda dado pessoal e não some com a ficha.
+    const consentimentos = await resumoDosConsentimentos(idPaciente, conn);
+
     await conn.query('DELETE FROM consentimento_paciente WHERE id_paciente = ?', [
+      idPaciente,
+    ]);
+
+    // Pedidos que o paciente fez pelo aplicativo (cópia, correção,
+    // exclusão). O próprio pedido de exclusão é atendido aqui.
+    await conn.query('DELETE FROM solicitacao_titular WHERE id_paciente = ?', [
       idPaciente,
     ]);
 
@@ -716,7 +833,7 @@ async function excluirPaciente(idPaciente, idProfissional) {
 
     await conn.commit();
 
-    return { nome: dono[0].nm_paciente };
+    return { nome: dono[0].nm_paciente, consentimentos };
   } catch (erro) {
     await conn.rollback();
     throw erro;
@@ -730,6 +847,12 @@ module.exports = {
   listarPacientesPorProfissional,
   obterPacientePorIdEProfissional,
   autenticarPaciente,
+  consentimentoVigente,
+  senhaAindaEhProvisoria,
+  dadosDoPrimeiroAcesso,
+  concluirPrimeiroAcesso,
+  resumoDosConsentimentos,
+  TIPOS_DE_CONSENTIMENTO,
   trocarSenhaDoPaciente,
   obterEvolucaoPaciente,
   excluirPaciente,

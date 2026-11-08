@@ -54,6 +54,18 @@ const PerfilPaciente = ({ navigation }) => {
       aoPressionar: () => navigation.navigate('AlterarSenhaPaciente'),
     },
     {
+      chave: 'privacidade',
+      rotulo: 'Meus dados e privacidade',
+      icone: 'escudo',
+      aoPressionar: () => navigation.navigate('PrivacidadePaciente'),
+    },
+    {
+      chave: 'acessibilidade',
+      rotulo: 'Acessibilidade',
+      icone: 'acessibilidade',
+      aoPressionar: () => navigation.navigate('Acessibilidade'),
+    },
+    {
       chave: 'dicas',
       rotulo: 'Saúde e dicas',
       icone: 'info',
@@ -62,7 +74,7 @@ const PerfilPaciente = ({ navigation }) => {
     {
       chave: 'termos',
       rotulo: 'Termos de Uso e Privacidade',
-      icone: 'escudo',
+      icone: 'info',
       aoPressionar: () => navigation.navigate('Termos'),
     },
   ];
@@ -104,7 +116,7 @@ const PerfilPaciente = ({ navigation }) => {
         <CaixaAviso
           tom="info"
           estilo={estilos.aviso}
-          texto="Seus dados são mantidos pelo seu nutricionista. Para corrigir alguma informação, fale com ele."
+          texto="Seus dados são mantidos pelo seu nutricionista. Para corrigir alguma informação, faça um pedido em Meus dados e privacidade."
         />
       </Cartao>
 
@@ -156,14 +168,20 @@ const PerfilPaciente = ({ navigation }) => {
       <Cartao>
         <Text style={estilos.tituloCartao}>Seus direitos</Text>
         <Text style={estilos.textoDireitos}>
-          Você pode pedir ao seu nutricionista uma cópia dos seus dados ou a
-          exclusão completa da sua ficha, a qualquer momento e sem precisar
-          justificar. É um direito garantido pela LGPD.
+          Você pode baixar uma cópia dos seus dados, ver quem os acessou, pedir
+          correção ou exclusão e desistir do seu aceite, a qualquer momento e
+          sem precisar justificar. É um direito garantido pela LGPD.
         </Text>
-        <Text style={estilos.textoDireitos}>
-          Ao apagar a ficha, as avaliações e o seu acesso a este aplicativo são
-          apagados junto, e não há como recuperar.
-        </Text>
+        <TouchableOpacity
+          style={estilos.itemConta}
+          onPress={() => navigation.navigate('PrivacidadePaciente')}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir Meus dados e privacidade"
+        >
+          <Icone nome="escudo" tamanho={20} cor={cores.verdeBotao} />
+          <Text style={estilos.textoItemConta}>Meus dados e privacidade</Text>
+          <Icone nome="chevron-direita" tamanho={18} cor={cores.textoSecundario} />
+        </TouchableOpacity>
       </Cartao>
     </Tela>
   );

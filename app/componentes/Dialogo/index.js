@@ -30,12 +30,21 @@ const Dialogo = ({ visivel, titulo, mensagem, tom = 'info', botoes = [], aoFecha
     {/* Tocar fora fecha, igual ao comportamento que as pessoas já esperam. */}
     <Pressable style={estilos.fundo} onPress={aoFechar}>
       {/* O Pressable de dentro só existe para o toque no cartão não fechar. */}
-      <Pressable style={estilos.cartao} onPress={() => {}}>
+      <Pressable
+        style={estilos.cartao}
+        onPress={() => {}}
+        // Enquanto o diálogo está aberto, o leitor de tela não sai dele
+        // para a tela de trás (iOS).
+        accessibilityViewIsModal
+        accessibilityLiveRegion="assertive"
+      >
         <View style={[estilos.circulo, estilos[`circulo_${tom}`]]}>
           <Icone nome={ICONE_DO_TOM[tom]} tamanho={24} cor={COR_DO_TOM[tom]} espessura={2.5} />
         </View>
 
-        <Text style={estilos.titulo}>{titulo}</Text>
+        <Text style={estilos.titulo} accessibilityRole="header">
+          {titulo}
+        </Text>
         {mensagem ? <Text style={estilos.mensagem}>{mensagem}</Text> : null}
 
         <View style={estilos.botoes}>

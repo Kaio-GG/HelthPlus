@@ -37,7 +37,16 @@ function obterTransporte() {
 }
 
 // Imprime o e-mail no terminal, no lugar de enviar.
+//
+// Só em DESENVOLVIMENTO. O corpo do e-mail leva código de redefinição de
+// senha, e em produção o terminal vira arquivo de log — que raramente tem
+// o mesmo controle de acesso do banco. Lá, só o aviso de que não saiu.
 function mostrarNoTerminal({ para, assunto, texto }) {
+    if (process.env.NODE_ENV === 'production') {
+        console.warn(`[email] Não enviado (SMTP não configurado ou falhou): "${assunto}".`);
+        return;
+    }
+
     console.log('');
     console.log('='.repeat(70));
     console.log('E-MAIL NAO ENVIADO (SMTP nao configurado no Api/.env)');

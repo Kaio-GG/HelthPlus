@@ -5,7 +5,13 @@ import { View } from 'react-native';
 import { estilos } from './style';
 
 const BarraEtapas = ({ total, atual }) => (
-  <View style={estilos.container}>
+  <View
+    style={estilos.container}
+    accessible
+    accessibilityRole="progressbar"
+    accessibilityLabel={`Etapa ${atual} de ${total}`}
+    accessibilityValue={{ min: 1, max: total, now: atual }}
+  >
     {Array.from({ length: total }).map((_, indice) => (
       <View key={indice} style={[estilos.segmento, indice < atual && estilos.segmentoPreenchido]} />
     ))}

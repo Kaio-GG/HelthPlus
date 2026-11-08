@@ -71,6 +71,8 @@ API responde erro 500 (`ER_NO_SUCH_TABLE`) na hora de usar.
 | `assinatura` | O plano pago do nutricionista | Assinar, trocar e cancelar plano — e o plano some ao sair da conta |
 | `cobranca` | Histórico de cobranças da assinatura | "Ver histórico de cobranças", no Perfil |
 | `consulta` | As consultas marcadas (do paciente cadastrado ou avulso) | **Marcar consulta**, a Agenda, as consultas na ficha do paciente e na área dele |
+| `log_auditoria` | Quem acessou o quê, quando e de onde (LGPD) | **Login**, a ficha, tudo — a API registra cada acesso e avisa no terminal se a tabela faltar |
+| `solicitacao_titular` | Pedidos LGPD do paciente (cópia, correção, exclusão) | "Meus dados e privacidade" do paciente e "Privacidade e auditoria" do nutricionista |
 
 Além das tabelas, o `schema.sql` passou a PREENCHER dois catálogos que
 estavam vazios, `tipo_medida` e `indicador`. Sem eles não há como gravar
@@ -100,6 +102,8 @@ SELECT esperadas.nome AS tabela_que_falta
     UNION ALL SELECT 'assinatura'
     UNION ALL SELECT 'cobranca'
     UNION ALL SELECT 'consulta'
+    UNION ALL SELECT 'log_auditoria'
+    UNION ALL SELECT 'solicitacao_titular'
   ) esperadas
   LEFT JOIN information_schema.tables t
     ON t.table_schema = 'helthplus'
@@ -139,6 +143,16 @@ npm run dev
 
 A API sobe em `http://localhost:3000`. Para conferir, abra esse endereço no
 navegador: deve aparecer `{"mensagem":"API HelthPlus funcionando!"}`.
+
+> **O `JWT_SECRET` é obrigatório e precisa ter 32 caracteres ou mais.** Sem
+> ele a API nem sobe — e diz no terminal como gerar um. Antes ela subia e
+> só quebrava no primeiro login.
+
+Para rodar os testes de segurança (não precisam do MySQL):
+
+```bash
+npm test
+```
 
 ### E-mail
 
@@ -204,8 +218,13 @@ Procure o **Endereço IPv4** do adaptador Wi-Fi (algo como `192.168.0.15`).
 ```bash
 cd app
 npm install
+npx expo install expo-secure-store
 cp .env.example .env
 ```
+
+O `expo-secure-store` guarda o login no cofre do celular (Keychain/Keystore)
+em vez de texto claro. Sem ele o app funciona, mas avisa no terminal do Expo
+que a sessão está sem criptografia.
 
 Abra o `.env` e troque o IP pelo seu:
 
@@ -237,9 +256,12 @@ Leia o QR Code com o Expo Go.
 | `GET` | `/api/paciente/:id` | A ficha de um paciente |
 | `DELETE` | `/api/paciente/:id` | Apaga o paciente e tudo o que está pendurado nele |
 | `GET` | `/api/paciente/:id/evolucao` | Avaliações do paciente, lidas pelo nutricionista |
-| `POST` | `/api/paciente/login` | Login do paciente (senha = data de nascimento até ele trocar) |
+| `POST` | `/api/paciente/login` | Login do paciente. No primeiro acesso devolve só um token de primeiro acesso |
+| `POST` | `/api/paciente/primeiro-acesso` | Aceite dos termos (paciente ou responsável) e troca da senha provisória |
 | `GET` | `/api/paciente/minha-evolucao` | As avaliações do próprio paciente (token dele) |
 | `PUT` | `/api/paciente/senha` | Paciente troca a própria senha (token dele) |
+| `POST` | `/api/paciente/encerrar-sessoes` | Paciente sai de todos os aparelhos |
+| `POST` | `/api/profissional/encerrar-sessoes` | Nutricionista sai de todos os aparelhos |
 | `POST` | `/api/avaliacao` | Grava uma avaliação na ficha do paciente |
 | `POST` | `/api/consulta` | Marca uma consulta |
 | `GET` | `/api/consulta?de=&ate=` | A agenda do nutricionista |
@@ -248,7 +270,7 @@ Leia o QR Code com o Expo Go.
 | `PATCH` | `/api/consulta/:id/confirmar` | Paciente confirma a presença |
 | `POST` | `/api/senha/esqueci` | Gera o código e envia o e-mail de redefinição |
 | `POST` | `/api/senha/redefinir` | Troca a senha usando o código do e-mail |
-| `PUT` | `/api/senha/:id` | Troca a senha pedindo a senha atual |
+| `PUT` | `/api/senha` | Nutricionista troca a senha (token + senha atual). `/api/senha/:id` continua aceito, com o mesmo id do token |
 | `GET` | `/api/notificacao/:id` | Lista as notificações e quantas não foram lidas |
 | `POST` | `/api/notificacao` | Cria uma notificação |
 | `PUT` | `/api/notificacao/:id/:idNotificacao/lida` | Marca uma como lida |
@@ -260,14 +282,26 @@ Leia o QR Code com o Expo Go.
 | `DELETE` | `/api/assinatura` | Cancela a assinatura |
 | `POST` | `/api/convite/reenviar/:idPaciente` | Manda o e-mail que avisa o paciente do acesso |
 | `POST` | `/api/convite/testador` | Convida alguém para testar o aplicativo |
+| `GET` | `/api/lgpd/paciente/meus-dados` | Cópia completa dos dados do paciente (JSON) |
+| `GET` | `/api/lgpd/paciente/consentimentos` | Aceites vigentes e históricos |
+| `POST` | `/api/lgpd/paciente/consentimentos/revogar` | Revoga o consentimento (`{ confirmar: true }`) |
+| `GET` | `/api/lgpd/paciente/acessos` | Quem acessou os dados do paciente |
+| `GET`/`POST` | `/api/lgpd/paciente/solicitacoes` | Pedidos LGPD do paciente ao nutricionista |
+| `GET` | `/api/lgpd/profissional/meus-dados` | Cópia dos dados da conta do nutricionista |
+| `GET` | `/api/lgpd/profissional/atividade` | Registro de auditoria das ações do nutricionista |
+| `GET` | `/api/lgpd/profissional/solicitacoes` | Pedidos dos pacientes |
+| `PATCH` | `/api/lgpd/profissional/solicitacoes/:id` | Responde um pedido (`em_andamento`, `atendida`, `recusada`) |
+| `GET` | `/api/lgpd/profissional/pacientes/:id/exportar` | Cópia dos dados de um paciente |
+| `GET` | `/api/lgpd/profissional/pacientes/:id/acessos` | Quem acessou a ficha do paciente |
+| `GET` | `/api/lgpd/profissional/pacientes/:id/consentimentos` | Aceites do paciente |
 
 > As rotas de senha ficam em `/api/senha`, e não em `/api/profissional/senha`,
 > porque o `PUT /api/profissional/:id` capturaria esse caminho antes.
 
-> A assinatura fica em `/api/assinatura` e os planos ALIMENTARES em
-> `/api/plano`: são coisas diferentes com nomes parecidos. As rotas de
-> `/api/plano` continuam no ar, mas **nenhuma tela as usa** — os planos
-> alimentares saíram do aplicativo.
+> As rotas de planos ALIMENTARES (`/api/plano`) **saíram do ar**: nenhuma
+> tela as usava, e rota sem uso com dado de saúde é só superfície de ataque.
+> O código continua em `Api/storage/planoStorage.js`; para religar, há uma
+> linha comentada no `server.js`.
 
 > O id de quem está logado sai sempre do TOKEN, nunca da URL nem do corpo
 > da requisição. Em `/api/avaliacao`, por exemplo, o `idProfissional` do
@@ -298,6 +332,112 @@ e-mail só foi para o terminal — os fluxos continuam testáveis.
 No Gmail a senha da conta não funciona: é preciso ligar a Verificação em
 duas etapas e gerar uma **senha de app** de 16 letras em
 myaccount.google.com/apppasswords.
+
+## Segurança, LGPD e auditoria
+
+O Health Plus trata **dado de saúde de crianças e adolescentes** — o caso
+de risco mais alto da LGPD. O diagnóstico completo, item por item, está em
+`.lgpd/gaps.md`. O que o código faz hoje:
+
+**Autenticação e sessão**
+
+- Toda rota com dado exige token, e o dono dos dados sai **do token**, nunca
+  da URL nem do corpo. A troca de senha por `PUT /api/senha/:id`, que era
+  aberta, passou a exigir token.
+- Os tokens são JWT HS256 com emissor fixo (token `alg: none` ou assinado
+  com outro segredo é recusado). Cada token leva a *versão da sessão* da
+  conta: trocar a senha, redefinir pelo e-mail ou tocar em **Sair de todos
+  os aparelhos** derruba os tokens antigos na hora.
+- Limite de tentativas por IP e por e-mail no login, no "esqueci a senha",
+  na redefinição e nos envios de e-mail; bloqueio de 15 minutos da conta
+  depois de 5 senhas erradas. Login sem conta demora o mesmo que com conta.
+- No app, a sessão fica no cofre do sistema (`expo-secure-store`), e um
+  `401` da API leva de volta à tela inicial com o aviso "Sessão encerrada".
+
+**Servidor**
+
+- Cabeçalhos de segurança (`nosniff`, `X-Frame-Options`, CSP, `no-store`),
+  sem `X-Powered-By`, corpo limitado a 100 KB, erros sempre em JSON e sem
+  stack trace.
+- CORS fechado: só as origens de navegador em `CORS_ORIGENS`. O app no
+  celular não é afetado.
+- Validação de tudo o que entra: data de nascimento real e no passado,
+  medidas dentro da faixa física possível, textos cortados no tamanho da
+  coluna (antes viravam erro 500).
+- HTTPS: com `TLS_CERTIFICADO` e `TLS_CHAVE` a API sobe em HTTPS; atrás de
+  um proxy, use `CONFIAR_PROXY=1`. **Sem HTTPS, não receba paciente real.**
+  A tela de privacidade só diz "conexão criptografada" quando o endereço da
+  API no app é `https://`.
+
+**Auditoria (`log_auditoria`)**
+
+- Cada login (inclusive os recusados), ficha aberta, evolução lida,
+  avaliação, consulta, exportação, aceite, revogação e tentativa de acesso
+  negada vira uma linha, com quem, quando, IP e aparelho — **sem** nome nem
+  dado de saúde. E-mail de quem errou o login entra como pseudônimo (HMAC).
+- As linhas são encadeadas por SHA-256, como um livro-caixa. Para conferir
+  se alguém editou ou apagou uma linha direto no banco:
+
+  ```bash
+  cd Api
+  npm run auditoria:verificar
+  ```
+
+- O paciente vê quem acessou os dados dele (**Perfil > Meus dados e
+  privacidade > Ver quem acessou**); o nutricionista vê o mesmo na ficha, e
+  o registro das próprias ações em **Perfil > Privacidade e auditoria**.
+- Ao apagar um paciente, a ficha some, mas o log guarda o resumo dos aceites
+  (tipo, versão, datas) — a prova de que houve base legal.
+
+**Direitos do titular (LGPD, Art. 18)**
+
+| Direito | Onde |
+|---|---|
+| Acesso e portabilidade | Paciente: *Baixar uma cópia dos meus dados*. Nutricionista: *Exportar dados do paciente*, na ficha |
+| Correção, exclusão, informação, oposição | Paciente: *Fazer um pedido* (prazo de 15 dias). Nutricionista responde em *Privacidade e auditoria > Pedidos* |
+| Revogação do consentimento | Paciente: *Revogar meu consentimento* |
+| Saber quem acessou | Paciente e nutricionista: *Histórico de acessos* |
+
+**Retenção (expurgo automático)**
+
+Uma vez por dia a API apaga o que passou do prazo: códigos de senha vencidos
+(7 dias), notificações lidas (180 dias), telefone de consulta avulsa já
+passada (90 dias), pedidos LGPD concluídos e log de auditoria (5 anos). Os
+prazos estão no `Api/.env` (`RETENCAO_*`). A ficha e as avaliações **não**
+são apagadas por prazo: isso é decisão clínica e jurídica do nutricionista.
+
+**Recomendado no banco de produção:** o usuário da API sem permissão de
+`UPDATE` na tabela de auditoria:
+
+```sql
+REVOKE UPDATE ON helthplus.log_auditoria FROM 'helthplus'@'localhost';
+```
+
+**O que o código não resolve sozinho** (decisões para a equipe e um
+advogado de proteção de dados): designar o encarregado e preencher o
+`EXPO_PUBLIC_CONTATO_PRIVACIDADE`; revisar o texto de `app/pages/Termos`;
+contrato com o provedor de e-mail (transferência internacional, se for o
+Gmail); o RIPD; e rodar a migração `001_minimizacao_lgpd.sql`.
+
+## Acessibilidade
+
+- **Perfil > Acessibilidade** (e também na tela inicial, antes do login):
+  tamanho do texto em três níveis, alto contraste e reduzir animações. O
+  tamanho de letra do celular continua valendo por cima.
+- A paleta padrão foi ajustada para passar de 4,5:1 de contraste (WCAG AA):
+  o verde dos botões com texto branco estava em 3,6:1 e o texto dos
+  placeholders em 2,6:1. A de alto contraste passa de 7:1.
+- TalkBack/VoiceOver: botões, abas, caixas de seleção, campos (com o erro
+  lido junto), calendário, diálogos e barras de progresso têm papel, rótulo
+  e estado. Os gráficos são descritos em palavras ("Gráfico com 4 medições,
+  de 12/03 a 10/09. Última: 23,4 kg..."), e os ícones decorativos ficam
+  escondidos do leitor.
+- O "Reduzir animações" do celular é respeitado automaticamente.
+
+Para quem mexe no código: componente novo que é tocável precisa de
+`accessibilityRole` e `accessibilityLabel`; texto de erro, de
+`accessibilityLiveRegion="polite"`; e cor nova, de contraste conferido
+(4,5:1) — veja o comentário no topo de `app/tema/index.js`.
 
 ## Como o projeto é organizado
 
@@ -355,6 +495,8 @@ Nenhum dos dois vai para o Git (estão no `.gitignore`). Cada um copia o
 | `Api/.env` | `JWT_SECRET` | É um segredo, gerado por quem instala | Login responde "Erro interno ao realizar login" |
 | `Api/.env` | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_REMETENTE` | A senha de app do Gmail é segredo | A API não envia e-mail: imprime no terminal dela |
 | `Api/.env` | `LINK_TESTE_APP` | Muda a cada rodada de teste | O convite para testar recusa o envio |
+| `Api/.env` | `VERSAO_TERMOS`, `CORS_ORIGENS`, `TLS_*`, `RETENCAO_*`, `BLOQUEIO_*` | Segurança e LGPD (ver *Segurança, LGPD e auditoria*) | Valores padrão seguros |
+| `app/.env` | `EXPO_PUBLIC_VERSAO_TERMOS`, `EXPO_PUBLIC_CONTATO_PRIVACIDADE` | Versão dos termos e canal de privacidade mostrados ao titular | A tela orienta a pedir pelo próprio app |
 | `app/.env` | `EXPO_PUBLIC_API_URL` | É o IP da **sua** máquina na rede Wi-Fi | "Network Error" em toda tela do aplicativo |
 
 Dois detalhes que pegam gente desprevenida:
@@ -583,7 +725,15 @@ Funcionando de ponta a ponta, gravando no banco:
   status (tabela `consulta`);
 - edição do perfil, troca de senha do nutricionista (pelo perfil e por
   e-mail), a central de notificações com as preferências, e a assinatura do
-  plano pago com o histórico de cobranças.
+  plano pago com o histórico de cobranças;
+- o primeiro acesso do paciente, com o aceite dos termos dado por ele (ou
+  pelo responsável, se for menor) e a troca obrigatória da senha provisória;
+- os direitos do titular pela LGPD: cópia dos dados, histórico de acessos,
+  pedidos ao nutricionista com prazo de 15 dias, revogação do consentimento;
+- o registro de auditoria encadeado por hash, e o expurgo automático dos
+  dados vencidos;
+- as preferências de acessibilidade (texto maior, alto contraste, menos
+  animação) e o suporte a TalkBack/VoiceOver.
 
 A contagem de pacientes do plano ("2 de 10") sai da mesma lista que a tela
 de pacientes, lida do banco.
@@ -604,14 +754,16 @@ Saíram do aplicativo e **não voltam** sem decisão da equipe:
 |---|---|
 | Planos alimentares (criar, listar, "Meu plano") | Decisão de produto |
 | Registro de água e de refeições pelo paciente | Decisão de produto |
-| Tela de "primeiro acesso" dos dois perfis | A senha do paciente passou a ser a data de nascimento; o nutricionista cria a conta dele na aba ao lado do login |
+| Tela de "primeiro acesso" do nutricionista | O nutricionista cria a conta dele na aba ao lado do login. (A do **paciente** voltou em 2026-11-07, para o aceite dos termos — ver *A senha do paciente*.) |
 | Etapa 3 do cadastro de paciente (objetivo, restrições, alergias, doenças, medicamentos) | Existia para alimentar os planos alimentares |
 | Telefone do paciente e do responsável | Não era usado em lugar nenhum, e dado pessoal sem uso é exposição de graça pela LGPD |
 | Registro de água e de refeições, e o checklist "Como foi o seu dia" | Decisão de produto |
 
-As rotas de `/api/plano` e as tabelas `plano_*` continuam no banco e no
-servidor, sem nenhuma tela que as use. Apagar de vez é um passo à parte,
-que mexe em dado já gravado.
+As rotas de `/api/plano` saíram do ar. As tabelas `plano_*` e as colunas de
+saúde que o cadastro não pede mais continuam no banco de quem já tinha dado
+gravado; para apagar de vez, há a migração
+`Api/database/migracoes/001_minimizacao_lgpd.sql` (destrutiva — leia o
+cabeçalho dela e faça backup antes).
 
 ### A senha do paciente
 
@@ -627,19 +779,30 @@ pergunta que mais aparecia na consulta. Oito números é uma instrução só.
 
 Assim o nutricionista libera o acesso na própria consulta, sem depender de
 o e-mail chegar. Em troca, a senha é previsível para quem souber a data de
-nascimento, e por isso:
+nascimento — família, escola, quem viu a ficha em papel —, e por isso **ela
+só serve uma vez**:
 
 - ela fica guardada em **hash** (bcrypt), nunca em texto, e o e-mail de
   aviso **não** carrega senha nenhuma — ele só diz qual é;
-- a conta vira `ativo` no primeiro login que dá certo, e é nesse momento
-  que os consentimentos da LGPD são gravados em `consentimento_paciente`;
-- o aplicativo avisa, na tela inicial e no Perfil, que a senha é provisória,
-  e oferece a troca em **Perfil > Alterar senha** — com as mesmas regras de
-  senha forte do nutricionista.
+- o login com ela **não** entra no aplicativo: devolve um token de primeiro
+  acesso (15 minutos) que não lê dado nenhum, e o app abre a tela
+  **Primeiro acesso**. Ali o paciente — ou o pai, mãe ou responsável, se
+  for menor de 18 — lê o resumo de como os dados são usados, **marca** os
+  dois aceites (termos e dados de saúde) e **cria uma senha forte**. Só
+  então a API entrega o token normal;
+- o aceite é gravado em `consentimento_paciente` com quem aceitou
+  (`titular` ou `responsavel`), o nome e a versão dos termos. Antes ele era
+  gravado sozinho no primeiro login, sem o paciente ver tela nenhuma — e
+  consentimento tácito não existe na LGPD. As linhas antigas continuam no
+  banco como histórico, mas não contam: quem só tem elas aceita de novo;
+- mudou a versão dos termos (`VERSAO_TERMOS`), todo paciente aceita de novo
+  no próximo login;
+- 5 senhas erradas seguidas bloqueiam a conta por 15 minutos, e o limite
+  por IP segura a força bruta nas ~36 mil datas possíveis.
 
 Onde isso mora no código: `Api/servicos/senhaTemporaria.js` (forma a senha),
-`Api/repository/pacienteRepository.js` (`autenticarPaciente` e
-`trocarSenhaDoPaciente`).
+`Api/storage/pacienteStorage.js` (rotas `/login` e `/primeiro-acesso`),
+`Api/repository/pacienteRepository.js` e `app/pages/PrimeiroAcessoPaciente`.
 
 ### Tabelas da OMS
 
