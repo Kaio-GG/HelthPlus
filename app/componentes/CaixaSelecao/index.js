@@ -14,6 +14,8 @@ const CaixaSelecao = ({ marcado, aoAlternar, rotulo, erro, children }) => (
       onPress={aoAlternar}
       accessibilityRole="checkbox"
       accessibilityState={{ checked: marcado }}
+      accessibilityLabel={rotulo}
+      accessibilityHint={erro ? `Erro: ${erro}` : undefined}
     >
       <View style={[estilos.caixa, marcado && estilos.caixaMarcada, erro ? estilos.caixaComErro : null]}>
         {marcado ? <Icone nome="check" tamanho={14} cor={cores.branco} espessura={3} /> : null}
@@ -22,7 +24,11 @@ const CaixaSelecao = ({ marcado, aoAlternar, rotulo, erro, children }) => (
         {rotulo ? <Text style={estilos.rotulo}>{rotulo}</Text> : children}
       </View>
     </TouchableOpacity>
-    {erro ? <Text style={estilos.erro}>{erro}</Text> : null}
+    {erro ? (
+      <Text style={estilos.erro} accessibilityLiveRegion="polite">
+        {erro}
+      </Text>
+    ) : null}
   </View>
 );
 

@@ -66,7 +66,9 @@ const Cabecalho = ({
         {direita ? <View>{direita}</View> : null}
       </View>
 
-      <Text style={[estilos.titulo, grande && estilos.tituloGrande]}>
+      {/* O título da tela é o primeiro "cabeçalho" que o leitor de tela
+          encontra: quem navega por cabeçalhos pula direto para ele. */}
+      <Text style={[estilos.titulo, grande && estilos.tituloGrande]} accessibilityRole="header">
         {titulo}
       </Text>
       {subtitulo ? (

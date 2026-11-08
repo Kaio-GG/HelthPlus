@@ -64,4 +64,25 @@ export const icones = {
   enviar: [['linha', 22, 2, 11, 13], ['caminho', 'M22 2L15 22l-4-9-9-4 20-7z']],
   grafico: [['polilinha', '3 17 9 11 13 15 21 7'], ['polilinha', '15 7 21 7 21 13']],
   prato: [['circulo', 12, 12, 10], ['circulo', 12, 12, 5]],
+  atualizar: [
+    ['polilinha', '23 4 23 10 17 10'],
+    ['caminho', 'M20.49 15a9 9 0 1 1-2.12-9.36L23 10'],
+  ],
+  // Figura humana de braços abertos: o símbolo internacional de acessibilidade.
+  acessibilidade: [
+    ['circulo', 12, 4, 2],
+    ['caminho', 'M4 8l8 1.5L20 8'],
+    ['caminho', 'M12 9.5V14l-3 7'],
+    ['caminho', 'M12 14l3 7'],
+  ],
+  download: [
+    ['caminho', 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'],
+    ['polilinha', '7 10 12 15 17 10'],
+    ['linha', 12, 15, 12, 3],
+  ],
+  historico: [
+    ['caminho', 'M3 12a9 9 0 1 0 3-6.7L3 8'],
+    ['polilinha', '3 3 3 8 8 8'],
+    ['polilinha', '12 7 12 12 15 14'],
+  ],
 };

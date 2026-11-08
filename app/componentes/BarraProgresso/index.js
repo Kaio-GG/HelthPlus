@@ -4,10 +4,17 @@ import { View } from 'react-native';
 import { cores } from '../../tema';
 import { estilos } from './style';
 
-const BarraProgresso = ({ valor, cor = cores.verdeCabecalho, estilo }) => {
-  const percentual = Math.max(0, Math.min(1, valor)) * 100;
+// Props: rotulo (o que a barra mede, para o leitor de tela)
+const BarraProgresso = ({ valor, cor = cores.verdeCabecalho, estilo, rotulo = 'Progresso' }) => {
+  const percentual = Math.max(0, Math.min(1, Number(valor) || 0)) * 100;
   return (
-    <View style={[estilos.trilho, estilo]}>
+    <View
+      style={[estilos.trilho, estilo]}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={rotulo}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(percentual), text: `${Math.round(percentual)}%` }}
+    >
       <View style={[estilos.preenchimento, { width: `${percentual}%`, backgroundColor: cor }]} />
     </View>
   );

@@ -438,12 +438,11 @@ const CadastroPaciente = ({ navigation }) => {
               erro={erros.informou}
             />
 
-            {/* Não há mais tela de primeiro acesso para o paciente aceitar
-                os termos: o consentimento é registrado no banco quando ele
-                entra pela primeira vez (ver Api/repository/
-                pacienteRepository.js), e quem informa é o nutricionista —
-                é o que esta caixa de seleção acima declara. */}
-            <CaixaAviso texto="Os Termos de Uso e a Política de Privacidade (LGPD) ficam registrados em nome do paciente no primeiro acesso dele." />
+            {/* Informar é papel do nutricionista; ACEITAR é do paciente. O
+                aceite (dele, ou do responsável se for menor) é feito na tela
+                de primeiro acesso do aplicativo, e só ele é gravado como
+                consentimento — ver app/pages/PrimeiroAcessoPaciente. */}
+            <CaixaAviso texto="No primeiro acesso, o paciente (ou o responsável, se for menor) lê e aceita os Termos e a Política de Privacidade, e cria uma senha só dele. Sem esse aceite ele não entra no aplicativo." />
           </View>
         )}
       </Cartao>

@@ -1,8 +1,11 @@
 // app/contexto/AuthContext.js
 // Guarda quem está logado (nutricionista) e mantém a sessão mesmo
-// depois de fechar o app. Já deixei o campo "token" pronto para o JWT.
+// depois de fechar o app.
+//
+// A sessão (com o token) fica no cofre do sistema quando o
+// expo-secure-store está instalado — ver utilitarios/armazenamentoSeguro.js.
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { guardar, ler, apagar } from '../utilitarios/armazenamentoSeguro';
 
 const CHAVE_SESSAO = '@healthplus:sessao';
 
@@ -17,7 +20,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const recuperarSessao = async () => {
       try {
-        const salvo = await AsyncStorage.getItem(CHAVE_SESSAO);
+        const salvo = await ler(CHAVE_SESSAO);
         if (salvo) {
           const sessao = JSON.parse(salvo);
           setProfissional(sessao.profissional ?? null);
@@ -37,10 +40,7 @@ export function AuthProvider({ children }) {
     setProfissional(profissional);
     setToken(token);
     try {
-      await AsyncStorage.setItem(
-        CHAVE_SESSAO,
-        JSON.stringify({ profissional, token })
-      );
+      await guardar(CHAVE_SESSAO, JSON.stringify({ profissional, token }));
     } catch (erro) {
       console.log('Erro ao salvar sessão:', erro);
     }
@@ -52,10 +52,19 @@ export function AuthProvider({ children }) {
     const atualizado = { ...profissional, ...novosCampos };
     setProfissional(atualizado);
     try {
-      await AsyncStorage.setItem(
-        CHAVE_SESSAO,
-        JSON.stringify({ profissional: atualizado, token })
-      );
+      await guardar(CHAVE_SESSAO, JSON.stringify({ profissional: atualizado, token }));
+    } catch (erro) {
+      console.log('Erro ao salvar sessão:', erro);
+    }
+  };
+
+  // Trocar a senha encerra as outras sessões no servidor; a API devolve um
+  // token novo para ESTE aparelho continuar logado.
+  const trocarToken = async (novoToken) => {
+    if (!novoToken) return;
+    setToken(novoToken);
+    try {
+      await guardar(CHAVE_SESSAO, JSON.stringify({ profissional, token: novoToken }));
     } catch (erro) {
       console.log('Erro ao salvar sessão:', erro);
     }
@@ -66,7 +75,7 @@ export function AuthProvider({ children }) {
     setProfissional(null);
     setToken(null);
     try {
-      await AsyncStorage.removeItem(CHAVE_SESSAO);
+      await apagar(CHAVE_SESSAO);
     } catch (erro) {
       console.log('Erro ao limpar sessão:', erro);
     }
@@ -80,6 +89,7 @@ export function AuthProvider({ children }) {
         carregandoSessao,
         entrarSessao,
         atualizarProfissional,
+        trocarToken,
         sairSessao,
       }}
     >

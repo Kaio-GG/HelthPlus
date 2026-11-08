@@ -40,6 +40,11 @@ const Icone = ({ nome, tamanho = 22, cor = cores.verdeEscuro, espessura = 2 }) =
   const formas = icones[nome] || [];
   return (
     <Svg
+      // Ícone é enfeite para o leitor de tela: quem dá o nome é o botão ou
+      // o texto ao lado. Sem isto o TalkBack para em cada desenho.
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       width={tamanho}
       height={tamanho}
       viewBox="0 0 24 24"

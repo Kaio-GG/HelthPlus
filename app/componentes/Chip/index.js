@@ -10,6 +10,10 @@ const Chip = ({ rotulo, ativo = false, aoPressionar, comCheck = false, estilo })
   <TouchableOpacity
     onPress={aoPressionar}
     activeOpacity={0.8}
+    hitSlop={6}
+    accessibilityRole="button"
+    accessibilityLabel={rotulo}
+    accessibilityState={{ selected: ativo }}
     style={[estilos.container, ativo && estilos.ativo, estilo]}
   >
     {ativo && comCheck ? <Icone nome="check" tamanho={14} cor={cores.verdeEscuro} espessura={3} /> : null}

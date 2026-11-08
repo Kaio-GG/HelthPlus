@@ -22,22 +22,43 @@ const CampoSelecao = ({ rotulo, valor, opcoes, aoMudar, placeholder = 'Selecione
         style={[estilos.caixa, erro ? estilos.caixaComErro : null]}
         onPress={() => setAberto(true)}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${rotulo || placeholder}: ${valor || 'nada escolhido'}`}
+        accessibilityHint={erro ? `Erro: ${erro}. Toque para escolher.` : 'Toque para escolher'}
       >
         <Text style={[estilos.valor, !valor && estilos.placeholder]} numberOfLines={1}>
           {valor || placeholder}
         </Text>
         <Icone nome="chevron-baixo" tamanho={18} cor={cores.textoSecundario} />
       </TouchableOpacity>
-      {erro ? <Text style={estilos.erro}>{erro}</Text> : null}
+      {erro ? (
+        <Text style={estilos.erro} accessibilityLiveRegion="polite">
+          {erro}
+        </Text>
+      ) : null}
 
       <Modal visible={aberto} transparent animationType="slide" onRequestClose={() => setAberto(false)}>
-        <Pressable style={estilos.fundoModal} onPress={() => setAberto(false)} />
-        <View style={estilos.painel}>
+        <Pressable
+          style={estilos.fundoModal}
+          onPress={() => setAberto(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Fechar a lista"
+        />
+        <View style={estilos.painel} accessibilityViewIsModal>
           <View style={estilos.alca} />
-          <Text style={estilos.tituloPainel}>{rotulo || placeholder}</Text>
+          <Text style={estilos.tituloPainel} accessibilityRole="header">
+            {rotulo || placeholder}
+          </Text>
           <ScrollView style={estilos.lista}>
             {opcoes.map((opcao) => (
-              <TouchableOpacity key={opcao} style={estilos.opcao} onPress={() => escolher(opcao)}>
+              <TouchableOpacity
+                key={opcao}
+                style={estilos.opcao}
+                onPress={() => escolher(opcao)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: opcao === valor }}
+                accessibilityLabel={opcao}
+              >
                 <Text style={[estilos.textoOpcao, opcao === valor && estilos.textoOpcaoAtiva]}>{opcao}</Text>
                 {opcao === valor ? <Icone nome="check" tamanho={18} cor={cores.verdeBotao} /> : null}
               </TouchableOpacity>

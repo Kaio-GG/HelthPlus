@@ -4,18 +4,12 @@
 // paciente, em Api/Pacientes.js (obterEvolucaoDoPaciente e
 // obterMinhaEvolucao). Aqui só se grava.
 import api from './connection';
+import { erroDaApi } from './erros';
 
 const cabecalho = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
-const criarErro = (erro, padrao) =>
-  new Error(
-    erro.response?.data?.mensagem ||
-      erro.response?.data?.message ||
-      erro.message ||
-      (erro.response
-        ? `${padrao} (HTTP ${erro.response.status}).`
-        : 'Não foi possível conectar à API. Verifique o servidor e o endereço configurado.')
-  );
+// Ver app/Api/erros.js. O apelido mantém os `throw criarErro(...)` abaixo.
+const criarErro = erroDaApi;
 
 // Date -> "2026-11-05" (no horário local, e não em UTC: toISOString()
 // jogaria a avaliação para o dia anterior em quem está a oeste de Greenwich).

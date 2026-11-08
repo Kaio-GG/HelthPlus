@@ -6,15 +6,14 @@
 //   convidarTestador -> manda o link de instalação para alguém testar o
 //     aplicativo enquanto ele não está na Play Store.
 import api from './connection';
+import { mensagemDeErro } from './erros';
 
 const comToken = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
-const mensagemDoErro = (erro, padrao) =>
-  erro.response?.data?.mensagem ||
-  erro.response?.data?.message ||
-  (erro.response ? `${padrao} (HTTP ${erro.response.status}).` : 'Não foi possível conectar à API. Verifique se o servidor está ligado.');
+// Ver app/Api/erros.js. O apelido mantém as chamadas deste arquivo.
+const mensagemDoErro = mensagemDeErro;
 
 // Devolve { mensagem, conviteEnviado }. "conviteEnviado: false" sem erro
 // significa que a API está sem SMTP: o e-mail foi para o terminal dela.

@@ -280,8 +280,12 @@ export const DadosProvider = ({ children }) => {
     setConsultas([]);
   };
 
-  // Depois de trocar a senha, o aviso de "senha provisória" não vale mais.
-  const marcarSenhaTrocada = () => setSenhaProvisoria(false);
+  // Depois de trocar a senha, o aviso de "senha provisória" não vale mais,
+  // e a API devolve um token novo (as outras sessões foram encerradas).
+  const marcarSenhaTrocada = (novoToken) => {
+    setSenhaProvisoria(false);
+    if (novoToken) setTokenPaciente(novoToken);
+  };
 
   const pacienteAtual =
     dadosPacienteAtual && String(dadosPacienteAtual.id) === String(pacienteAtualId)

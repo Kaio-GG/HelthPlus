@@ -16,7 +16,7 @@ import { senhaForte } from '../../utilitarios/validacoes';
 import { estilos } from './style';
 
 const AlterarSenha = ({ navigation }) => {
-  const { profissional } = useAuth();
+  const { token, trocarToken } = useAuth();
   const { avisar } = useDialogo();
 
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -49,11 +49,15 @@ const AlterarSenha = ({ navigation }) => {
     setSalvando(true);
 
     try {
-      await alterarSenha(profissional.id_profissional, senhaAtual, novaSenha);
+      const resposta = await alterarSenha(token, senhaAtual, novaSenha);
+
+      // A troca encerra as sessões dos outros aparelhos; este continua
+      // logado com o token novo que a API devolveu.
+      await trocarToken(resposta?.token);
 
       await avisar({
         titulo: 'Senha alterada',
-        mensagem: 'Use a nova senha no próximo acesso.',
+        mensagem: 'Use a nova senha no próximo acesso. Os outros aparelhos em que você estava logado saíram da conta.',
         tom: 'sucesso',
       });
       navigation.goBack();

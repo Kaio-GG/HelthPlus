@@ -1,5 +1,5 @@
 // Perfil do nutricionista: dados profissionais, plano e segurança da conta.
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, Pressable } from 'react-native';
 import Tela from '../../componentes/Tela';
 import Cartao from '../../componentes/Cartao';
@@ -67,7 +67,13 @@ const [crnProvisorio, setCrnProvisorio] = useState(partesDoCrn?.provisorio ?? fa
 
 // O nutricionista chega depois de o app ler a sessão salva no celular,
 // então os campos precisam ser preenchidos quando ele aparecer.
-useEffect(() => {
+//
+// Ajuste durante a renderização, e não num useEffect: com o efeito, a tela
+// renderizava duas vezes (uma com os campos vazios) a cada mudança. É o
+// padrão que o React recomenda para "estado que depende de uma prop".
+const [nutricionistaDosCampos, setNutricionistaDosCampos] = useState(nutricionista);
+if (nutricionista !== nutricionistaDosCampos) {
+  setNutricionistaDosCampos(nutricionista);
   setNome(nutricionista?.nm_profissional ?? '');
   setTelefone(nutricionista?.nr_telefone ?? '');
 
@@ -75,7 +81,7 @@ useEffect(() => {
   setCrnRegional(partes?.regional ?? '');
   setCrnNumero(partes?.numero ?? '');
   setCrnProvisorio(partes?.provisorio ?? false);
-}, [nutricionista]);
+}
 
 // O que aparece no modo leitura. Quando o registro gravado não está no
 // formato (conta antiga), as partes ficam vazias e mostramos o texto cru,
@@ -207,6 +213,18 @@ const crnTexto =
       rotulo: 'Notificações',
       icone: 'sino',
       aoPressionar: () => navigation.navigate('PreferenciasNotificacao'),
+    },
+    {
+      chave: 'privacidade',
+      rotulo: 'Privacidade e auditoria (LGPD)',
+      icone: 'escudo',
+      aoPressionar: () => navigation.navigate('PrivacidadeNutricionista'),
+    },
+    {
+      chave: 'acessibilidade',
+      rotulo: 'Acessibilidade',
+      icone: 'acessibilidade',
+      aoPressionar: () => navigation.navigate('Acessibilidade'),
     },
     {
       chave: 'convidar',

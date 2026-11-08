@@ -63,11 +63,11 @@ const AlterarSenhaPaciente = ({ navigation }) => {
     setSalvando(true);
 
     try {
-      await alterarSenhaDoPaciente(tokenPaciente, senhaAtual, novaSenha);
+      const resposta = await alterarSenhaDoPaciente(tokenPaciente, senhaAtual, novaSenha);
 
-      // O aviso de "senha provisória" que aparece na tela inicial e no
-      // perfil não vale mais.
-      marcarSenhaTrocada();
+      // O aviso de "senha provisória" não vale mais, e o token novo
+      // mantém este aparelho logado (os outros saíram da conta).
+      marcarSenhaTrocada(resposta?.token);
 
       await avisar({
         titulo: 'Senha alterada',

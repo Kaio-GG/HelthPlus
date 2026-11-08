@@ -218,7 +218,7 @@ const HomePaciente = ({ navigation }) => {
               </Text>
             ) : null}
 
-            {seriePeso.length > 1 ? <GraficoLinha pontos={seriePeso} altura={110} /> : null}
+            {seriePeso.length > 1 ? <GraficoLinha pontos={seriePeso} altura={110} sufixo="kg" /> : null}
 
             <Botao
               titulo="Ver a minha evolução"

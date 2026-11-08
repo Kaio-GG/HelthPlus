@@ -9,7 +9,11 @@
     "axios": "^1.20.0",
     "expo": "~58.0.23",
     "expo-constants": "~58.0.13",
+<<<<<<< HEAD
     "expo-linking": "~58.0.16",
+=======
+    "expo-linking": "~58.0.14",
+>>>>>>> cb3a4c06e2eb446954a6eedebd07f1200db64702
     "expo-secure-store": "~58.0.2",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",

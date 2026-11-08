@@ -1,11 +1,12 @@
 // app/Api/senha.js
 // Chamadas da redefinição e da troca de senha.
 import api from './connection';
+import { mensagemDeErro } from './erros';
 
-// Mensagem de erro da API, com um texto de reserva quando a resposta não
-// trouxer nada (rede fora, servidor desligado).
-const mensagemDoErro = (erro, reserva) =>
-  erro.response?.data?.mensagem || erro.response?.data?.message || reserva;
+// Ver app/Api/erros.js. O helper daqui também não distinguia "a API recusou"
+// de "a API não respondeu" — e este é o fluxo de quem já está sem acesso à
+// conta, justamente quem menos pode receber uma mensagem vaga.
+const mensagemDoErro = mensagemDeErro;
 
 // PEDIDO DO LINK DE REDEFINIÇÃO
 //
@@ -34,14 +35,21 @@ export const redefinirSenha = async (token, senha) => {
 };
 
 // TROCA DE SENHA DE DENTRO DO APLICATIVO (pede a senha atual)
-export const alterarSenha = async (idProfissional, senhaAtual, novaSenha) => {
-  try {
-    const resposta = await api.put(`/api/senha/${idProfissional}`, {
-      senhaAtual,
-      novaSenha,
-    });
+// Troca a senha do nutricionista logado. O id sai do token, na API.
+// A resposta traz um token novo: as outras sessões foram encerradas.
+export const alterarSenha = async (token, senhaAtual, novaSenha) => {
+  if (!token) {
+    throw new Error('Sua sessão expirou. Entre novamente.');
+  }
 
-    return resposta.data;
+  try {
+    const resposta = await api.put(
+      '/api/senha',
+      { senhaAtual, novaSenha },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    return resposta.data; // { mensagem, token }
   } catch (erro) {
     throw new Error(mensagemDoErro(erro, 'Não foi possível alterar a senha.'));
   }

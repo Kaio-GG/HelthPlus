@@ -13,11 +13,25 @@ Componentes reutilizáveis ficam em `componentes/<Nome>/` com o mesmo padrão. T
 | Esqueci a senha | `EsqueciSenha` | `pages/EsqueciSenha` |
 | Verificação de e-mail | `VerificacaoEmail` | `pages/VerificacaoEmail` |
 | Redefinir senha (com o código do e-mail) | `RedefinirSenha` | `pages/RedefinirSenha` |
+| Primeiro acesso do paciente (aceite LGPD + senha própria) | `PrimeiroAcessoPaciente` | `pages/PrimeiroAcessoPaciente` |
+| Acessibilidade (texto, contraste, animações) | `Acessibilidade` | `pages/Acessibilidade` |
 
-Não existe mais tela de **primeiro acesso**, nos dois perfis. O nutricionista
-cria a própria conta na aba ao lado do login; o paciente entra com o e-mail do
-cadastro e a **data de nascimento** como senha (ver o README, "A senha do
-paciente").
+O nutricionista cria a própria conta na aba ao lado do login. O paciente
+entra com o e-mail do cadastro e a **data de nascimento** como senha, e cai
+na tela de **primeiro acesso**: ele (ou o responsável, se for menor) aceita os
+termos e cria uma senha só dele. Sem isso a API não libera dado nenhum (ver o
+README, "A senha do paciente").
+
+## Privacidade e auditoria (LGPD)
+
+| Tela | Rota | Pasta |
+|---|---|---|
+| Meus dados e privacidade (paciente) | `PrivacidadePaciente` | `pages/PrivacidadePaciente` |
+| Privacidade e auditoria (nutricionista: pedidos, atividade, conta) | `PrivacidadeNutricionista` | `pages/PrivacidadeNutricionista` |
+| Histórico de acessos (os dois perfis) | `HistoricoAcessos` | `pages/HistoricoAcessos` |
+
+Na ficha do paciente, a aba **Resumo** ganhou o cartão *Privacidade (LGPD)*,
+com *Exportar dados do paciente* e *Histórico de acessos*.
 
 ## Área do nutricionista
 

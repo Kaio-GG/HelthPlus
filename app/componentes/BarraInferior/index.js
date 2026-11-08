@@ -40,11 +40,18 @@ const BarraInferior = ({ abaAtiva, perfil = 'nutricionista' }) => {
   };
 
   return (
-    <View style={[estilos.container, { paddingBottom: margens.bottom + 8 }]}>
+    <View style={[estilos.container, { paddingBottom: margens.bottom + 8 }]} accessibilityRole="tablist">
       {abas.map((aba) => {
         const ativa = aba.chave === abaAtiva;
         return (
-          <TouchableOpacity key={aba.chave} style={estilos.item} onPress={() => irParaAba(aba)}>
+          <TouchableOpacity
+            key={aba.chave}
+            style={estilos.item}
+            onPress={() => irParaAba(aba)}
+            accessibilityRole="tab"
+            accessibilityLabel={aba.rotulo}
+            accessibilityState={{ selected: ativa }}
+          >
             <View style={[estilos.pilula, ativa && estilos.pilulaAtiva]}>
               <Icone nome={aba.icone} tamanho={24} cor={cores.verdeEscuro} />
             </View>

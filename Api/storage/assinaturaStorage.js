@@ -19,6 +19,8 @@ const {
   listarCobrancas,
 } = require('../repository/assinaturaRepository');
 
+const { registrarAuditoria } = require('../servicos/auditoria');
+
 const router = express.Router();
 
 // GET /api/assinatura
@@ -77,6 +79,8 @@ router.put('/', autenticar, async (req, res) => {
     // plano foi contratado neste dia, que o Perfil lista.
     await registrarCobranca(idProfissional, `Plano ${plano.nome}`, plano.preco);
 
+    registrarAuditoria(req, { acao: 'assinatura.alterar', recurso: 'assinatura', detalhe: { plano: plano.id } });
+
     const [cobrancas, totalPacientes] = await Promise.all([
       listarCobrancas(idProfissional),
       contarPacientes(idProfissional),
@@ -100,6 +104,8 @@ router.delete('/', autenticar, async (req, res) => {
 
   try {
     await cancelarAssinatura(idProfissional);
+
+    registrarAuditoria(req, { acao: 'assinatura.cancelar', recurso: 'assinatura' });
 
     return res.status(200).json({
       mensagem: 'Assinatura cancelada.',

@@ -144,6 +144,12 @@ const CampoTexto = ({
           importantForAutofill={dicas.importantForAutofill ?? 'auto'}
           onFocus={aoFocar}
           onBlur={() => setSelecao(undefined)}
+          // O leitor de tela fala o rótulo do campo, e não só o
+          // placeholder (que some quando há texto). O erro vai junto, para
+          // quem não enxerga a borda vermelha.
+          accessibilityLabel={rotulo || placeholder}
+          accessibilityHint={erro ? `Erro: ${erro}` : undefined}
+          accessibilityState={{ disabled: somenteLeitura }}
           selection={selecao}
           maxLength={maxCaracteres}
           textAlignVertical={multilinha ? 'top' : 'center'}
@@ -165,7 +171,8 @@ const CampoTexto = ({
         ) : senha ? (
           <TouchableOpacity
             onPress={() => setSenhaVisivel((visivel) => !visivel)}
-            hitSlop={10}
+            hitSlop={12}
+            accessibilityRole="button"
             accessibilityLabel={senhaVisivel ? 'Ocultar senha' : 'Mostrar senha'}
           >
             <Icone nome={senhaVisivel ? 'olho' : 'olho-fechado'} tamanho={20} cor={cores.textoSecundario} />
@@ -190,9 +197,20 @@ const CampoTexto = ({
           para a mensagem não empurrar o "3/7" para fora do campo. */}
       {erro || (contador && maxCaracteres) ? (
         <View style={estilos.rodape}>
-          {erro ? <Text style={estilos.erro}>{erro}</Text> : <View style={estilos.espacador} />}
+          {erro ? (
+            // "polite": o TalkBack lê o erro assim que ele aparece, sem
+            // interromper o que estava falando.
+            <Text style={estilos.erro} accessibilityLiveRegion="polite" accessibilityRole="alert">
+              {erro}
+            </Text>
+          ) : (
+            <View style={estilos.espacador} />
+          )}
           {contador && maxCaracteres ? (
-            <Text style={[estilos.contador, valido && estilos.contadorValido]}>
+            <Text
+              style={[estilos.contador, valido && estilos.contadorValido]}
+              accessibilityLabel={`${String(valor ?? '').length} de ${maxCaracteres} caracteres`}
+            >
               {String(valor ?? '').length}/{maxCaracteres}
             </Text>
           ) : null}

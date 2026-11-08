@@ -2,11 +2,16 @@
 // Reúne cores, espaçamentos, raios e sombras usados em TODAS as telas e
 // componentes, para manter o visual igual ao do Figma e facilitar mudanças.
 
+// Contraste (WCAG 2.1, nível AA = 4,5:1 para texto normal): os pares de
+// texto e fundo desta paleta foram conferidos e passam de 4,5:1. Ao mudar
+// uma cor, confira de novo — ferramentas como o WebAIM Contrast Checker
+// fazem a conta. A paleta de ALTO CONTRASTE fica em
+// utilitarios/acessibilidade.js e é aplicada por cima desta.
 export const cores = {
   // Verdes da identidade visual
   verdeCabecalho: '#5DB582', // faixa verde do topo das telas
-  verdeEscuro: '#204D36', // títulos e textos de destaque
-  verdeBotao: '#379765', // botões principais
+  verdeEscuro: '#163B28', // títulos e textos de destaque (era #204D36: 3,9:1 sobre o cabeçalho)
+  verdeBotao: '#2B7D52', // botões principais (era #379765: texto branco em 3,6:1)
   verdeLink: '#26764A', // links e textos de ação
   verdeClaro: '#D9F2C7', // círculos de ícone, chips ativos
   verdeSuave: '#E7F5EB', // caixas de aviso e fundos leves
@@ -18,7 +23,7 @@ export const cores = {
   preto: '#000000',
   textoPrincipal: '#1F2A24',
   textoSecundario: '#5B6660',
-  textoDesabilitado: '#9AA39E',
+  textoDesabilitado: '#6B7570', // placeholders (era #9AA39E: 2,6:1, ilegível)
   linha: '#E4E7E2',
   campoSomenteLeitura: '#EDF3EE',
 

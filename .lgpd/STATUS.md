@@ -83,3 +83,17 @@ de verdade, do titular e do responsável legal).
 Diagnóstico técnico a partir do código. Não é parecer jurídico. Base legal, texto da política,
 designação do Encarregado e decisão sobre o RIPD pedem advogado especializado em proteção de
 dados antes de o produto receber paciente real.
+
+
+## Atualização 2026-11-07 (tarde) — remediação técnica
+
+Corrigidos no código: **C2, C3, A2, A3, A4, A5, M1, M2, M3, M4, M8**, e
+**C1 parcial** (HTTPS suportado e a tela parou de afirmar criptografia que
+não existe) e **A8 parcial** (aceite do responsável para menores de 18;
+falta verificação de idade e vínculo formal de conta). **A6** tem migração
+pronta (`Api/database/migracoes/001_minimizacao_lgpd.sql`), a rodar com
+backup. Detalhes em `gaps.md`, seção "Remediação de 2026-11-07".
+
+Seguem abertos e dependem de decisão humana/jurídica: **A1** (encarregado),
+**A7** (contrato com o provedor de e-mail), **M5** (inquéritos), **M6**
+(ROPA e RIPD), **M7** (revisão jurídica do texto da política).

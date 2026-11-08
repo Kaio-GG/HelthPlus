@@ -20,13 +20,12 @@ const {
   confirmarConsultaDoPaciente,
 } = require('../repository/consultaRepository');
 
+const { registrarAuditoria } = require('../servicos/auditoria');
+const { dataISOValida, textoOpcional, idValido } = require('../utilitarios/validacao');
+
 const router = express.Router();
 
 const STATUS_VALIDOS = ['pendente', 'confirmada', 'cancelada', 'realizada'];
-
-function dataISOValida(texto) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(texto || '') && !Number.isNaN(new Date(texto).getTime());
-}
 
 function horarioValido(texto) {
   const partes = /^(\d{2}):(\d{2})$/.exec(texto || '');
@@ -37,8 +36,17 @@ function horarioValido(texto) {
 function validarConsulta(c) {
   const ehAvulso = !c.idPaciente;
 
-  if (ehAvulso && (!c.nomeAvulso || c.nomeAvulso.trim().length < 3)) {
+  if (!ehAvulso && !idValido(c.idPaciente)) {
+    return 'Paciente inválido.';
+  }
+  if (ehAvulso && (typeof c.nomeAvulso !== 'string' || c.nomeAvulso.trim().length < 3)) {
     return 'Informe o nome do paciente.';
+  }
+  if (ehAvulso && c.nomeAvulso.trim().length > 100) {
+    return 'O nome do paciente pode ter até 100 caracteres.';
+  }
+  if (c.telefoneAvulso && !/^[\d\s()+-]{8,20}$/.test(String(c.telefoneAvulso).trim())) {
+    return 'Telefone inválido.';
   }
   if (!dataISOValida(c.data)) return 'Informe uma data válida.';
   if (!horarioValido(c.horario)) return 'Informe um horário válido (HH:MM).';
@@ -90,6 +98,13 @@ router.patch('/:id/confirmar', autenticarPaciente, async (req, res) => {
 
   try {
     const resultado = await confirmarConsultaDoPaciente(idConsulta, req.paciente.id);
+
+    registrarAuditoria(req, {
+      acao: 'consulta.confirmar',
+      recurso: 'consulta',
+      idRecurso: idConsulta,
+      idPacienteAlvo: req.paciente.id,
+    });
     return res.status(200).json({ mensagem: 'Consulta confirmada.', ...resultado });
   } catch (erro) {
     return responderErro(res, erro, 'Erro ao confirmar a consulta.');
@@ -101,13 +116,39 @@ router.patch('/:id/confirmar', autenticarPaciente, async (req, res) => {
 // ---------------------------------------------------------------------
 router.post('/', autenticar, async (req, res) => {
   // O id do nutricionista vem do TOKEN, nunca do corpo da requisição.
-  const c = { ...req.body, idProfissional: Number(req.usuario.id_profissional) };
+  const corpo = req.body || {};
+  const c = {
+    idProfissional: Number(req.usuario.id_profissional),
+    idPaciente: corpo.idPaciente || null,
+    nomeAvulso: corpo.nomeAvulso,
+    telefoneAvulso: textoOpcional(corpo.telefoneAvulso, 20),
+    data: corpo.data,
+    horario: corpo.horario,
+    duracao: corpo.duracao,
+    tipo: corpo.tipo,
+    observacoes: textoOpcional(corpo.observacoes, 2000),
+    notificar: corpo.notificar === true,
+  };
 
   const erroValidacao = validarConsulta(c);
   if (erroValidacao) return res.status(400).json({ mensagem: erroValidacao });
 
   try {
-    const resultado = await criarConsulta({ ...c, duracao: Number(c.duracao) });
+    const resultado = await criarConsulta({
+      ...c,
+      idPaciente: c.idPaciente ? idValido(c.idPaciente) : null,
+      tipo: String(c.tipo).trim(),
+      duracao: Number(c.duracao),
+    });
+
+    registrarAuditoria(req, {
+      acao: 'consulta.criar',
+      recurso: 'consulta',
+      idRecurso: resultado.idConsulta,
+      idPacienteAlvo: c.idPaciente ? idValido(c.idPaciente) : null,
+      detalhe: { avulso: !c.idPaciente },
+    });
+
     return res.status(201).json({ mensagem: 'Consulta agendada com sucesso.', ...resultado });
   } catch (erro) {
     return responderErro(res, erro, 'Erro ao agendar a consulta.');
@@ -150,6 +191,14 @@ router.patch('/:id/status', autenticar, async (req, res) => {
       Number(req.usuario.id_profissional),
       status
     );
+
+    registrarAuditoria(req, {
+      acao: 'consulta.status',
+      recurso: 'consulta',
+      idRecurso: idConsulta,
+      idPacienteAlvo: resultado.idPaciente,
+      detalhe: { status },
+    });
     return res.status(200).json({ mensagem: 'Status atualizado.', ...resultado });
   } catch (erro) {
     return responderErro(res, erro, 'Erro ao alterar o status da consulta.');

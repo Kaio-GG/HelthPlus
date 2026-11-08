@@ -390,3 +390,29 @@ Este é um diagnóstico técnico, feito a partir do código. Não é parecer jur
 da base legal de cada finalidade, o texto da política de privacidade, a designação do
 Encarregado e a decisão sobre o RIPD devem passar por advogado especializado em proteção de
 dados antes de o produto receber paciente real.
+
+
+---
+
+## Remediação de 2026-11-07 (segunda rodada)
+
+| Gap | Estado | Como |
+|---|---|---|
+| C1 — sem TLS | **Parcial** | `Api/server.js` sobe em HTTPS com `TLS_CERTIFICADO`/`TLS_CHAVE`; `CONFIAR_PROXY` para proxy com HTTPS; HSTS quando seguro; aviso no terminal em produção sem HTTPS; o app avisa em build de produção com `http://`; a tela de privacidade só afirma criptografia quando a URL da API é `https://`. Falta: publicar com certificado. |
+| C2 — consentimento fabricado | **Corrigido** | O login não grava consentimento. Tela `PrimeiroAcessoPaciente` com aceite explícito dos dois tipos; `consentimento_paciente` ganhou `tp_consentidor`, `nm_consentidor`, `ds_origem`, `ds_motivo_revogacao`. Aceites antigos (`ds_origem` nulo) não contam como válidos. Versionamento por `VERSAO_TERMOS`. |
+| C3 — senha = data de nascimento | **Corrigido** | Vale só para o primeiro acesso: o login com ela devolve um token restrito de 15 min, e a troca por senha forte é obrigatória. Bloqueio de conta após 5 erros + limite por IP/e-mail. |
+| C4–C7 | Corrigidos (rodada anterior) | — |
+| A1 — encarregado | Aberto | `EXPO_PUBLIC_CONTATO_PRIVACIDADE` substitui o `privacidade@exemplo.com`; falta designar. |
+| A2 — direitos do titular | **Corrigido** | `/api/lgpd/*`: exportação JSON (paciente e nutricionista), consentimentos, revogação, pedidos com prazo de 15 dias (`solicitacao_titular`), histórico de acessos. Telas `PrivacidadePaciente` e `PrivacidadeNutricionista`. |
+| A3 — sem registro de acesso | **Corrigido** | `log_auditoria` com cadeia de hash SHA-256 (`Api/servicos/auditoria.js`), sem dado pessoal; `npm run auditoria:verificar`. |
+| A4 — sem rate limit | **Corrigido** | `Api/middleware/limiteTaxa.js` + `Api/servicos/bloqueioConta.js`; `PUT /api/senha/:id` exige token. |
+| A5 — sem retenção | **Corrigido** | `Api/servicos/retencao.js`, diário, prazos em `RETENCAO_*`. |
+| A6 — colunas sensíveis órfãs | **Migração pronta** | `001_minimizacao_lgpd.sql` (destrutiva; rodar com backup). Rotas `/api/plano` desligadas. |
+| A7 — transferência internacional | Aberto | Decisão contratual. O e-mail de aviso não leva dado de saúde. |
+| A8 — menores | **Parcial** | Aceite obrigatório do responsável legal (nome + declaração) para menores de 18; texto em linguagem simples (Art. 14, §6º). Falta verificação de idade não autodeclarada (ECA Digital, Art. 9º). |
+| M1 — CORS aberto | **Corrigido** | `CORS_ORIGENS`; app nativo não afetado. |
+| M2 — sem helmet | **Corrigido** | `Api/middleware/seguranca.js`. |
+| M3 — token em AsyncStorage | **Corrigido** | `app/utilitarios/armazenamentoSeguro.js` (expo-secure-store, com migração do valor antigo). |
+| M4 — segredo em stdout | **Corrigido** | Em `NODE_ENV=production` o corpo do e-mail não é impresso. |
+| M5, M6, M7 | Abertos | Documentais/jurídicos. O texto de `Termos` foi reescrito com os itens do Art. 9º e versionado, mas precisa de revisão jurídica. |
+| M8 — exclusão apaga a prova | **Corrigido** | Resumo dos aceites (sem dado pessoal) vai para o log de auditoria antes do DELETE. |

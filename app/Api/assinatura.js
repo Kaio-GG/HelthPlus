@@ -1,16 +1,15 @@
 // Assinatura paga do nutricionista: o plano fica no banco, não só na
 // memória do aplicativo. Antes, quem saía da conta voltava sem plano.
 import api from './connection';
+import { mensagemDeErro } from './erros';
 
 // Todas as rotas exigem o token do nutricionista (o id sai do token).
 const comToken = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
-const mensagemDoErro = (erro, padrao) =>
-  erro.response?.data?.mensagem ||
-  erro.response?.data?.message ||
-  (erro.response ? `${padrao} (HTTP ${erro.response.status}).` : 'Não foi possível conectar à API. Verifique se o servidor está ligado.');
+// Ver app/Api/erros.js. O apelido mantém as chamadas deste arquivo.
+const mensagemDoErro = mensagemDeErro;
 
 // Devolve { assinatura, cobrancas, totalPacientes }.
 // "assinatura" vem null quando a pessoa não tem plano.

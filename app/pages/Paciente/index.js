@@ -1,9 +1,12 @@
 // Área do paciente: login.
 //
-// Não há cadastro aqui, e não há mais "primeiro acesso": quem cria a conta
-// do paciente é o nutricionista, e a senha com que ele entra pela primeira
-// vez é a própria DATA DE NASCIMENTO. Já dentro do aplicativo, em
-// Perfil > Alterar senha, ele troca por uma senha só dele se quiser.
+// Não há cadastro aqui: quem cria a conta do paciente é o nutricionista, e
+// a senha com que ele entra pela primeira vez é a DATA DE NASCIMENTO.
+//
+// Essa senha só serve UMA vez. No primeiro acesso o paciente (ou o
+// responsável, se for menor) passa pela tela PrimeiroAcessoPaciente:
+// lê e aceita os termos e troca a senha por uma só dele. Só depois disso
+// a API libera o token que lê dado de saúde.
 import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 
@@ -50,6 +53,23 @@ const Paciente = ({ navigation }) => {
 
       // Consulta a API, que valida as credenciais no banco MySQL.
       const resultado = await loginPaciente(email, senha);
+
+      // Senha certa, mas falta o aceite dos termos ou a troca da senha
+      // provisória: vai para o primeiro acesso, com um token que só serve
+      // para isso.
+      if (resultado?.precisaPrimeiroAcesso) {
+        setSenha('');
+        navigation.navigate('PrimeiroAcessoPaciente', {
+          tokenPrimeiroAcesso: resultado.tokenPrimeiroAcesso,
+          exigeConsentimento: resultado.exigeConsentimento,
+          exigeTrocaSenha: resultado.exigeTrocaSenha,
+          menorDeIdade: resultado.menorDeIdade,
+          nomeResponsavel: resultado.nomeResponsavel,
+          versaoTermos: resultado.versaoTermos,
+          nomePaciente: resultado.paciente?.nome,
+        });
+        return;
+      }
 
       if (!resultado?.paciente || !resultado?.token) {
         throw new Error('A API não retornou os dados necessários para o acesso.');
@@ -139,7 +159,7 @@ const Paciente = ({ navigation }) => {
         <CaixaAviso
           tom="info"
           estilo={estilos.aviso}
-          texto="Primeiro acesso? A senha é a sua data de nascimento, só os números: quem nasceu em 12 de março de 2001 digita 12032001. Depois dá para trocá-la no Perfil."
+          texto="Primeiro acesso? A senha é a sua data de nascimento, só os números: quem nasceu em 12 de março de 2001 digita 12032001. Logo em seguida você vai criar uma senha só sua."
         />
 
         <CaixaAviso

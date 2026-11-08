@@ -8,13 +8,17 @@ import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Polyline, Circle, Line, Text as TextoSvg } from 'react-native-svg';
 import { cores } from '../../tema';
+import { descreverSerie } from '../../utilitarios/acessibilidade';
 import { estilos } from './style';
 
 const MARGEM_HORIZONTAL = 18;
 const MARGEM_SUPERIOR = 14;
 const MARGEM_INFERIOR = 24;
 
-const GraficoLinha = ({ pontos, altura = 130, cor = cores.verdeBotao }) => {
+// rotuloAcessivel: o que o leitor de tela fala no lugar do desenho. Sem
+// ele, um resumo é montado dos pontos (ver descreverSerie). sufixo: a
+// unidade usada nesse resumo ("kg", "cm").
+const GraficoLinha = ({ pontos, altura = 130, cor = cores.verdeBotao, rotuloAcessivel, sufixo = '' }) => {
   const [largura, setLargura] = useState(0);
 
   if (!pontos || pontos.length === 0) {
@@ -40,7 +44,12 @@ const GraficoLinha = ({ pontos, altura = 130, cor = cores.verdeBotao }) => {
   }));
 
   return (
-    <View onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}>
+    <View
+      onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={rotuloAcessivel || descreverSerie(pontos, { sufixo })}
+    >
       {largura > 0 && (
         <Svg width={largura} height={altura}>
           <Line
