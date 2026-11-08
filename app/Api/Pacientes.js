@@ -1,24 +1,19 @@
 // Chamadas da API ligadas ao paciente: cadastro, listagem, ficha, login,
 // evolução e troca de senha.
 import api from './connection';
+import { erroDaApi } from './erros';
 
 const cabecalho = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
-// Mensagem de erro da API, com um texto de reserva quando a resposta não
-// trouxer nada (servidor desligado, endereço errado, celular sem rede).
+// A mensagem de erro mora em app/Api/erros.js, compartilhada por todos os
+// clientes. O apelido mantém os `throw criarErro(...)` deste arquivo.
 //
-// Ficava repetido em cada função, e em uma delas tinha sobrado um "a"
-// solto no meio do catch — que estourava um ReferenceError no lugar de
-// mostrar o erro de verdade. Com um helper só, não há onde isso voltar.
-const criarErro = (erro, padrao) =>
-  new Error(
-    erro.response?.data?.mensagem ||
-      erro.response?.data?.message ||
-      erro.message ||
-      (erro.response
-        ? `${padrao} (HTTP ${erro.response.status}).`
-        : 'Não foi possível conectar à API. Verifique se o servidor está ligado e o endereço está correto.')
-  );
+// O helper que vivia aqui tinha um defeito sutil: o "erro.message" vinha
+// ANTES do ramo de rede, e numa falha de conexão o axios preenche essa
+// propriedade com "Network Error". Resultado: a tela mostrava "Network
+// Error" em vez da explicação. O compartilhado testa primeiro se houve
+// resposta, que é a pergunta que de fato separa os casos.
+const criarErro = erroDaApi;
 
 // CADASTRO DO PACIENTE
 //

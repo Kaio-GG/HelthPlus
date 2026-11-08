@@ -2,6 +2,12 @@
 
 import api from './connection';
 
+// A mensagem de erro vem do helper compartilhado, que distingue "a API
+// recusou" de "a API não respondeu". Era essa distinção que faltava aqui:
+// os dois casos davam "Não foi possível realizar o login", e o segundo
+// parecia senha errada sem ser. Ver app/Api/erros.js.
+import { erroDaApi } from './erros';
+
 // CADASTRO DO NUTRICIONISTA
 export const cadastrarNutricionista = async (nome, crn, email, senha) => {
 
@@ -20,11 +26,7 @@ export const cadastrarNutricionista = async (nome, crn, email, senha) => {
 
   } catch (erro) {
 
-    throw new Error(
-      erro.response?.data?.mensagem ||
-      erro.response?.data?.message ||
-      'Não foi possível cadastrar o nutricionista.'
-    );
+    throw erroDaApi(erro, 'Não foi possível cadastrar o nutricionista');
 
   }
 
@@ -55,11 +57,7 @@ export const atualizarNutricionista = async (
 
   } catch (erro) {
 
-    throw new Error(
-      erro.response?.data?.mensagem ||
-      erro.response?.data?.message ||
-      'Não foi possível salvar seus dados.'
-    );
+    throw erroDaApi(erro, 'Não foi possível salvar seus dados');
 
   }
 
@@ -80,11 +78,7 @@ export const loginNutricionista = async (email, senha) => {
 
   } catch (erro) {
 
-    throw new Error(
-      erro.response?.data?.mensagem ||
-      erro.response?.data?.message ||
-      'Não foi possível realizar o login.'
-    );
+    throw erroDaApi(erro, 'Não foi possível realizar o login');
 
   }
 

@@ -194,10 +194,6 @@ router.post('/login', async (req, res) => {
 
 // ATUALIZAÇÃO DOS DADOS PROFISSIONAIS
 //
-// ATENÇÃO: a API ainda não usa token. Enquanto não usar, esta rota confia
-// no id que vem da URL, ou seja: quem souber um id consegue alterar os
-// dados daquele profissional. Ao implementar o JWT, tirar o id da URL e
-// usar o do token.
 // Exige token, e só deixa editar a PRÓPRIA conta.
 //
 // Aberta, esta rota reescrevia nome, CRN e telefone de qualquer
