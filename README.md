@@ -218,11 +218,12 @@ Procure o **Endereço IPv4** do adaptador Wi-Fi (algo como `192.168.0.15`).
 ```bash
 cd app
 npm install
-npx expo install expo-secure-store
+npx expo install expo-secure-store expo-print expo-sharing
 cp .env.example .env
 ```
 
-O `expo-secure-store` guarda o login no cofre do celular (Keychain/Keystore)
+O `expo-print` e o `expo-sharing` geram e compartilham o relatório em PDF do
+paciente. O `expo-secure-store` guarda o login no cofre do celular (Keychain/Keystore)
 em vez de texto claro. Sem ele o app funciona, mas avisa no terminal do Expo
 que a sessão está sem criptografia.
 
