@@ -35,6 +35,7 @@ import {
   contagemPorTomNoHistorico,
   MAXIMO_NO_GRAFICO,
 } from '../../utilitarios/evolucao';
+import { useRelatorioPdf } from '../../utilitarios/useRelatorioPdf';
 import { estilos } from './style';
 
 const setaDaVariacao = (sentido) =>
@@ -42,6 +43,7 @@ const setaDaVariacao = (sentido) =>
 
 const EvolucaoPaciente = ({ navigation }) => {
   const { pacienteAtual: paciente, tokenPaciente } = useDados();
+  const { baixarRelatorioPdf, gerandoPdf } = useRelatorioPdf();
 
   const [dadosDoPaciente, setDadosDoPaciente] = useState(null);
   const [historicoPeso, setHistoricoPeso] = useState([]);
@@ -373,6 +375,17 @@ const EvolucaoPaciente = ({ navigation }) => {
             tom="info"
             estilo={estilos.avisoRodape}
             texto="Estes números são anotados pelo seu nutricionista na consulta. Nenhum deles é diagnóstico: quem lê o conjunto é ele."
+          />
+
+          {/* Para levar a outra consulta, imprimir ou mandar para a família. */}
+          <Botao
+            titulo="Baixar relatório em PDF"
+            icone="download"
+            variante="contorno"
+            aoPressionar={baixarRelatorioPdf}
+            carregando={gerandoPdf}
+            dica="Gera um PDF com as avaliações, os gráficos e as consultas"
+            estilo={estilos.botaoTentar}
           />
         </>
       ) : null}
