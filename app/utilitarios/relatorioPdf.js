@@ -25,6 +25,7 @@ import { Platform } from 'react-native';
 let Print = null;
 let Sharing = null;
 let ArquivoExpo = null;
+let PastasExpo = null;
 
 try {
   Print = require('expo-print');
@@ -39,11 +40,15 @@ try {
 }
 
 try {
-  // Vem junto com o pacote "expo"; serve só para apagar do cache o
+  // Vem junto com o pacote "expo". Copia o PDF para a pasta de documentos
+  // do app antes de compartilhar (ver gerarECompartilharPdf) e apaga o
   // relatório anterior.
-  ArquivoExpo = require('expo-file-system').File;
+  const sistemaDeArquivos = require('expo-file-system');
+  ArquivoExpo = sistemaDeArquivos.File;
+  PastasExpo = sistemaDeArquivos.Paths;
 } catch {
   ArquivoExpo = null;
+  PastasExpo = null;
 }
 
 // No navegador o relatório usa a impressão do próprio navegador e não
@@ -437,23 +442,57 @@ export function montarHtmlDoRelatorio(dados) {
 // Gerar e entregar
 // ---------------------------------------------------------------------
 
+// Nome legível para quem recebe o arquivo: relatorio-helena-souza-2026-11-11.pdf
+function nomeDoArquivo(nome) {
+  const base = String(nome || 'paciente')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
+    .slice(0, 40);
+  return `relatorio-${base || 'paciente'}-${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
 // O relatório anterior, apagado quando um novo é gerado. Não dá para
 // apagar logo depois de abrir a folha de compartilhar: o app escolhido
-// (WhatsApp, Drive...) pode ler o arquivo DEPOIS que o shareAsync volta,
-// e encontraria o arquivo já apagado. O cache é privado do app e o
-// sistema também o limpa sozinho.
+// (WhatsApp, Drive...) pode ler o arquivo DEPOIS que o shareAsync volta.
 let relatorioAnterior = null;
 
-function apagarRelatorioAnterior() {
+function apagar(uri) {
   try {
-    if (ArquivoExpo && relatorioAnterior) {
-      const arquivo = new ArquivoExpo(relatorioAnterior);
+    if (ArquivoExpo && uri) {
+      const arquivo = new ArquivoExpo(uri);
       if (arquivo.exists) arquivo.delete();
     }
   } catch {
-    // Sem problema: o sistema limpa o cache.
+    // Sem problema: é pasta privada do app.
   }
-  relatorioAnterior = null;
+}
+
+// No Android, o expo-sharing recusa o arquivo que o expo-print grava no
+// cache ("Not allowed to read file under given URL"), um problema antigo
+// e conhecido. O contorno recomendado no fórum do Expo é copiar o arquivo
+// para a pasta de documentos do app e compartilhar a cópia. Sem o
+// expo-file-system, devolve o caminho original.
+async function copiarParaDocumentos(uri, nome) {
+  if (!ArquivoExpo || !PastasExpo?.document) return uri;
+
+  try {
+    const origem = new ArquivoExpo(uri);
+    const destino = new ArquivoExpo(PastasExpo.document, nomeDoArquivo(nome));
+
+    if (destino.exists) destino.delete();
+    await origem.copy(destino);
+
+    // O original no cache não serve mais.
+    apagar(uri);
+
+    return destino.uri;
+  } catch (erro) {
+    console.log('Não foi possível copiar o PDF para os documentos:', erro?.message);
+    return uri;
+  }
 }
 
 // Gera o PDF e abre a folha de compartilhar. Devolve true se abriu.
@@ -486,24 +525,31 @@ export async function gerarECompartilharPdf(dados) {
     return true;
   }
 
-  apagarRelatorioAnterior();
+  apagar(relatorioAnterior);
+  relatorioAnterior = null;
 
-  // O arquivo é compartilhado pelo caminho exato que o expo-print devolve.
-  // A primeira versão renomeava o arquivo antes, e no Android o
-  // compartilhamento passou a recusar a leitura ("Not allowed to read file
-  // under given URL"). O nome do arquivo fica o que o expo-print escolhe.
-  const { uri } = await Print.printToFileAsync({ html });
+  const { uri: noCache } = await Print.printToFileAsync({ html });
+  const uri = await copiarParaDocumentos(noCache, dados?.ficha?.nome);
   relatorioAnterior = uri;
 
+  let compartilhou = false;
+
   if (Sharing?.isAvailableAsync && (await Sharing.isAvailableAsync())) {
-    await Sharing.shareAsync(uri, {
-      mimeType: 'application/pdf',
-      UTI: 'com.adobe.pdf',
-      dialogTitle: 'Relatório de acompanhamento',
-    });
-  } else {
-    // Sem o expo-sharing: abre o PDF na tela de impressão do sistema, que
-    // também deixa salvar.
+    try {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        UTI: 'com.adobe.pdf',
+        dialogTitle: 'Relatório de acompanhamento',
+      });
+      compartilhou = true;
+    } catch (erro) {
+      console.log('O compartilhamento recusou o PDF; abrindo a impressão:', erro?.message);
+    }
+  }
+
+  // Sem o expo-sharing, ou se ele recusar o arquivo: abre o PDF na tela de
+  // impressão do sistema, que também tem "Salvar como PDF".
+  if (!compartilhou) {
     await Print.printAsync({ uri });
   }
 
