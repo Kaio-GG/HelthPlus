@@ -8,7 +8,8 @@
 //      com tabelas e gráficos;
 //   3. gerarECompartilharPdf() converte o HTML em PDF NO PRÓPRIO CELULAR
 //      (expo-print) e abre a folha de compartilhar (expo-sharing): salvar
-//      em Arquivos, mandar por WhatsApp ou e-mail, imprimir.
+//      em Arquivos, mandar por WhatsApp ou e-mail, imprimir. O arquivo fica
+//      no cache privado do app até o próximo relatório ser gerado.
 //
 // O PDF nunca passa pelo servidor: os dados saem da API como hoje, e o
 // arquivo é montado no aparelho de quem pediu.
@@ -38,8 +39,8 @@ try {
 }
 
 try {
-  // Vem junto com o pacote "expo"; serve só para dar nome ao arquivo e
-  // apagá-lo do cache depois de compartilhado.
+  // Vem junto com o pacote "expo"; serve só para apagar do cache o
+  // relatório anterior.
   ArquivoExpo = require('expo-file-system').File;
 } catch {
   ArquivoExpo = null;
@@ -436,16 +437,23 @@ export function montarHtmlDoRelatorio(dados) {
 // Gerar e entregar
 // ---------------------------------------------------------------------
 
-function nomeDoArquivo(nome) {
-  const base = String(nome || 'paciente')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^A-Za-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase()
-    .slice(0, 40);
-  const hoje = new Date().toISOString().slice(0, 10);
-  return `relatorio-${base || 'paciente'}-${hoje}.pdf`;
+// O relatório anterior, apagado quando um novo é gerado. Não dá para
+// apagar logo depois de abrir a folha de compartilhar: o app escolhido
+// (WhatsApp, Drive...) pode ler o arquivo DEPOIS que o shareAsync volta,
+// e encontraria o arquivo já apagado. O cache é privado do app e o
+// sistema também o limpa sozinho.
+let relatorioAnterior = null;
+
+function apagarRelatorioAnterior() {
+  try {
+    if (ArquivoExpo && relatorioAnterior) {
+      const arquivo = new ArquivoExpo(relatorioAnterior);
+      if (arquivo.exists) arquivo.delete();
+    }
+  } catch {
+    // Sem problema: o sistema limpa o cache.
+  }
+  relatorioAnterior = null;
 }
 
 // Gera o PDF e abre a folha de compartilhar. Devolve true se abriu.
@@ -478,43 +486,25 @@ export async function gerarECompartilharPdf(dados) {
     return true;
   }
 
+  apagarRelatorioAnterior();
+
+  // O arquivo é compartilhado pelo caminho exato que o expo-print devolve.
+  // A primeira versão renomeava o arquivo antes, e no Android o
+  // compartilhamento passou a recusar a leitura ("Not allowed to read file
+  // under given URL"). O nome do arquivo fica o que o expo-print escolhe.
   const { uri } = await Print.printToFileAsync({ html });
+  relatorioAnterior = uri;
 
-  // O expo-print dá um nome aleatório ao arquivo; com o expo-file-system
-  // ele ganha um nome que a pessoa reconhece na pasta de downloads.
-  let caminho = uri;
-  let arquivo = null;
-
-  try {
-    if (ArquivoExpo) {
-      arquivo = new ArquivoExpo(uri);
-      arquivo.rename(nomeDoArquivo(dados?.ficha?.nome));
-      caminho = arquivo.uri;
-    }
-  } catch {
-    caminho = uri;
-    arquivo = null;
-  }
-
-  try {
-    if (Sharing?.isAvailableAsync && (await Sharing.isAvailableAsync())) {
-      await Sharing.shareAsync(caminho, {
-        mimeType: 'application/pdf',
-        UTI: 'com.adobe.pdf',
-        dialogTitle: 'Relatório de acompanhamento',
-      });
-    } else {
-      // Sem o expo-sharing: abre o PDF na tela de impressão do sistema,
-      // que também deixa salvar.
-      await Print.printAsync({ uri: caminho });
-    }
-  } finally {
-    // O arquivo tem dado de saúde: depois de entregue, sai do cache do app.
-    try {
-      if (arquivo?.exists) arquivo.delete();
-    } catch {
-      // O sistema limpa o cache sozinho; não vale travar por isso.
-    }
+  if (Sharing?.isAvailableAsync && (await Sharing.isAvailableAsync())) {
+    await Sharing.shareAsync(uri, {
+      mimeType: 'application/pdf',
+      UTI: 'com.adobe.pdf',
+      dialogTitle: 'Relatório de acompanhamento',
+    });
+  } else {
+    // Sem o expo-sharing: abre o PDF na tela de impressão do sistema, que
+    // também deixa salvar.
+    await Print.printAsync({ uri });
   }
 
   return true;
