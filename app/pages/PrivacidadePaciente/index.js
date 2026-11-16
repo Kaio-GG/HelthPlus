@@ -32,6 +32,7 @@ import {
 import { encerrarSessoesDoPaciente } from '../../Api/Pacientes';
 import { compartilharDados, dataHoraBR } from '../../utilitarios/compartilhar';
 import { anunciar } from '../../utilitarios/acessibilidade';
+import { useRelatorioPdf } from '../../utilitarios/useRelatorioPdf';
 import { estilos } from './style';
 
 const TIPOS = [
@@ -56,6 +57,7 @@ const NOME_DO_CONSENTIMENTO = {
 const PrivacidadePaciente = ({ navigation }) => {
   const { pacienteAtual: paciente, tokenPaciente, sairComoPaciente } = useDados();
   const { avisar, confirmar } = useDialogo();
+  const { baixarRelatorioPdf, gerandoPdf } = useRelatorioPdf();
 
   const [consentimentos, setConsentimentos] = useState([]);
   const [solicitacoes, setSolicitacoes] = useState([]);
@@ -181,13 +183,24 @@ const PrivacidadePaciente = ({ navigation }) => {
           Uma cópia de tudo
         </Text>
         <Text style={estilos.texto}>
-          Ficha, avaliações, consultas e aceites, num arquivo que você pode salvar ou levar para outro profissional.
+          O relatório em PDF é para ler, imprimir ou levar a outro profissional. O arquivo de dados tem tudo o que está
+          guardado, num formato que outro sistema consegue importar.
         </Text>
         <Botao
-          titulo="Baixar uma cópia dos meus dados"
+          titulo="Baixar relatório em PDF"
           icone="download"
+          aoPressionar={baixarRelatorioPdf}
+          carregando={gerandoPdf}
+          dica="Gera um PDF com a sua ficha, as avaliações, os gráficos e as consultas"
+          estilo={estilos.botao}
+        />
+        <Botao
+          titulo="Baixar o arquivo de dados"
+          icone="download"
+          variante="contorno"
           aoPressionar={baixarCopia}
           carregando={ocupado === 'copia'}
+          dica="Cópia completa em formato JSON"
           estilo={estilos.botao}
         />
         <Botao

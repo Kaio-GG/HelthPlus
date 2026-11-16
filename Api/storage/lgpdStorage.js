@@ -4,7 +4,8 @@
 // Direitos do titular (LGPD, Art. 18) e transparência sobre o tratamento.
 //
 // PACIENTE (token de paciente):
-//   GET   /api/lgpd/paciente/meus-dados            cópia completa (JSON)
+//   GET   /api/lgpd/paciente/meus-dados            cópia completa (JSON); ?formato=pdf
+//                                                  quando o app vai montar o PDF
 //   GET   /api/lgpd/paciente/consentimentos        aceites dados e revogados
 //   POST  /api/lgpd/paciente/consentimentos/revogar
 //   GET   /api/lgpd/paciente/acessos               quem acessou os dados dele
@@ -75,11 +76,17 @@ router.get('/paciente/meus-dados', autenticarPaciente, limites.exportacao, async
   try {
     const dados = await exportarDadosDoPaciente(req.paciente.id);
 
+    // O app usa a mesma rota para a cópia em arquivo de dados (JSON) e
+    // para o relatório em PDF, que ele monta no próprio celular. O
+    // formato vai para o log, para a auditoria saber o que saiu.
+    const formato = req.query.formato === 'pdf' ? 'pdf' : 'json';
+
     registrarAuditoria(req, {
       acao: 'paciente.dados.exportar',
       recurso: 'paciente',
       idRecurso: req.paciente.id,
       idPacienteAlvo: req.paciente.id,
+      detalhe: { formato },
     });
 
     return res.status(200).json(dados);

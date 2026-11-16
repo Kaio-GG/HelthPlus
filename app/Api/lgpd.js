@@ -21,8 +21,16 @@ async function pedir(metodo, caminho, token, corpo, padrao) {
 
 // ---------- Paciente ----------
 
-export const exportarMeusDados = (token) =>
-  pedir('get', '/api/lgpd/paciente/meus-dados', token, null, 'Não foi possível gerar a cópia dos seus dados.');
+// formato: 'json' (cópia completa) ou 'pdf' (o app monta o relatório). Os
+// dados são os mesmos; o formato só vai para o registro de auditoria.
+export const exportarMeusDados = (token, formato = 'json') =>
+  pedir(
+    'get',
+    `/api/lgpd/paciente/meus-dados?formato=${formato === 'pdf' ? 'pdf' : 'json'}`,
+    token,
+    null,
+    'Não foi possível gerar a cópia dos seus dados.'
+  );
 
 export const listarMeusConsentimentos = (token) =>
   pedir('get', '/api/lgpd/paciente/consentimentos', token, null, 'Não foi possível buscar os consentimentos.');
